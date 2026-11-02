@@ -2,6 +2,8 @@
 
 <h1 align="center">Cubit</h1>
 
+<p align="center"><a href="AI-DECLARATION.md"><img src="https://img.shields.io/badge/䷼%20AI--DECLARATION-auto-ede9fe?labelColor=ede9fe" alt="AI-DECLARATION: auto"></a></p>
+
 <p align="center"><b>A hard little cube of arrows. Free the pink one.</b><br>
 No ads, no accounts, no nonsense. Native Android.</p>
 
