@@ -914,6 +914,13 @@ class MainActivity : Activity(), GameView.Listener {
         about.add(secondary("Website", glyph = Glyph.ARROW) { open("https://taynotfound.github.io/cubit/") }, 10)
         about.add(secondary("Source code and licences", glyph = Glyph.ARROW) { open("https://github.com/taynotfound/cubit") }, 8)
         about.add(secondary("Changelog", glyph = Glyph.ARROW) { open("https://github.com/taynotfound/cubit/blob/main/CHANGELOG.md") }, 8)
+        about.add(label("Support Cubit"), 22)
+        about.add(body("Cubit is free with no ads. If you enjoy it, you can chip in. It keeps the leaderboard server running.", th.muted), 6)
+        val support = row()
+        support.add(secondary("Ko-fi", glyph = Glyph.FLAME) { open("https://ko-fi.com/taygotkofi") }, 0, 0, WRAP_CONTENT, 1f)
+        support.add(secondary("Sponsors", glyph = Glyph.BADGE) { open("https://github.com/sponsors/taynotfound") }, 0, 0, WRAP_CONTENT, 1f)
+            .let { (it.layoutParams as LinearLayout.LayoutParams).marginStart = dp(10) }
+        about.add(support, 10)
 
         // Always visible, even with every section folded.
         col.add(label("Cubit $appVersion · by taynotfound · MIT").apply { gravity = Gravity.CENTER }, 22)

@@ -1,0 +1,1 @@
+- Support links (Ko-fi and GitHub Sponsors) in Settings, About

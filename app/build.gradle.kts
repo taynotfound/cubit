@@ -16,8 +16,8 @@ android {
         applicationId = "de.taymaerz.cubit"
         minSdk = 24
         targetSdk = 34
-        versionCode = 8
-        versionName = "1.4.0"
+        versionCode = 9
+        versionName = "1.4.1"
     }
     buildFeatures { buildConfig = true }
     // Two stores, one app: the GitHub build checks GitHub for new releases; the F-Droid build leaves updates to F-Droid.

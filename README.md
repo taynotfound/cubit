@@ -94,6 +94,10 @@ cd server && go test ./... && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" 
 | `DESIGN.md` | The Wayfinding design system |
 | `docs/` | The website (GitHub Pages) |
 
+## Support
+
+Cubit is free with no ads. If you enjoy it, you can chip in on [Ko-fi](https://ko-fi.com/taygotkofi) or [GitHub Sponsors](https://github.com/sponsors/taynotfound). It keeps the leaderboard server running.
+
 ## Licence
 
 The code, art and synthesized audio are under the [MIT License](LICENSE). The fonts (SIL OFL) and Kenney's sound effects (CC0) keep their own licences; see [NOTICE.md](NOTICE.md).

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.1 (2026-11-03)
+
+- Support links (Ko-fi and GitHub Sponsors) in Settings, About, and on the website.
+
 ## 1.4.0 (2026-11-02)
 
 - **New app ID: `de.taymaerz.cubit`** (it was `com.cubit.game`). Android treats this as a new app, so it installs next to the old one rather than over it. Install 1.4.0, then uninstall the old Cubit. Progress on the old install doesn't carry over, and with rankings on you'll join the board as a new player.
