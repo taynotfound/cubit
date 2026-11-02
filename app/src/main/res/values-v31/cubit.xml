@@ -6,7 +6,7 @@
         <item name="android:statusBarColor">@color/cubit_bg</item>
         <item name="android:navigationBarColor">@color/cubit_bg</item>
         <item name="android:windowSplashScreenBackground">@color/cubit_bg</item>
-        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_launcher</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
         <item name="android:windowSplashScreenIconBackgroundColor">@color/cubit_bg</item>
     </style>
 </resources>

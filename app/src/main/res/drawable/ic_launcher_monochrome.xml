@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Themed icon (Android 13+): only alpha counts, so the cube is drawn as line art and the system tints it. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <group android:pivotX="54" android:pivotY="54" android:scaleX="0.76" android:scaleY="0.76">
+        <path android:strokeColor="#FFFFFF" android:strokeWidth="5" android:strokeLineJoin="round"
+            android:pathData="M54,18L86,36L86,72L54,90L22,72L22,36Z M22,36L54,54L86,36 M54,54L54,90"/>
+        <path android:strokeColor="#FFFFFF" android:strokeWidth="4" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M64,74L64,58L76,51"/>
+        <path android:fillColor="#FFFFFF" android:pathData="M72,46L82,48L76,56Z"/>
+        <path android:strokeColor="#FFFFFF" android:strokeWidth="5" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M30,52L30,68L44,76L44,60"/>
+        <path android:fillColor="#FFFFFF" android:pathData="M37,62L44,52L51,66Z"/>
+    </group>
+</vector>

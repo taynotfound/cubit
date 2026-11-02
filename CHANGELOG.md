@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.1 (2026-11-02)
+
+- Proper adaptive app icon: the navy ground fills whatever shape your launcher uses, with no more small square on a white circle. Android 13+ themed icons get a line-art version of the cube.
+- The launch screens use the same cube.
+
 ## 1.1.0 (2026-11-02)
 
 - Opening screen: a small cube spins in, CUBIT clatters onto the split-flap board, and the tagline fades up. A tap skips it, and it's skipped when animations are turned off.

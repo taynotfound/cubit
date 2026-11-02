@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Adaptive icon foreground: the cube, scaled to sit inside the 66dp safe circle (cube corners reach 27dp from centre) so no launcher mask clips it. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <group android:pivotX="54" android:pivotY="54" android:scaleX="0.76" android:scaleY="0.76">
+        <path android:fillColor="#3A6BDB" android:pathData="M54,18L86,36L54,54L22,36Z"/>
+        <path android:fillColor="#1F4FBF" android:pathData="M22,36L54,54L54,90L22,72Z"/>
+        <path android:fillColor="#173E99" android:pathData="M86,36L54,54L54,90L86,72Z"/>
+        <path android:strokeColor="#F4F6FB" android:strokeWidth="4" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M64,74L64,58L76,51"/>
+        <path android:fillColor="#F4F6FB" android:pathData="M72,46L82,48L76,56Z"/>
+        <path android:strokeColor="#FF3D7F" android:strokeWidth="5" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M30,52L30,68L44,76L44,60"/>
+        <path android:fillColor="#FF3D7F" android:pathData="M37,62L44,52L51,66Z"/>
+    </group>
+</vector>
