@@ -79,6 +79,27 @@ object Net {
         main.post { done(r) }
     }
 
+    /** The newest release on GitHub ("1.2.0"), for the update check in Settings. Null if it can't be reached. */
+    fun latestVersion(done: (String?) -> Unit) = io.execute {
+        val v = call {
+            val c = URL("https://api.github.com/repos/taynotfound/cubit/releases/latest").openConnection() as HttpURLConnection
+            try {
+                c.connectTimeout = 6000; c.readTimeout = 8000
+                c.setRequestProperty("Accept", "application/vnd.github+json"); c.setRequestProperty("User-Agent", "Cubit")
+                if (c.responseCode != 200) throw HttpError(c.responseCode, "HTTP ${c.responseCode}")
+                JSONObject(c.inputStream.bufferedReader().use { it.readText() }).getString("tag_name").removePrefix("v")
+            } finally { c.disconnect() }
+        }
+        main.post { done(v) }
+    }
+
+    /** True when version [a] is newer than [b], comparing dotted numbers ("1.10.0" > "1.9.2"). */
+    fun newer(a: String, b: String): Boolean {
+        val x = a.split('.').map { it.toIntOrNull() ?: 0 }; val y = b.split('.').map { it.toIntOrNull() ?: 0 }
+        for (i in 0 until maxOf(x.size, y.size)) { val d = x.getOrElse(i) { 0 } - y.getOrElse(i) { 0 }; if (d != 0) return d > 0 }
+        return false
+    }
+
     // Runs on the io thread.
     private fun authed(p: Prefs, method: String, path: String, body: String): String {
         val token = p.lbToken ?: JSONObject(request("POST", "/v1/register", JSONObject().put("name", p.name).toString(), null))

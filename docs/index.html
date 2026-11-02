@@ -29,7 +29,7 @@
   "genre": "Puzzle",
   "operatingSystem": "Android 7.0 or newer",
   "gamePlatform": "Android",
-  "softwareVersion": "1.1.1",
+  "softwareVersion": "1.2.0",
   "downloadUrl": "https://github.com/taynotfound/cubit/releases/latest/download/Cubit.apk",
   "license": "https://github.com/taynotfound/cubit/blob/main/LICENSE",
   "author": { "@type": "Person", "name": "taynotfound", "url": "https://github.com/taynotfound" },
@@ -91,6 +91,7 @@
   .btn.secondary { background: var(--panel); color: var(--text); border: 1px solid var(--hair); font-size: 18px; letter-spacing: .05em; }
   .btn svg { width: 24px; height: 24px; }
   .fine { margin-top: 14px; font-size: 14px; color: var(--muted); }
+  .ver { color: var(--text); text-decoration: none; background: var(--panel); border: 1px solid var(--hair); border-radius: 4px; padding: 2px 7px; white-space: nowrap; }
 
   .phones { position: relative; height: 560px; }
   .phones .phone { position: absolute; width: 250px; }
@@ -195,7 +196,7 @@
         <a class="btn primary" href="https://github.com/taynotfound/cubit/releases/latest/download/Cubit.apk">Get Cubit for Android
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12M6 11l6 6 6-6M5 21h14"/></svg></a>
       </div>
-      <p class="fine">Free with no ads · under 1 MB · Android 7.0 or newer · <a href="#install">how to install</a></p>
+      <p class="fine"><a class="ver" href="https://github.com/taynotfound/cubit/releases/latest">Version <span data-ver>1.2.0</span><span data-date></span></a> · free with no ads · under 1 MB · Android 7.0 or newer · <a href="#install">how to install</a></p>
     </div>
 
     <div class="phones">
@@ -322,7 +323,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12M6 11l6 6 6-6M5 21h14"/></svg></a>
       <a class="btn secondary" href="#clean">See Clean mode</a>
     </div>
-    <p class="fine">Free with no ads · Android 7.0 or newer · <a href="https://github.com/taynotfound/cubit/releases">release notes</a></p>
+    <p class="fine">Version <span data-ver>1.2.0</span> · free with no ads · Android 7.0 or newer · <a href="https://github.com/taynotfound/cubit/releases/latest">what's new</a></p>
   </div>
 </section>
 
@@ -353,6 +354,15 @@ function flapWord(el, word, delay = 200) {
   });
 }
 flapWord(document.getElementById("board"), "CUBIT");
+
+// The version shown on the page follows the latest GitHub release; the number in the HTML is the fallback.
+fetch("https://api.github.com/repos/taynotfound/cubit/releases/latest").then(r => r.ok ? r.json() : null).then(rel => {
+  if (!rel || !rel.tag_name) return;
+  const v = rel.tag_name.replace(/^v/, "");
+  document.querySelectorAll("[data-ver]").forEach(el => el.textContent = v);
+  const d = new Date(rel.published_at);
+  if (!isNaN(d)) document.querySelectorAll("[data-date]").forEach(el => el.textContent = " · " + d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }));
+}).catch(() => {});
 
 </script>
 </body>

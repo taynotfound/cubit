@@ -778,8 +778,47 @@ class MainActivity : Activity(), GameView.Listener {
                 closeSheet(); prefs.resetProgress(); toast("Progress reset"); showTab(Tab.SETTINGS)
             }
         }, 10)
+
+        val about = section(col, "About", Glyph.MORE)
+        val vr = row().apply { minimumHeight = dp(48) }
+        vr.add(title("Version").apply { setTextColor(th.muted) }, 0, 0, WRAP_CONTENT, 1f)
+        vr.add(tv(appVersion, 22f, Fonts.display), 0, WRAP_CONTENT)
+        about.add(vr, 8)
+        val updateBox = column()
+        about.add(updateBox, 6)
+        fun open(url: String) = runCatching { startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))) }
+        fun checkButton() {
+            updateBox.removeAllViews()
+            updateBox.add(secondary("Check for updates", glyph = Glyph.REPLAY) {
+                updateBox.removeAllViews(); updateBox.add(body("Checking GitHub…", th.muted))
+                Net.latestVersion { latest ->
+                    if (tab != Tab.SETTINGS) return@latestVersion
+                    updateBox.removeAllViews()
+                    when {
+                        latest == null -> { updateBox.add(body("Couldn't reach GitHub. Check your connection, or Cubit's Network permission.", th.muted)); checkAgain(updateBox) { checkButton() } }
+                        Net.newer(latest, appVersion) -> {
+                            updateBox.add(body("Version $latest is out. It installs over this one and keeps your progress.", th.text))
+                            updateBox.add(primary("Download $latest", Glyph.ARROW) { open("https://github.com/taynotfound/cubit/releases/latest/download/Cubit.apk") }, 10)
+                            updateBox.add(secondary("What's new") { open("https://github.com/taynotfound/cubit/releases/latest") }, 8)
+                        }
+                        else -> { updateBox.add(body("You're on the latest version.", th.muted)); checkAgain(updateBox) { checkButton() } }
+                    }
+                }
+            })
+        }
+        checkButton()
+        about.add(secondary("Website", glyph = Glyph.ARROW) { open("https://taynotfound.github.io/cubit/") }, 10)
+        about.add(secondary("Source code and licences", glyph = Glyph.ARROW) { open("https://github.com/taynotfound/cubit") }, 8)
+        about.add(secondary("Changelog", glyph = Glyph.ARROW) { open("https://github.com/taynotfound/cubit/blob/main/CHANGELOG.md") }, 8)
+
+        // Always visible, even with every section folded.
+        col.add(label("Cubit $appVersion · by taynotfound · MIT").apply { gravity = Gravity.CENTER }, 22)
         return scroll
     }
+
+    private fun checkAgain(box: LinearLayout, again: () -> Unit) { box.add(secondary("Check again", glyph = Glyph.REPLAY) { again() }, 10) }
+
+    private val appVersion by lazy { runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull() ?: "?" }
 
     // ---------- first launch ----------
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.0 (2026-11-02)
+
+- Settings has an About section with the version, an update check against GitHub releases, and links to the website, source and changelog. The version also sits at the bottom of Settings.
+- The website shows the current version, read live from the latest release.
+
 ## 1.1.1 (2026-11-02)
 
 - Proper adaptive app icon: the navy ground fills whatever shape your launcher uses, with no more small square on a white circle. Android 13+ themed icons get a line-art version of the cube.
