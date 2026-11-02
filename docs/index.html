@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Cubit · A puzzle cube of arrows for Android</title>
-<meta name="description" content="Tap an arrow and it slides off the cube, unless another arrow is in its way. Dig out the pink one. Free Android puzzle game with no ads. Try a face in your browser.">
+<meta name="description" content="Tap an arrow and it slides off the cube, unless another arrow is in its way. Dig out the pink one. A free Android puzzle game with no ads.">
 <meta property="og:title" content="Cubit · Free the pink arrow">
-<meta property="og:description" content="A puzzle cube covered in winding arrows. Try one face in your browser, then get the whole cube free on Android.">
+<meta property="og:description" content="A puzzle cube covered in winding arrows. Dig out the pink one. Free on Android, with no ads.">
 <meta property="og:image" content="https://taynotfound.github.io/cubit/img/social.png">
 <meta property="og:url" content="https://taynotfound.github.io/cubit/">
 <meta name="twitter:card" content="summary_large_image">
@@ -92,30 +92,10 @@
   .btn svg { width: 24px; height: 24px; }
   .fine { margin-top: 14px; font-size: 14px; color: var(--muted); }
 
-  /* the playable face */
-  .play { background: var(--panel); border-radius: 10px; padding: 18px; position: relative; }
-  .play-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
-  .play-head h2 { font-size: 24px; }
-  .stats { display: flex; gap: 8px; margin-left: auto; }
-  .stat { text-align: right; }
-  .stat b { display: block; font: 700 22px/1 "Barlow Condensed"; background: var(--tile); border-radius: 4px; padding: 5px 8px; margin-top: 4px; min-width: 38px; text-align: center; }
-  .stat.way b { color: var(--pink); }
-  #face { display: block; width: 100%; height: auto; border-radius: 6px; touch-action: manipulation; user-select: none; -webkit-tap-highlight-color: transparent; }
-  #face .arrow { cursor: pointer; }
-  #face .arrow:focus-visible { outline: none; }
-  #face .arrow:focus-visible .body { stroke: var(--accent); }
-  .play-foot { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
-  .play-foot .hint { color: var(--muted); font-size: 15px; flex: 1; }
-  .small { min-height: 44px; font-size: 16px; padding: 0 14px; }
-  .shake { animation: shake .3s; }
-  @keyframes shake { 20% { transform: translateX(-7px); } 45% { transform: translateX(6px); } 70% { transform: translateX(-3px); } }
-  .won { position: absolute; inset: 0; border-radius: 10px; background: rgba(14, 27, 61, .94); display: none; flex-direction: column; justify-content: center; align-items: flex-start; padding: 28px; gap: 14px; }
-  .won.show { display: flex; animation: rise .35s ease-out; }
-  @keyframes rise { from { opacity: 0; transform: translateY(14px); } }
-  .won .board { margin: 0; }
-  .won .board .cell { width: 44px; height: 58px; font-size: 40px; }
-  .won p { color: var(--muted); max-width: 36ch; }
-  .won .row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
+  .phones { position: relative; height: 560px; }
+  .phones .phone { position: absolute; width: 250px; }
+  .phones .a { left: 4%; top: 0; transform: rotate(-4deg); }
+  .phones .b { right: 4%; top: 50px; transform: rotate(5deg); }
 
   section { padding: 80px 0; border-top: 1px solid var(--hair); }
   .lede { color: var(--muted); font-size: 19px; max-width: 60ch; margin-top: 16px; }
@@ -187,9 +167,11 @@
     .dep.head { display: none; }
     .dep .name { grid-column: 1 / -1; }
     .pair .phone { width: 46%; }
+    .phones { height: 470px; max-width: 420px; margin: 0 auto; width: 100%; }
+    .phones .phone { width: 210px; }
     section { padding: 60px 0; }
   }
-  @media (prefers-reduced-motion: reduce) { .cell.flip, .shake, .won.show { animation: none; } html { scroll-behavior: auto; } }
+  @media (prefers-reduced-motion: reduce) { .cell.flip { animation: none; } html { scroll-behavior: auto; } }
 </style>
 </head>
 <body>
@@ -216,29 +198,9 @@
       <p class="fine">Free with no ads · under 1 MB · Android 7.0 or newer · <a href="#install">how to install</a></p>
     </div>
 
-    <div class="play" id="try">
-      <div class="play-head">
-        <h2>Try one face</h2>
-        <div class="stats">
-          <div class="stat label">Taps<b id="taps">0</b></div>
-          <div class="stat label">Bumps<b id="bumps">0</b></div>
-          <div class="stat label way">In the way<b id="way">0</b></div>
-        </div>
-      </div>
-      <svg id="face" viewBox="0 0 360 360" role="group" aria-label="A playable face of the cube. Tap arrows to slide them off."></svg>
-      <div class="play-foot">
-        <p class="hint" id="hint" aria-live="polite">Tap an arrow whose path to the edge is clear.</p>
-        <button class="btn secondary small" id="again" type="button">New face</button>
-      </div>
-      <div class="won" id="won" role="status">
-        <div class="board" id="wonboard" aria-label="Freed"></div>
-        <p id="wontext"></p>
-        <p>That was one 7×7 face. In the app, level 1 has six 10×10 faces, and the arrows wrap around the edges.</p>
-        <div class="row">
-          <a class="btn primary" href="https://github.com/taynotfound/cubit/releases/latest/download/Cubit.apk">Get the whole cube</a>
-          <button class="btn secondary" id="again2" type="button">Another face</button>
-        </div>
-      </div>
+    <div class="phones">
+      <div class="phone a"><img src="img/home.png" alt="Cubit home screen showing level 1, a blue cube covered in white arrows"></div>
+      <div class="phone b"><img src="img/game-clean.png" alt="Clean mode: a see-through glass cube of arrows with a single X to leave"></div>
     </div>
   </header>
 </div>
@@ -256,8 +218,8 @@
       </ul>
     </div>
     <div class="pair">
-      <div class="phone"><img src="img/home.png" alt="Cubit home screen showing level 1, a blue cube of white arrows"></div>
       <div class="phone"><img src="img/game.png" alt="A level in progress with lives, a timer and 104 arrows left"></div>
+      <div class="phone"><img src="img/more.png" alt="The More sheet with the daily cube, free roam and level replays"></div>
     </div>
   </div>
 </section>
@@ -358,7 +320,7 @@
     <div class="cta">
       <a class="btn primary" href="https://github.com/taynotfound/cubit/releases/latest/download/Cubit.apk">Get Cubit for Android
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12M6 11l6 6 6-6M5 21h14"/></svg></a>
-      <a class="btn secondary" href="#try">Play a face first</a>
+      <a class="btn secondary" href="#clean">See Clean mode</a>
     </div>
     <p class="fine">Free with no ads · Android 7.0 or newer · <a href="https://github.com/taynotfound/cubit/releases">release notes</a></p>
   </div>
@@ -392,143 +354,6 @@ function flapWord(el, word, delay = 200) {
 }
 flapWord(document.getElementById("board"), "CUBIT");
 
-// ---- One playable face: same idea as the app, flattened to a 7×7 board ----
-const N = 7, S = 360 / 7;
-const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]]; // right, left, down, up
-const opp = d => d ^ 1;
-const svg = document.getElementById("face"), ns = "http://www.w3.org/2000/svg";
-let arrows, occ, taps, bumps, done;
-
-const idx = (x, y) => y * N + x;
-function ray(x, y, d) { const out = []; let [dx, dy] = DIRS[d]; x += dx; y += dy; while (x >= 0 && y >= 0 && x < N && y < N) { out.push(idx(x, y)); x += dx; y += dy; } return out; }
-const rnd = n => Math.floor(Math.random() * n);
-
-// Built in reverse, like the app: every new arrow's way out avoids the arrows already placed, so the board always
-// has a solution, and the pink arrow (placed first) ends up underneath everything.
-function build() {
-  occ = new Array(N * N).fill(-1); arrows = [];
-  let fails = 0;
-  while (fails < 400 && occ.filter(v => v >= 0).length < N * N * 0.86) {
-    const empty = occ.map((v, i) => v < 0 ? i : -1).filter(i => i >= 0);
-    const first = arrows.length === 0;
-    const start = first ? idx(3, 4) : empty[rnd(empty.length)];
-    const len = first ? 4 : 2 + rnd(3);
-    const path = [start]; let d = rnd(4), firstDir = d, cur = start;
-    for (let i = 1; i < len; i++) {
-      const opts = [0, 1, 2, 3].filter(o => o !== opp(d)).sort(() => Math.random() - .5);
-      let moved = false;
-      for (const o of opts) {
-        const x = cur % N + DIRS[o][0], y = Math.floor(cur / N) + DIRS[o][1];
-        if (x < 0 || y < 0 || x >= N || y >= N) continue;
-        const c = idx(x, y); if (occ[c] >= 0 || path.includes(c)) continue;
-        path.push(c); cur = c; if (i === 1) firstDir = o; d = o; moved = true; break;
-      }
-      if (!moved) break;
-    }
-    if (path.length < 2) { fails++; continue; }
-    const options = [[path, d], [[...path].reverse(), opp(firstDir)]].sort(() => Math.random() - .5);
-    const pick = options.find(([p, hd]) => { const h = p[p.length - 1]; return ray(h % N, Math.floor(h / N), hd).every(c => occ[c] < 0 && !p.includes(c)); });
-    if (!pick) { fails++; continue; }
-    const id = arrows.length; arrows.push({ cells: pick[0], dir: pick[1], gone: false });
-    pick[0].forEach(c => occ[c] = id); fails = 0;
-  }
-}
-function blocker(a) { const h = a.cells[a.cells.length - 1]; return ray(h % N, Math.floor(h / N), a.dir).findIndex(c => occ[c] >= 0 && arrows[occ[c]] !== a); }
-// How many arrows still have to go before the pink one can: its blockers, their blockers, and so on.
-function inTheWay() {
-  const seen = new Set([0]), q = [0];
-  while (q.length) { const a = arrows[q.shift()], h = a.cells[a.cells.length - 1];
-    for (const c of ray(h % N, Math.floor(h / N), a.dir)) { const b = occ[c]; if (b >= 0 && !seen.has(b)) { seen.add(b); q.push(b); } } }
-  return seen.size - 1;
-}
-
-const centre = c => [(c % N) * S + S / 2, Math.floor(c / N) * S + S / 2];
-function draw() {
-  svg.innerHTML = `<rect width="360" height="360" rx="6" fill="#1F4FBF"/>` +
-    Array.from({ length: N * N }, (_, c) => { const [x, y] = centre(c); return `<circle cx="${x}" cy="${y}" r="2" fill="#173E99"/>`; }).join("");
-  arrows.forEach((a, i) => {
-    if (a.gone) return;
-    const pts = a.cells.map(centre), [hx, hy] = pts[pts.length - 1], [dx, dy] = DIRS[a.dir];
-    const tip = [hx + dx * 19, hy + dy * 19], base = [hx + dx * 5, hy + dy * 5], px = -dy * 10, py = dx * 10;
-    const color = i === 0 ? "#FF3D7F" : "#F4F6FB";
-    const g = document.createElementNS(ns, "g");
-    g.setAttribute("class", "arrow"); g.setAttribute("tabindex", "0"); g.setAttribute("role", "button");
-    g.setAttribute("aria-label", (i === 0 ? "Pink arrow" : "Arrow") + " pointing " + ["right", "left", "down", "up"][a.dir]);
-    g.innerHTML = `<polyline points="${[...pts, base].map(p => p.join(",")).join(" ")}" fill="none" stroke="transparent" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/>` +
-      (i === 0 ? `<polyline points="${[...pts, base].map(p => p.join(",")).join(" ")}" fill="none" stroke="#FF3D7F" stroke-opacity=".28" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>` : "") +
-      `<polyline class="body" points="${[...pts, base].map(p => p.join(",")).join(" ")}" fill="none" stroke="${color}" stroke-width="${i === 0 ? 10 : 8}" stroke-linecap="round" stroke-linejoin="round"/>` +
-      `<polygon points="${tip.join(",")} ${base[0] + px},${base[1] + py} ${base[0] - px},${base[1] - py}" fill="${color}"/>`;
-    g.addEventListener("click", () => tap(i, g));
-    g.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); tap(i, g); } });
-    svg.appendChild(g);
-  });
-  document.getElementById("way").textContent = arrows[0].gone ? 0 : inTheWay();
-}
-
-const hint = document.getElementById("hint");
-function tap(i, g) {
-  if (done) return;
-  const a = arrows[i]; taps++; document.getElementById("taps").textContent = taps;
-  const k = blocker(a), [dx, dy] = DIRS[a.dir];
-  if (k >= 0) {
-    bumps++; document.getElementById("bumps").textContent = bumps;
-    const nudge = (k + .25) * S * .5;
-    if (!still) g.animate([{ transform: "translate(0,0)" }, { transform: `translate(${dx * nudge}px,${dy * nudge}px)` }, { transform: "translate(0,0)" }], { duration: 260, easing: "ease-out" });
-    svg.parentElement.classList.remove("shake"); void svg.parentElement.offsetWidth; svg.parentElement.classList.add("shake");
-    hint.textContent = i === 0 ? "The pink one is still boxed in. Clear its path first." : "Bump. Something sits in its path, so it bounces back.";
-    return;
-  }
-  a.gone = true; a.cells.forEach(c => occ[c] = -1);
-  const out = (N + a.cells.length) * S;
-  const finish = () => { draw(); if (i === 0) win(); };
-  if (still) finish();
-  else g.animate([{ transform: "translate(0,0)", opacity: 1 }, { transform: `translate(${dx * out}px,${dy * out}px)`, opacity: 0 }], { duration: 420, easing: "cubic-bezier(.5,0,.75,0)" }).onfinish = finish;
-  const left = inTheWay();
-  hint.textContent = i === 0 ? "" : left === 0 ? "The pink arrow's way is clear. Tap it." : left + " arrow" + (left === 1 ? "" : "s") + " still between the pink one and the edge.";
-}
-
-// A short burst of pink and yellow confetti over the face.
-function confetti() {
-  if (still) return;
-  const box = document.getElementById("try");
-  for (let i = 0; i < 46; i++) {
-    const p = document.createElement("span");
-    p.style.cssText = `position:absolute;left:${20 + Math.random() * 60}%;top:38%;width:8px;height:12px;border-radius:2px;pointer-events:none;z-index:3;background:${["#FF3D7F", "#FFC72C", "#F4F6FB", "#1F4FBF"][i % 4]}`;
-    box.appendChild(p);
-    const dx = (Math.random() - .5) * 420, up = 120 + Math.random() * 180;
-    p.animate([{ transform: "translate(0,0) rotate(0)", opacity: 1 }, { transform: `translate(${dx * .6}px,${-up}px) rotate(${Math.random() * 360}deg)`, opacity: 1, offset: .35 },
-               { transform: `translate(${dx}px,${260 + Math.random() * 160}px) rotate(${Math.random() * 900}deg)`, opacity: 0 }],
-              { duration: 1400 + Math.random() * 700, easing: "cubic-bezier(.2,.6,.4,1)" }).onfinish = () => p.remove();
-  }
-}
-
-function win() {
-  done = true;
-  confetti();
-  document.getElementById("wontext").textContent = bumps === 0
-    ? `Freed in ${taps} taps without a single bump.`
-    : `Freed in ${taps} taps with ${bumps} bump${bumps === 1 ? "" : "s"}. On Normal you'd have had ${Math.max(0, 3 - bumps)} ${3 - bumps === 1 ? "life" : "lives"} left.`;
-  document.getElementById("won").classList.add("show");
-  flapWord(document.getElementById("wonboard"), "FREED", 120);
-}
-
-function reset() {
-  // Reroll until the pink arrow starts properly buried, as the app does.
-  let best = null, bestScore = -1;
-  for (let t = 0; t < 60 && bestScore < 7; t++) {
-    build(); const sc = inTheWay();
-    if (sc > bestScore) { best = { arrows, occ }; bestScore = sc; }
-  }
-  ({ arrows, occ } = best);
-  taps = 0; bumps = 0; done = false;
-  ["taps", "bumps"].forEach(id => document.getElementById(id).textContent = 0);
-  document.getElementById("won").classList.remove("show");
-  hint.textContent = "Tap an arrow whose path to the edge is clear.";
-  draw();
-}
-document.getElementById("again").onclick = reset;
-document.getElementById("again2").onclick = reset;
-reset();
 </script>
 </body>
 </html>
