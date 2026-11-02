@@ -3,22 +3,55 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Cubit · Free the pink arrow</title>
-<meta name="description" content="Cubit is a hard little cube of arrows for Android. Free the pink one. No ads, no accounts.">
-<meta property="og:title" content="Cubit">
-<meta property="og:description" content="A hard little cube of arrows. Free the pink one. No ads, Android, free.">
+<title>Cubit · A puzzle cube of arrows for Android</title>
+<meta name="description" content="Tap an arrow and it slides off the cube, unless another arrow is in its way. Dig out the pink one. Free Android puzzle game with no ads. Try a face in your browser.">
+<meta property="og:title" content="Cubit · Free the pink arrow">
+<meta property="og:description" content="A puzzle cube covered in winding arrows. Try one face in your browser, then get the whole cube free on Android.">
 <meta property="og:image" content="https://taynotfound.github.io/cubit/img/social.png">
 <meta property="og:url" content="https://taynotfound.github.io/cubit/">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#0E1B3D">
 <link rel="icon" href="img/favicon.png">
+<link rel="canonical" href="https://taynotfound.github.io/cubit/">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500&display=swap" rel="stylesheet">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": ["VideoGame", "MobileApplication"],
+  "name": "Cubit",
+  "description": "A puzzle cube covered in winding arrows. Tap one and it slides off, unless another arrow is in its way. Free the pink one.",
+  "url": "https://taynotfound.github.io/cubit/",
+  "image": "https://taynotfound.github.io/cubit/img/social.png",
+  "screenshot": "https://taynotfound.github.io/cubit/img/game.png",
+  "applicationCategory": "GameApplication",
+  "genre": "Puzzle",
+  "operatingSystem": "Android 7.0 or newer",
+  "gamePlatform": "Android",
+  "softwareVersion": "1.0.0",
+  "downloadUrl": "https://github.com/taynotfound/cubit/releases/latest/download/Cubit.apk",
+  "license": "https://github.com/taynotfound/cubit/blob/main/LICENSE",
+  "author": { "@type": "Person", "name": "taynotfound", "url": "https://github.com/taynotfound" },
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    { "@type": "Question", "name": "Is Cubit really free?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. Every level, mode and powerup is in the free download. There are no ads and nothing to buy." } },
+    { "@type": "Question", "name": "Why isn't it on the Play Store?", "acceptedAnswer": { "@type": "Answer", "text": "It's a one-person project, published on GitHub instead. You download the APK and install it like any other app; updates install over the top and keep your progress." } },
+    { "@type": "Question", "name": "Is the APK safe to install?", "acceptedAnswer": { "@type": "Answer", "text": "The full source is on GitHub under the MIT licence, every release is signed with the same key, and each release lists the file's SHA-256 checksum so you can check the download." } },
+    { "@type": "Question", "name": "Does it need the internet?", "acceptedAnswer": { "@type": "Answer", "text": "Only for the optional global rankings. Everything else works offline." } }
+  ]
+}
+</script>
 <style>
   :root {
     --bg: #0E1B3D; --panel: #172A57; --tile: #0A1330; --face: #1F4FBF;
-    --text: #F4F6FB; --muted: #AEB8D0; --hair: #2B3D69; --accent: #FFC72C; --on-accent: #0E1B3D; --pink: #FF3D7F;
+    --text: #F4F6FB; --muted: #AEB8D0; --hair: #2B3D69; --accent: #FFC72C; --on-accent: #0E1B3D; --pink: #FF3D7F; --bad: #FF6B5E;
   }
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
@@ -30,98 +63,133 @@
   h2 { font-size: clamp(34px, 5vw, 52px); }
   h3 { font-size: 22px; letter-spacing: .03em; }
   p { margin: 0; }
+  .pink { color: var(--pink); }
 
-  /* top bar */
   nav { display: flex; align-items: center; gap: 12px; padding: 18px 0; }
   nav .mark { display: flex; align-items: center; gap: 10px; text-decoration: none; font: 700 26px/1 "Barlow Condensed"; text-transform: uppercase; }
   nav .mark img { width: 34px; height: 34px; }
-  nav .links { margin-left: auto; display: flex; gap: 22px; }
+  nav .links { margin-left: auto; display: flex; gap: 22px; align-items: center; }
   nav .links a { text-decoration: none; font: 600 15px/1 "Barlow Condensed"; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
   nav .links a:hover { color: var(--text); }
+  nav .links a.get { color: var(--on-accent); background: var(--accent); padding: 10px 14px; border-radius: 6px; }
 
   /* hero */
-  .hero { display: grid; grid-template-columns: 1.05fr .95fr; gap: 40px; align-items: center; padding: 40px 0 80px; }
+  .hero { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; padding: 28px 0 72px; }
   .board { display: flex; gap: 6px; margin-bottom: 26px; }
-  .cell { width: clamp(46px, 7vw, 74px); height: clamp(62px, 9.5vw, 100px); background: var(--tile); border-radius: 6px; position: relative;
-          display: grid; place-items: center; font: 700 clamp(40px, 6.6vw, 72px)/1 "Barlow Condensed"; overflow: hidden; }
+  .cell { width: clamp(46px, 6.4vw, 70px); height: clamp(62px, 8.8vw, 94px); background: var(--tile); border-radius: 6px; position: relative;
+          display: grid; place-items: center; font: 700 clamp(40px, 6vw, 68px)/1 "Barlow Condensed"; overflow: hidden; }
   .cell::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 2px; background: var(--bg); opacity: .7; }
   .cell.flip { animation: flip .09s linear; }
   @keyframes flip { 50% { transform: scaleY(.15); } }
-  .tag { font: 500 clamp(21px, 2.6vw, 28px)/1.3 Barlow; color: var(--muted); max-width: 22ch; }
-  .tag b { color: var(--text); font-weight: 500; }
-  .tag .pink { color: var(--pink); }
-  .cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 34px; }
-  .btn { display: inline-flex; align-items: center; gap: 14px; min-height: 60px; padding: 0 22px; border-radius: 6px; text-decoration: none;
+  .headline { font: 700 clamp(30px, 4vw, 44px)/1.05 "Barlow Condensed"; text-transform: uppercase; }
+  .sub { font-size: clamp(18px, 2vw, 21px); color: var(--muted); margin-top: 16px; max-width: 34ch; }
+  .cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+  .btn { display: inline-flex; align-items: center; gap: 14px; min-height: 60px; padding: 0 22px; border-radius: 6px; text-decoration: none; cursor: pointer; border: 0;
          font: 700 22px/1 "Barlow Condensed"; text-transform: uppercase; letter-spacing: .02em; transition: transform .12s; }
   .btn:active { transform: scale(.97); }
   .btn.primary { background: var(--accent); color: var(--on-accent); }
-  .btn.secondary { background: var(--panel); border: 1px solid var(--hair); font-size: 18px; letter-spacing: .05em; }
+  .btn.secondary { background: var(--panel); color: var(--text); border: 1px solid var(--hair); font-size: 18px; letter-spacing: .05em; }
   .btn svg { width: 24px; height: 24px; }
   .fine { margin-top: 14px; font-size: 14px; color: var(--muted); }
 
-  .phones { position: relative; height: 560px; }
-  .phone { position: absolute; width: 250px; border-radius: 28px; border: 6px solid #050b1d; box-shadow: 0 30px 60px rgba(0,0,0,.45); background: #050b1d; overflow: hidden; }
-  .phone img { display: block; width: 100%; }
-  .phone.a { left: 4%; top: 0; transform: rotate(-4deg); }
-  .phone.b { right: 4%; top: 50px; transform: rotate(5deg); }
+  /* the playable face */
+  .play { background: var(--panel); border-radius: 10px; padding: 18px; position: relative; }
+  .play-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
+  .play-head h2 { font-size: 24px; }
+  .stats { display: flex; gap: 8px; margin-left: auto; }
+  .stat { text-align: right; }
+  .stat b { display: block; font: 700 22px/1 "Barlow Condensed"; background: var(--tile); border-radius: 4px; padding: 5px 8px; margin-top: 4px; min-width: 38px; text-align: center; }
+  .stat.way b { color: var(--pink); }
+  #face { display: block; width: 100%; height: auto; border-radius: 6px; touch-action: manipulation; user-select: none; -webkit-tap-highlight-color: transparent; }
+  #face .arrow { cursor: pointer; }
+  #face .arrow:focus-visible { outline: none; }
+  #face .arrow:focus-visible .body { stroke: var(--accent); }
+  .play-foot { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+  .play-foot .hint { color: var(--muted); font-size: 15px; flex: 1; }
+  .small { min-height: 44px; font-size: 16px; padding: 0 14px; }
+  .shake { animation: shake .3s; }
+  @keyframes shake { 20% { transform: translateX(-7px); } 45% { transform: translateX(6px); } 70% { transform: translateX(-3px); } }
+  .won { position: absolute; inset: 0; border-radius: 10px; background: rgba(14, 27, 61, .94); display: none; flex-direction: column; justify-content: center; align-items: flex-start; padding: 28px; gap: 14px; }
+  .won.show { display: flex; animation: rise .35s ease-out; }
+  @keyframes rise { from { opacity: 0; transform: translateY(14px); } }
+  .won .board { margin: 0; }
+  .won .board .cell { width: 44px; height: 58px; font-size: 40px; }
+  .won p { color: var(--muted); max-width: 36ch; }
+  .won .row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
 
   section { padding: 80px 0; border-top: 1px solid var(--hair); }
   .lede { color: var(--muted); font-size: 19px; max-width: 60ch; margin-top: 16px; }
 
-  /* how it plays: three signs */
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; }
+  .phone { width: 260px; border-radius: 28px; border: 6px solid #050b1d; box-shadow: 0 30px 60px rgba(0,0,0,.45); background: #050b1d; overflow: hidden; }
+  .phone img { display: block; width: 100%; }
+  .pair { display: flex; justify-content: center; gap: 22px; }
+  .pair .phone:first-child { transform: rotate(-3deg) translateY(16px); }
+  .pair .phone:last-child { transform: rotate(3deg); }
+
   .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 40px; }
   .step { background: var(--panel); border-radius: 6px; padding: 22px; }
   .step .num { display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 6px; background: var(--tile); font: 700 24px/1 "Barlow Condensed"; margin-bottom: 18px; }
-  .step:last-child .num { background: var(--pink); }
   .step p { color: var(--muted); margin-top: 10px; }
 
-  /* departure board of modes */
   .departures { margin-top: 40px; background: var(--panel); border-radius: 10px; padding: 8px 22px; }
   .dep { display: grid; grid-template-columns: 1.2fr 1fr 1fr .8fr; gap: 12px; align-items: center; padding: 16px 0; border-bottom: 1px solid var(--hair); }
   .dep:last-child { border-bottom: 0; }
   .dep.head { padding: 14px 0 10px; }
   .dep .name { font: 700 24px/1 "Barlow Condensed"; text-transform: uppercase; }
+  .dep .name small { display: block; font: 400 14px/1.3 Barlow; text-transform: none; color: var(--muted); margin-top: 4px; }
   .dep .tiles { font: 700 20px/1 "Barlow Condensed"; display: flex; gap: 3px; }
   .dep .tiles span { background: var(--tile); border-radius: 4px; padding: 6px 7px; min-width: 24px; text-align: center; }
   .dep.clean .name { color: var(--accent); }
 
-  /* clean spotlight */
-  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; }
-  .split .shot { justify-self: center; }
-  .split .phone { position: static; transform: none; width: 280px; }
   .ticks { list-style: none; padding: 0; margin: 26px 0 0; display: grid; gap: 12px; }
   .ticks li { display: flex; gap: 12px; color: var(--muted); }
   .ticks li::before { content: ""; flex: none; width: 12px; height: 12px; margin-top: 7px; border-radius: 3px; background: var(--accent); }
 
-  /* features */
   .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 26px 32px; margin-top: 44px; }
   .feat svg { width: 28px; height: 28px; stroke: var(--accent); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .feat h3 { margin-top: 12px; }
   .feat p { color: var(--muted); margin-top: 8px; font-size: 16px; }
 
   .gallery { display: flex; gap: 18px; overflow-x: auto; padding: 36px 0 10px; scroll-snap-type: x mandatory; }
-  .gallery figure { margin: 0; flex: none; width: 220px; scroll-snap-align: start; }
+  .gallery figure { margin: 0; flex: none; width: 210px; scroll-snap-align: start; }
   .gallery img { width: 100%; border-radius: 18px; border: 5px solid #050b1d; display: block; }
   .gallery figcaption { margin-top: 10px; font: 600 14px/1.2 "Barlow Condensed"; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 
+  .install { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 36px; counter-reset: s; }
+  .install li { list-style: none; background: var(--panel); border-radius: 6px; padding: 20px; color: var(--muted); }
+  .install li::before { counter-increment: s; content: counter(s); display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 6px; background: var(--accent); color: var(--on-accent);
+                        font: 700 20px/1 "Barlow Condensed"; margin-bottom: 14px; }
+  .install b { color: var(--text); font-weight: 500; }
+  .trust { margin-top: 18px; color: var(--muted); font-size: 15px; }
+  .trust code { background: var(--tile); padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+
+  .faq { margin-top: 32px; display: grid; gap: 10px; max-width: 780px; }
+  .faq details { background: var(--panel); border-radius: 6px; padding: 0 20px; }
+  .faq summary { cursor: pointer; list-style: none; padding: 18px 0; font: 700 20px/1.2 "Barlow Condensed"; text-transform: uppercase; letter-spacing: .02em; display: flex; justify-content: space-between; gap: 12px; }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::after { content: "+"; color: var(--accent); }
+  .faq details[open] summary::after { content: "–"; }
+  .faq details p { color: var(--muted); padding-bottom: 18px; }
+
   .final { text-align: center; }
   .final .cta { justify-content: center; }
+  .final .lede { margin: 16px auto 0; }
   footer { border-top: 1px solid var(--hair); padding: 30px 0 40px; color: var(--muted); font-size: 14px; display: flex; flex-wrap: wrap; gap: 8px 24px; }
   footer a { color: var(--muted); }
 
   @media (max-width: 860px) {
     nav .links a.opt { display: none; }
     .hero, .split { grid-template-columns: 1fr; }
-    .hero { padding-top: 10px; }
-    .phones { height: 470px; max-width: 420px; margin: 0 auto; width: 100%; }
-    .phone { width: 210px; }
-    .steps, .grid { grid-template-columns: 1fr; }
-    .dep { grid-template-columns: 1fr 1fr; row-gap: 8px; }
+    .hero { padding-top: 6px; gap: 34px; }
+    .steps, .grid, .install { grid-template-columns: 1fr; }
+    .dep { grid-template-columns: 1fr 1fr 1fr; row-gap: 8px; }
     .dep.head { display: none; }
     .dep .name { grid-column: 1 / -1; }
+    .pair .phone { width: 46%; }
     section { padding: 60px 0; }
   }
-  @media (prefers-reduced-motion: reduce) { .cell.flip { animation: none; } html { scroll-behavior: auto; } }
+  @media (prefers-reduced-motion: reduce) { .cell.flip, .shake, .won.show { animation: none; } html { scroll-behavior: auto; } }
 </style>
 </head>
 <body>
@@ -129,57 +197,86 @@
   <nav>
     <a class="mark" href="#"><img src="img/icon.svg" alt="">Cubit</a>
     <div class="links">
-      <a class="opt" href="#play">How it plays</a>
-      <a class="opt" href="#clean">Clean mode</a>
-      <a href="https://github.com/taynotfound/cubit">GitHub</a>
+      <a class="opt" href="#modes">Modes</a>
+      <a class="opt" href="#faq">FAQ</a>
+      <a class="opt" href="https://github.com/taynotfound/cubit">GitHub</a>
+      <a class="get" href="#get">Get it</a>
     </div>
   </nav>
 
   <header class="hero">
     <div>
-      <div class="board" id="board" aria-label="Cubit"></div>
-      <p class="tag"><b>A hard little cube of arrows.</b> Free the <span class="pink">pink</span> one.</p>
+      <h1 class="board" id="board" aria-label="Cubit"></h1>
+      <p class="headline">Free the <span class="pink">pink</span> arrow.</p>
+      <p class="sub">Cubit is a cube covered in winding arrows. Tap one and it slides off the cube, unless another arrow is in its way. Dig the pink one out before your lives run out.</p>
       <div class="cta">
-        <a class="btn primary" href="https://github.com/taynotfound/cubit/releases/latest/download/Cubit.apk">Download for Android
+        <a class="btn primary" href="https://github.com/taynotfound/cubit/releases/latest/download/Cubit.apk">Get Cubit for Android
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12M6 11l6 6 6-6M5 21h14"/></svg></a>
-        <a class="btn secondary" href="https://github.com/taynotfound/cubit">Source code</a>
       </div>
-      <p class="fine">Free. No ads, no accounts, no tracking. Android 7.0 or newer.</p>
+      <p class="fine">Free with no ads · under 1 MB · Android 7.0 or newer · <a href="#install">how to install</a></p>
     </div>
-    <div class="phones">
-      <div class="phone a"><img src="img/home.png" alt="Cubit home screen with a blue arrow cube"></div>
-      <div class="phone b"><img src="img/game-clean.png" alt="Clean mode: a see-through glass cube of arrows"></div>
+
+    <div class="play" id="try">
+      <div class="play-head">
+        <h2>Try one face</h2>
+        <div class="stats">
+          <div class="stat label">Taps<b id="taps">0</b></div>
+          <div class="stat label">Bumps<b id="bumps">0</b></div>
+          <div class="stat label way">In the way<b id="way">0</b></div>
+        </div>
+      </div>
+      <svg id="face" viewBox="0 0 360 360" role="group" aria-label="A playable face of the cube. Tap arrows to slide them off."></svg>
+      <div class="play-foot">
+        <p class="hint" id="hint" aria-live="polite">Tap an arrow whose path to the edge is clear.</p>
+        <button class="btn secondary small" id="again" type="button">New face</button>
+      </div>
+      <div class="won" id="won" role="status">
+        <div class="board" id="wonboard" aria-label="Freed"></div>
+        <p id="wontext"></p>
+        <p>That was one 7×7 face. In the app, level 1 has six 10×10 faces, and the arrows wrap around the edges.</p>
+        <div class="row">
+          <a class="btn primary" href="https://github.com/taynotfound/cubit/releases/latest/download/Cubit.apk">Get the whole cube</a>
+          <button class="btn secondary" id="again2" type="button">Another face</button>
+        </div>
+      </div>
     </div>
   </header>
 </div>
 
-<section id="play">
-  <div class="wrap">
-    <span class="label">How it plays</span>
-    <h2 style="margin-top:10px">Tap. Slide. Bump. Think.</h2>
-    <div class="steps">
-      <div class="step"><span class="num">1</span><h3>Tap an arrow</h3><p>It slides forward along its own winding path and off the cube, as long as nothing is in the way.</p></div>
-      <div class="step"><span class="num">2</span><h3>Mind the bumps</h3><p>If something blocks it, it bounces back, and on most modes that costs a life. Turn the cube and plan.</p></div>
-      <div class="step"><span class="num"></span><h3>Free the pink one</h3><p>Clear its way out and tap it to win. Every level buries it deeper, from 10×10 faces up to 18×18.</p></div>
+<section>
+  <div class="wrap split">
+    <div>
+      <span class="label">On your phone</span>
+      <h2 style="margin-top:10px">Six faces, and they wrap</h2>
+      <p class="lede">On the cube, an arrow can run over the edge onto the next face, so the arrow blocking you might start round the back. Drag to turn the cube, pinch to zoom, and plan a few moves ahead.</p>
+      <ul class="ticks">
+        <li>Levels start at 10×10 per face with about a hundred arrows and grow to 18×18.</li>
+        <li>Each level buries the pink arrow a little deeper.</li>
+        <li>Leave mid-level and it's saved. Pick it up from the home screen.</li>
+      </ul>
+    </div>
+    <div class="pair">
+      <div class="phone"><img src="img/home.png" alt="Cubit home screen showing level 1, a blue cube of white arrows"></div>
+      <div class="phone"><img src="img/game.png" alt="A level in progress with lives, a timer and 104 arrows left"></div>
     </div>
   </div>
 </section>
 
-<section>
+<section id="modes">
   <div class="wrap">
     <span class="label">Departures</span>
-    <h2 style="margin-top:10px">Pick your line</h2>
-    <p class="lede">Five modes with their own lives, timer and XP, plus an optional full clear: every arrow off, pink last.</p>
+    <h2 style="margin-top:10px">Pick how hard</h2>
+    <p class="lede">Bumping into an arrow costs a life, and the timer gives you a few seconds per arrow. Switch modes any time. Harder modes earn more XP.</p>
     <div class="departures" role="table" aria-label="Game modes">
       <div class="dep head label" role="row"><span>Mode</span><span>Lives</span><span>Timer</span><span>XP</span></div>
-      <div class="dep" role="row"><span class="name">Zen</span><span class="tiles"><span>∞</span></span><span class="tiles"><span>O</span><span>F</span><span>F</span></span><span class="tiles"><span>×</span><span>.5</span></span></div>
+      <div class="dep" role="row"><span class="name">Zen<small>Take back moves, take your time</small></span><span class="tiles"><span>∞</span></span><span class="tiles"><span>O</span><span>F</span><span>F</span></span><span class="tiles"><span>×</span><span>.5</span></span></div>
       <div class="dep" role="row"><span class="name">Easy</span><span class="tiles"><span>0</span><span>5</span></span><span class="tiles"><span>O</span><span>F</span><span>F</span></span><span class="tiles"><span>×</span><span>1</span></span></div>
-      <div class="dep" role="row"><span class="name">Normal</span><span class="tiles"><span>0</span><span>3</span></span><span class="tiles"><span>4</span><span>S</span><span>/</span><span>↗</span></span><span class="tiles"><span>×</span><span>1.3</span></span></div>
-      <div class="dep" role="row"><span class="name">Hard</span><span class="tiles"><span>0</span><span>3</span></span><span class="tiles"><span>2</span><span>S</span><span>/</span><span>↗</span></span><span class="tiles"><span>×</span><span>1.7</span></span></div>
-      <div class="dep" role="row"><span class="name">Expert</span><span class="tiles"><span>0</span><span>1</span></span><span class="tiles"><span>1</span><span>.</span><span>2</span><span>S</span></span><span class="tiles"><span>×</span><span>2.4</span></span></div>
-      <div class="dep clean" role="row"><span class="name">Clean</span><span class="tiles"><span>∞</span></span><span class="tiles"><span>O</span><span>F</span><span>F</span></span><span class="tiles"><span>×</span><span>.5</span></span></div>
+      <div class="dep" role="row"><span class="name">Normal</span><span class="tiles"><span>0</span><span>3</span></span><span class="tiles"><span>4</span><span>S</span></span><span class="tiles"><span>×</span><span>1.3</span></span></div>
+      <div class="dep" role="row"><span class="name">Hard</span><span class="tiles"><span>0</span><span>3</span></span><span class="tiles"><span>2</span><span>S</span></span><span class="tiles"><span>×</span><span>1.7</span></span></div>
+      <div class="dep" role="row"><span class="name">Expert<small>One bump and it's over</small></span><span class="tiles"><span>0</span><span>1</span></span><span class="tiles"><span>1</span><span>.</span><span>2</span><span>S</span></span><span class="tiles"><span>×</span><span>2.4</span></span></div>
+      <div class="dep clean" role="row"><span class="name">Clean<small>Just the cube</small></span><span class="tiles"><span>∞</span></span><span class="tiles"><span>O</span><span>F</span><span>F</span></span><span class="tiles"><span>×</span><span>.5</span></span></div>
     </div>
-    <p class="fine">Timers give you a few seconds per arrow (↗), so bigger cubes get more time.</p>
+    <p class="fine">Timer seconds are per arrow, plus ten. Want more? Turn on Full clear: every arrow has to go, and the pink one leaves last.</p>
   </div>
 </section>
 
@@ -188,33 +285,36 @@
     <div>
       <span class="label">One tap from the home screen</span>
       <h2 style="margin-top:10px">Clean mode</h2>
-      <p class="lede">Nothing but the cube. It turns to glass in your colourway, with the back faces showing through and the arrows fading with depth.</p>
+      <p class="lede">The whole screen is the cube. It turns to glass in your colours, so you can see the back faces through the front, with the far arrows fading.</p>
       <ul class="ticks">
-        <li>No lives, no timer, no buttons. Just an X to leave.</li>
-        <li>Two-finger tap to take back a move.</li>
-        <li>Your clean runs are marked on the global board.</li>
+        <li>Unlimited lives and all the time you want. An X in the corner is the only button.</li>
+        <li>Tap with two fingers to take back a move.</li>
+        <li>Clean runs get their own mark on the global board.</li>
       </ul>
     </div>
-    <div class="shot"><div class="phone"><img src="img/game-clean.png" alt="Clean mode glass cube"></div></div>
+    <div class="pair">
+      <div class="phone"><img src="img/home-clean.png" alt="Home screen with Clean switched on, showing the glass cube"></div>
+      <div class="phone"><img src="img/game-clean.png" alt="Clean mode in play: a see-through cube and a single X"></div>
+    </div>
   </div>
 </section>
 
 <section>
   <div class="wrap">
     <span class="label">Everything else</span>
-    <h2 style="margin-top:10px">Tucked away, there when you want it</h2>
+    <h2 style="margin-top:10px">Out of the way until you want it</h2>
     <div class="grid">
-      <div class="feat"><svg viewBox="0 0 24 24"><path d="M3 21v-7h6M9 21V8h6v13M15 12h6v9M2 21h20"/></svg><h3>Honest rankings</h3><p>Optional. The server replays every ranked run's taps against the same cube and scores it itself. Watch any run back.</p></div>
-      <div class="feat"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1.2"/><circle cx="15" cy="15" r="1.2"/><circle cx="12" cy="12" r="1.2"/></svg><h3>Daily cube</h3><p>One 12×12 cube a day, the same for everyone, with its own board and a streak to keep alive.</p></div>
-      <div class="feat"><svg viewBox="0 0 24 24"><path d="M13 2.5L5 13.5h6.5l-1 8L19 10h-6.5z"/></svg><h3>Powerups</h3><p>Scan, Shield, Freeze, Spare life and Undo, one each per level, all switchable. Hints are earned by playing well.</p></div>
-      <div class="feat"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg><h3>Pick up later</h3><p>Leave mid-level and it's saved. Continue from the home screen, even after the app closes.</p></div>
-      <div class="feat"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="6"/><path d="M8.5 13.5L7 21l5-2.5 5 2.5-1.5-7.5"/></svg><h3>Badges and XP</h3><p>Fourteen badges, player levels, an endless campaign, free roam from 2×2 to 18×18, and level replays.</p></div>
-      <div class="feat"><svg viewBox="0 0 24 24"><path d="M2.5 12Q12 3 21.5 12Q12 21 2.5 12z"/><circle cx="12" cy="12" r="3"/></svg><h3>Made to be played</h3><p>12 colourways, a striped target that doesn't rely on colour, a left-handed layout, real haptics and a quiet soundtrack.</p></div>
+      <div class="feat"><svg viewBox="0 0 24 24"><path d="M3 21v-7h6M9 21V8h6v13M15 12h6v9M2 21h20"/></svg><h3>Scores you can trust</h3><p>Rankings are optional. When they're on, the server replays your taps on the same cube and works out the score itself. You can watch any run on the board play back.</p></div>
+      <div class="feat"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1.2"/><circle cx="15" cy="15" r="1.2"/><circle cx="12" cy="12" r="1.2"/></svg><h3>A daily cube</h3><p>Everyone gets the same 12×12 cube each day, with its own board. Solve it daily to keep your streak burning.</p></div>
+      <div class="feat"><svg viewBox="0 0 24 24"><path d="M13 2.5L5 13.5h6.5l-1 8L19 10h-6.5z"/></svg><h3>Five powerups</h3><p>Scan lights up every free arrow. Shield, Freeze, Spare life and Undo save a bad moment. One of each per level, and you can switch any of them off.</p></div>
+      <div class="feat"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="6"/><path d="M8.5 13.5L7 21l5-2.5 5 2.5-1.5-7.5"/></svg><h3>Badges and levels</h3><p>Fourteen badges, from your first win to a perfect run on Expert. Free roam builds any cube from 2×2 to 18×18.</p></div>
+      <div class="feat"><svg viewBox="0 0 24 24"><path d="M2.5 12Q12 3 21.5 12Q12 21 2.5 12z"/><circle cx="12" cy="12" r="3"/></svg><h3>Your colours</h3><p>Twelve colourways, your own arrow colour and thickness, and a stripe on the pink arrow if colour alone doesn't work for you.</p></div>
+      <div class="feat"><svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg><h3>Sound and touch</h3><p>Real split-flap clacks, a soft swoosh for every arrow, a quiet soundtrack, and a vibration you can feel when you bump.</p></div>
     </div>
     <div class="gallery">
       <figure><img src="img/home.png" alt="" loading="lazy"><figcaption>Home</figcaption></figure>
       <figure><img src="img/game.png" alt="" loading="lazy"><figcaption>A level</figcaption></figure>
-      <figure><img src="img/home-clean.png" alt="" loading="lazy"><figcaption>Clean preview</figcaption></figure>
+      <figure><img src="img/game-clean.png" alt="" loading="lazy"><figcaption>Clean mode</figcaption></figure>
       <figure><img src="img/mode.png" alt="" loading="lazy"><figcaption>Modes</figcaption></figure>
       <figure><img src="img/more.png" alt="" loading="lazy"><figcaption>Daily and free roam</figcaption></figure>
       <figure><img src="img/setup.png" alt="" loading="lazy"><figcaption>First launch</figcaption></figure>
@@ -222,15 +322,45 @@
   </div>
 </section>
 
-<section class="final">
+<section id="install">
   <div class="wrap">
-    <h2>Free the pink arrow</h2>
-    <p class="lede" style="margin:16px auto 0">Free and open source. Get the APK from GitHub Releases and install it on your phone.</p>
-    <div class="cta">
-      <a class="btn primary" href="https://github.com/taynotfound/cubit/releases/latest/download/Cubit.apk">Download Cubit
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12M6 11l6 6 6-6M5 21h14"/></svg></a>
-      <a class="btn secondary" href="https://github.com/taynotfound/cubit/releases">Release notes</a>
+    <span class="label">Install</span>
+    <h2 style="margin-top:10px">On your phone in a minute</h2>
+    <p class="lede">Cubit isn't on the Play Store, so you install the file yourself. Android asks once whether your browser may install apps.</p>
+    <ol class="install">
+      <li><b>Download Cubit.apk</b> on your phone with the button on this page.</li>
+      <li><b>Open it</b> from your downloads. If Android asks, allow your browser to install apps.</li>
+      <li><b>Tap Install</b>, then open Cubit. A short how-to-play cube is waiting.</li>
+    </ol>
+    <p class="trust">The source is on <a href="https://github.com/taynotfound/cubit">GitHub</a> under the MIT licence. Every release is signed with the same key and lists the file's SHA-256 checksum, so updates install over the top and keep your progress.</p>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap">
+    <span class="label">Questions</span>
+    <h2 style="margin-top:10px">Before you download</h2>
+    <div class="faq">
+      <details><summary>Is it really free?</summary><p>Yes. Every level, mode and powerup is in the free download. There are no ads and nothing to buy.</p></details>
+      <details><summary>Why isn't it on the Play Store?</summary><p>It's a one-person project, published on GitHub instead. You install the APK like any other app, and updates install over the top.</p></details>
+      <details><summary>Is the APK safe?</summary><p>You can read every line of the source on GitHub, each release is signed with the same key, and the release page lists the file's SHA-256 checksum so you can check what you downloaded.</p></details>
+      <details><summary>Does it need the internet?</summary><p>Only for the optional global rankings. You choose on first launch, and everything else works offline. On GrapheneOS, allow Cubit's Network permission if you want rankings.</p></details>
+      <details><summary>What does the leaderboard know about me?</summary><p>The name you pick, your XP, and your ranked runs, including the taps, so the server can check them. It stores no email or account, and the app runs no analytics.</p></details>
+      <details><summary>How hard does it get?</summary><p>The first levels ease you in. After that the cubes grow and the pink arrow sits deeper each time. On Expert, one bump ends the level.</p></details>
     </div>
+  </div>
+</section>
+
+<section class="final" id="get">
+  <div class="wrap">
+    <h2>Level 1 is waiting</h2>
+    <p class="lede">106 arrows, three lives, and one pink arrow at the bottom of it all.</p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/taynotfound/cubit/releases/latest/download/Cubit.apk">Get Cubit for Android
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12M6 11l6 6 6-6M5 21h14"/></svg></a>
+      <a class="btn secondary" href="#try">Play a face first</a>
+    </div>
+    <p class="fine">Free with no ads · Android 7.0 or newer · <a href="https://github.com/taynotfound/cubit/releases">release notes</a></p>
   </div>
 </section>
 
@@ -244,19 +374,161 @@
 </div>
 
 <script>
-  // The wordmark arrives like a departure board: each tile clatters through letters before it lands.
-  const word = "CUBIT", abc = "ABCDEFGHIJKLMNOPQRSTUVWXYZ", board = document.getElementById("board");
-  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// Split-flap text: each tile clatters through a few letters before landing.
+function flapWord(el, word, delay = 200) {
+  const abc = " ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  el.innerHTML = "";
   [...word].forEach((ch, i) => {
-    const c = document.createElement("div"); c.className = "cell"; c.textContent = still ? ch : " "; board.appendChild(c);
+    const c = document.createElement("span"); c.className = "cell"; c.textContent = still ? ch : " "; el.appendChild(c);
     if (still) return;
-    let n = 0; const target = abc.indexOf(ch), start = Math.max(0, target - 6 - i);
+    const target = abc.indexOf(ch); let k = Math.max(0, target - 6 - i);
     setTimeout(function tick() {
-      const k = start + n++; c.textContent = abc[Math.min(k, target)];
-      c.classList.remove("flip"); void c.offsetWidth; c.classList.add("flip");
-      if (k < target) setTimeout(tick, 70);
-    }, 200 + i * 110);
+      c.textContent = abc[k]; c.classList.remove("flip"); void c.offsetWidth; c.classList.add("flip");
+      if (k++ < target) setTimeout(tick, 70);
+    }, delay + i * 110);
   });
+}
+flapWord(document.getElementById("board"), "CUBIT");
+
+// ---- One playable face: same idea as the app, flattened to a 7×7 board ----
+const N = 7, S = 360 / 7;
+const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]]; // right, left, down, up
+const opp = d => d ^ 1;
+const svg = document.getElementById("face"), ns = "http://www.w3.org/2000/svg";
+let arrows, occ, taps, bumps, done;
+
+const idx = (x, y) => y * N + x;
+function ray(x, y, d) { const out = []; let [dx, dy] = DIRS[d]; x += dx; y += dy; while (x >= 0 && y >= 0 && x < N && y < N) { out.push(idx(x, y)); x += dx; y += dy; } return out; }
+const rnd = n => Math.floor(Math.random() * n);
+
+// Built in reverse, like the app: every new arrow's way out avoids the arrows already placed, so the board always
+// has a solution, and the pink arrow (placed first) ends up underneath everything.
+function build() {
+  occ = new Array(N * N).fill(-1); arrows = [];
+  let fails = 0;
+  while (fails < 400 && occ.filter(v => v >= 0).length < N * N * 0.86) {
+    const empty = occ.map((v, i) => v < 0 ? i : -1).filter(i => i >= 0);
+    const first = arrows.length === 0;
+    const start = first ? idx(3, 4) : empty[rnd(empty.length)];
+    const len = first ? 4 : 2 + rnd(3);
+    const path = [start]; let d = rnd(4), firstDir = d, cur = start;
+    for (let i = 1; i < len; i++) {
+      const opts = [0, 1, 2, 3].filter(o => o !== opp(d)).sort(() => Math.random() - .5);
+      let moved = false;
+      for (const o of opts) {
+        const x = cur % N + DIRS[o][0], y = Math.floor(cur / N) + DIRS[o][1];
+        if (x < 0 || y < 0 || x >= N || y >= N) continue;
+        const c = idx(x, y); if (occ[c] >= 0 || path.includes(c)) continue;
+        path.push(c); cur = c; if (i === 1) firstDir = o; d = o; moved = true; break;
+      }
+      if (!moved) break;
+    }
+    if (path.length < 2) { fails++; continue; }
+    const options = [[path, d], [[...path].reverse(), opp(firstDir)]].sort(() => Math.random() - .5);
+    const pick = options.find(([p, hd]) => { const h = p[p.length - 1]; return ray(h % N, Math.floor(h / N), hd).every(c => occ[c] < 0 && !p.includes(c)); });
+    if (!pick) { fails++; continue; }
+    const id = arrows.length; arrows.push({ cells: pick[0], dir: pick[1], gone: false });
+    pick[0].forEach(c => occ[c] = id); fails = 0;
+  }
+}
+function blocker(a) { const h = a.cells[a.cells.length - 1]; return ray(h % N, Math.floor(h / N), a.dir).findIndex(c => occ[c] >= 0 && arrows[occ[c]] !== a); }
+// How many arrows still have to go before the pink one can: its blockers, their blockers, and so on.
+function inTheWay() {
+  const seen = new Set([0]), q = [0];
+  while (q.length) { const a = arrows[q.shift()], h = a.cells[a.cells.length - 1];
+    for (const c of ray(h % N, Math.floor(h / N), a.dir)) { const b = occ[c]; if (b >= 0 && !seen.has(b)) { seen.add(b); q.push(b); } } }
+  return seen.size - 1;
+}
+
+const centre = c => [(c % N) * S + S / 2, Math.floor(c / N) * S + S / 2];
+function draw() {
+  svg.innerHTML = `<rect width="360" height="360" rx="6" fill="#1F4FBF"/>` +
+    Array.from({ length: N * N }, (_, c) => { const [x, y] = centre(c); return `<circle cx="${x}" cy="${y}" r="2" fill="#173E99"/>`; }).join("");
+  arrows.forEach((a, i) => {
+    if (a.gone) return;
+    const pts = a.cells.map(centre), [hx, hy] = pts[pts.length - 1], [dx, dy] = DIRS[a.dir];
+    const tip = [hx + dx * 19, hy + dy * 19], base = [hx + dx * 5, hy + dy * 5], px = -dy * 10, py = dx * 10;
+    const color = i === 0 ? "#FF3D7F" : "#F4F6FB";
+    const g = document.createElementNS(ns, "g");
+    g.setAttribute("class", "arrow"); g.setAttribute("tabindex", "0"); g.setAttribute("role", "button");
+    g.setAttribute("aria-label", (i === 0 ? "Pink arrow" : "Arrow") + " pointing " + ["right", "left", "down", "up"][a.dir]);
+    g.innerHTML = `<polyline points="${[...pts, base].map(p => p.join(",")).join(" ")}" fill="none" stroke="transparent" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/>` +
+      (i === 0 ? `<polyline points="${[...pts, base].map(p => p.join(",")).join(" ")}" fill="none" stroke="#FF3D7F" stroke-opacity=".28" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>` : "") +
+      `<polyline class="body" points="${[...pts, base].map(p => p.join(",")).join(" ")}" fill="none" stroke="${color}" stroke-width="${i === 0 ? 10 : 8}" stroke-linecap="round" stroke-linejoin="round"/>` +
+      `<polygon points="${tip.join(",")} ${base[0] + px},${base[1] + py} ${base[0] - px},${base[1] - py}" fill="${color}"/>`;
+    g.addEventListener("click", () => tap(i, g));
+    g.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); tap(i, g); } });
+    svg.appendChild(g);
+  });
+  document.getElementById("way").textContent = arrows[0].gone ? 0 : inTheWay();
+}
+
+const hint = document.getElementById("hint");
+function tap(i, g) {
+  if (done) return;
+  const a = arrows[i]; taps++; document.getElementById("taps").textContent = taps;
+  const k = blocker(a), [dx, dy] = DIRS[a.dir];
+  if (k >= 0) {
+    bumps++; document.getElementById("bumps").textContent = bumps;
+    const nudge = (k + .25) * S * .5;
+    if (!still) g.animate([{ transform: "translate(0,0)" }, { transform: `translate(${dx * nudge}px,${dy * nudge}px)` }, { transform: "translate(0,0)" }], { duration: 260, easing: "ease-out" });
+    svg.parentElement.classList.remove("shake"); void svg.parentElement.offsetWidth; svg.parentElement.classList.add("shake");
+    hint.textContent = i === 0 ? "The pink one is still boxed in. Clear its path first." : "Bump. Something sits in its path, so it bounces back.";
+    return;
+  }
+  a.gone = true; a.cells.forEach(c => occ[c] = -1);
+  const out = (N + a.cells.length) * S;
+  const finish = () => { draw(); if (i === 0) win(); };
+  if (still) finish();
+  else g.animate([{ transform: "translate(0,0)", opacity: 1 }, { transform: `translate(${dx * out}px,${dy * out}px)`, opacity: 0 }], { duration: 420, easing: "cubic-bezier(.5,0,.75,0)" }).onfinish = finish;
+  const left = inTheWay();
+  hint.textContent = i === 0 ? "" : left === 0 ? "The pink arrow's way is clear. Tap it." : left + " arrow" + (left === 1 ? "" : "s") + " still between the pink one and the edge.";
+}
+
+// A short burst of pink and yellow confetti over the face.
+function confetti() {
+  if (still) return;
+  const box = document.getElementById("try");
+  for (let i = 0; i < 46; i++) {
+    const p = document.createElement("span");
+    p.style.cssText = `position:absolute;left:${20 + Math.random() * 60}%;top:38%;width:8px;height:12px;border-radius:2px;pointer-events:none;z-index:3;background:${["#FF3D7F", "#FFC72C", "#F4F6FB", "#1F4FBF"][i % 4]}`;
+    box.appendChild(p);
+    const dx = (Math.random() - .5) * 420, up = 120 + Math.random() * 180;
+    p.animate([{ transform: "translate(0,0) rotate(0)", opacity: 1 }, { transform: `translate(${dx * .6}px,${-up}px) rotate(${Math.random() * 360}deg)`, opacity: 1, offset: .35 },
+               { transform: `translate(${dx}px,${260 + Math.random() * 160}px) rotate(${Math.random() * 900}deg)`, opacity: 0 }],
+              { duration: 1400 + Math.random() * 700, easing: "cubic-bezier(.2,.6,.4,1)" }).onfinish = () => p.remove();
+  }
+}
+
+function win() {
+  done = true;
+  confetti();
+  document.getElementById("wontext").textContent = bumps === 0
+    ? `Freed in ${taps} taps without a single bump.`
+    : `Freed in ${taps} taps with ${bumps} bump${bumps === 1 ? "" : "s"}. On Normal you'd have had ${Math.max(0, 3 - bumps)} ${3 - bumps === 1 ? "life" : "lives"} left.`;
+  document.getElementById("won").classList.add("show");
+  flapWord(document.getElementById("wonboard"), "FREED", 120);
+}
+
+function reset() {
+  // Reroll until the pink arrow starts properly buried, as the app does.
+  let best = null, bestScore = -1;
+  for (let t = 0; t < 60 && bestScore < 7; t++) {
+    build(); const sc = inTheWay();
+    if (sc > bestScore) { best = { arrows, occ }; bestScore = sc; }
+  }
+  ({ arrows, occ } = best);
+  taps = 0; bumps = 0; done = false;
+  ["taps", "bumps"].forEach(id => document.getElementById(id).textContent = 0);
+  document.getElementById("won").classList.remove("show");
+  hint.textContent = "Tap an arrow whose path to the edge is clear.";
+  draw();
+}
+document.getElementById("again").onclick = reset;
+document.getElementById("again2").onclick = reset;
+reset();
 </script>
 </body>
 </html>
