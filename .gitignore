@@ -21,3 +21,6 @@ server/backups/
 *.iml
 .DS_Store
 .claude/
+
+# local-only notes and store submission material
+submission/

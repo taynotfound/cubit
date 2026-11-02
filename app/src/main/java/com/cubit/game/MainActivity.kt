@@ -515,13 +515,13 @@ class MainActivity : Activity(), GameView.Listener {
     private fun homeNotices(col: LinearLayout) {
         val today = utcDay()
         val latest = prefs.latestVersion
-        if (latest != null && Net.newer(latest, appVersion) && latest != prefs.dismissedVersion) {
+        if (BuildConfig.UPDATE_CHECK && latest != null && Net.newer(latest, appVersion) && latest != prefs.dismissedVersion) {
             notice(col, "Update", "Cubit $latest is out.", "Get it", {
                 runCatching { startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://github.com/taynotfound/cubit/releases/latest/download/Cubit.apk"))) }
             }) { prefs.dismissedVersion = latest }
             return
         }
-        if (prefs.autoUpdate && prefs.updateCheckedDay != today) Net.latestVersion { v ->
+        if (BuildConfig.UPDATE_CHECK && prefs.autoUpdate && prefs.updateCheckedDay != today) Net.latestVersion { v ->
             if (v != null) { prefs.latestVersion = v; prefs.updateCheckedDay = today }
             if (v != null && Net.newer(v, appVersion) && tab == Tab.PLAY && gameLayer == null) showTab(Tab.PLAY)
         }
@@ -907,8 +907,10 @@ class MainActivity : Activity(), GameView.Listener {
                 }
             })
         }
-        checkButton()
-        about.add(switchRow("Check automatically", "Once a day, ask GitHub for a newer version and show a small card on the Play screen.", prefs.autoUpdate) { prefs.autoUpdate = it }, 4)
+        if (BuildConfig.UPDATE_CHECK) {
+            checkButton()
+            about.add(switchRow("Check automatically", "Once a day, ask GitHub for a newer version and show a small card on the Play screen.", prefs.autoUpdate) { prefs.autoUpdate = it }, 4)
+        } else updateBox.add(body("Updates come through the app store you installed Cubit from.", th.muted))
         about.add(secondary("Website", glyph = Glyph.ARROW) { open("https://taynotfound.github.io/cubit/") }, 10)
         about.add(secondary("Source code and licences", glyph = Glyph.ARROW) { open("https://github.com/taynotfound/cubit") }, 8)
         about.add(secondary("Changelog", glyph = Glyph.ARROW) { open("https://github.com/taynotfound/cubit/blob/main/CHANGELOG.md") }, 8)

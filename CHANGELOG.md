@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.1 (2026-11-02)
+
+- A separate F-Droid build without the GitHub update check. Builds are now reproducible, and releases carry both `Cubit.apk` and `Cubit-fdroid.apk`.
+- Get automatic updates from GitHub with Obtainium (links on the website and in the README).
+
 ## 1.3.0 (2026-11-02)
 
 - **Weekly challenge:** one 16×16 cube for everyone, Monday to Sunday, with its own board (Rankings → Week).

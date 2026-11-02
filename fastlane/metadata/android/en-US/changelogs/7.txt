@@ -1,0 +1,2 @@
+- New F-Droid build of Cubit, without the GitHub update check
+- Reproducible builds, so F-Droid and GitHub installs can update each other

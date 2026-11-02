@@ -11,6 +11,8 @@ No ads, no accounts, no nonsense. Native Android.</p>
   <a href="https://github.com/taynotfound/cubit/releases">All releases</a>
 </p>
 
+<p align="center"><a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium%3A%2F%2Fapp%2F%257B%2522id%2522%253A%2522com.cubit.game%2522%252C%2522url%2522%253A%2522https%253A%252F%252Fgithub.com%252Ftaynotfound%252Fcubit%2522%252C%2522author%2522%253A%2522taynotfound%2522%252C%2522name%2522%253A%2522Cubit%2522%252C%2522additionalSettings%2522%253A%2522%257B%255C%2522apkFilterRegEx%255C%2522%253A%2520%255C%2522%255ECubit%255C%255C%255C%255C.apk%2524%255C%2522%257D%2522%257D"><img src="https://raw.githubusercontent.com/ImranR98/Obtainium/main/assets/graphics/badge_obtainium.png" height="54" alt="Get it on Obtainium"></a></p>
+
 <p align="center"><img src="docs/img/trailer.gif" width="300" alt="Cubit opening, Clean mode and a level being played"></p>
 
 <p align="center">
@@ -49,21 +51,23 @@ Levels start at 10×10 per side with about a hundred winding arrows and grow to 
 
 Download `Cubit.apk` from the [latest release](https://github.com/taynotfound/cubit/releases/latest) and open it on your phone. Android 7.0 or newer.
 
+**Want automatic updates?** Add Cubit to [Obtainium](https://apps.obtainium.imranr.dev/redirect?r=obtainium%3A%2F%2Fapp%2F%257B%2522id%2522%253A%2522com.cubit.game%2522%252C%2522url%2522%253A%2522https%253A%252F%252Fgithub.com%252Ftaynotfound%252Fcubit%2522%252C%2522author%2522%253A%2522taynotfound%2522%252C%2522name%2522%253A%2522Cubit%2522%252C%2522additionalSettings%2522%253A%2522%257B%255C%2522apkFilterRegEx%255C%2522%253A%2520%255C%2522%255ECubit%255C%255C%255C%255C.apk%2524%255C%2522%257D%2522%257D), which installs new versions straight from these GitHub releases.
+
 > Upgrading from a build before 1.0.0? Those were signed with a development key. Uninstall the old app first; 1.0.0 and later update in place.
 
 **GrapheneOS and other privacy ROMs:** if rankings say "can't reach the internet", allow Cubit's Network permission. The app works fully offline otherwise.
 
-**F-Droid:** the listing metadata lives in `fastlane/`, ready for an F-Droid submission.
+**F-Droid:** the `fdroid` build flavour is reproducible, and the store listing lives in `fastlane/`.
 
 ## Build it yourself
 
 You need JDK 17 and the Android SDK (platform 34).
 
 ```bash
-./gradlew testDebugUnitTest assembleRelease
+./gradlew testGithubDebugUnitTest assembleGithubRelease assembleFdroidRelease
 ```
 
-The APK lands in `app/build/outputs/apk/release/`. Release builds are signed from `keystore.properties` (`storeFile`, `storePassword`, `keyAlias`, `keyPassword`). Without it they fall back to the debug key.
+APKs land in `app/build/outputs/apk/<flavour>/release/`. The `github` flavour checks GitHub for updates, and the `fdroid` flavour doesn't. Release builds are signed from `keystore.properties` (`storeFile`, `storePassword`, `keyAlias`, `keyPassword`); without it they come out unsigned.
 
 The app is plain Kotlin with no AndroidX: Activities, programmatic Views and a hand-rolled perspective renderer on Canvas.
 
