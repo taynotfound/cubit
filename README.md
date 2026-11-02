@@ -81,6 +81,12 @@ cd server && go test ./... && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" 
 | `DESIGN.md` | The Wayfinding design system |
 | `docs/` | The website (GitHub Pages) |
 
+## Licence
+
+The code, art and synthesized audio are under the [MIT License](LICENSE). The fonts (SIL OFL) and Kenney's sound effects (CC0) keep their own licences; see [NOTICE.md](NOTICE.md).
+
+There's also a [changelog](CHANGELOG.md), [how to contribute](CONTRIBUTING.md), and [how to report a security problem](SECURITY.md).
+
 ## Credits
 
 - Fonts: [Barlow](https://github.com/jpt/barlow) by Jeremy Tribby, under the SIL Open Font License.
