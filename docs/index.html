@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cubit · Free the pink arrow</title>
+<meta name="description" content="Cubit is a hard little cube of arrows for Android. Free the pink one. No ads, no accounts.">
+<meta property="og:title" content="Cubit">
+<meta property="og:description" content="A hard little cube of arrows. Free the pink one. No ads, Android, free.">
+<meta property="og:image" content="https://taynotfound.github.io/cubit/img/social.png">
+<meta property="og:url" content="https://taynotfound.github.io/cubit/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#0E1B3D">
+<link rel="icon" href="img/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0E1B3D; --panel: #172A57; --tile: #0A1330; --face: #1F4FBF;
+    --text: #F4F6FB; --muted: #AEB8D0; --hair: #2B3D69; --accent: #FFC72C; --on-accent: #0E1B3D; --pink: #FF3D7F;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 400 17px/1.55 Barlow, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  a { color: inherit; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+  .label { font: 600 13px/1 "Barlow Condensed", sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  h1, h2, h3 { font-family: "Barlow Condensed", sans-serif; font-weight: 700; text-transform: uppercase; letter-spacing: .01em; margin: 0; line-height: 1; }
+  h2 { font-size: clamp(34px, 5vw, 52px); }
+  h3 { font-size: 22px; letter-spacing: .03em; }
+  p { margin: 0; }
+
+  /* top bar */
+  nav { display: flex; align-items: center; gap: 12px; padding: 18px 0; }
+  nav .mark { display: flex; align-items: center; gap: 10px; text-decoration: none; font: 700 26px/1 "Barlow Condensed"; text-transform: uppercase; }
+  nav .mark img { width: 34px; height: 34px; }
+  nav .links { margin-left: auto; display: flex; gap: 22px; }
+  nav .links a { text-decoration: none; font: 600 15px/1 "Barlow Condensed"; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  nav .links a:hover { color: var(--text); }
+
+  /* hero */
+  .hero { display: grid; grid-template-columns: 1.05fr .95fr; gap: 40px; align-items: center; padding: 40px 0 80px; }
+  .board { display: flex; gap: 6px; margin-bottom: 26px; }
+  .cell { width: clamp(46px, 7vw, 74px); height: clamp(62px, 9.5vw, 100px); background: var(--tile); border-radius: 6px; position: relative;
+          display: grid; place-items: center; font: 700 clamp(40px, 6.6vw, 72px)/1 "Barlow Condensed"; overflow: hidden; }
+  .cell::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 2px; background: var(--bg); opacity: .7; }
+  .cell.flip { animation: flip .09s linear; }
+  @keyframes flip { 50% { transform: scaleY(.15); } }
+  .tag { font: 500 clamp(21px, 2.6vw, 28px)/1.3 Barlow; color: var(--muted); max-width: 22ch; }
+  .tag b { color: var(--text); font-weight: 500; }
+  .tag .pink { color: var(--pink); }
+  .cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 34px; }
+  .btn { display: inline-flex; align-items: center; gap: 14px; min-height: 60px; padding: 0 22px; border-radius: 6px; text-decoration: none;
+         font: 700 22px/1 "Barlow Condensed"; text-transform: uppercase; letter-spacing: .02em; transition: transform .12s; }
+  .btn:active { transform: scale(.97); }
+  .btn.primary { background: var(--accent); color: var(--on-accent); }
+  .btn.secondary { background: var(--panel); border: 1px solid var(--hair); font-size: 18px; letter-spacing: .05em; }
+  .btn svg { width: 24px; height: 24px; }
+  .fine { margin-top: 14px; font-size: 14px; color: var(--muted); }
+
+  .phones { position: relative; height: 560px; }
+  .phone { position: absolute; width: 250px; border-radius: 28px; border: 6px solid #050b1d; box-shadow: 0 30px 60px rgba(0,0,0,.45); background: #050b1d; overflow: hidden; }
+  .phone img { display: block; width: 100%; }
+  .phone.a { left: 4%; top: 0; transform: rotate(-4deg); }
+  .phone.b { right: 4%; top: 50px; transform: rotate(5deg); }
+
+  section { padding: 80px 0; border-top: 1px solid var(--hair); }
+  .lede { color: var(--muted); font-size: 19px; max-width: 60ch; margin-top: 16px; }
+
+  /* how it plays: three signs */
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 40px; }
+  .step { background: var(--panel); border-radius: 6px; padding: 22px; }
+  .step .num { display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 6px; background: var(--tile); font: 700 24px/1 "Barlow Condensed"; margin-bottom: 18px; }
+  .step:last-child .num { background: var(--pink); }
+  .step p { color: var(--muted); margin-top: 10px; }
+
+  /* departure board of modes */
+  .departures { margin-top: 40px; background: var(--panel); border-radius: 10px; padding: 8px 22px; }
+  .dep { display: grid; grid-template-columns: 1.2fr 1fr 1fr .8fr; gap: 12px; align-items: center; padding: 16px 0; border-bottom: 1px solid var(--hair); }
+  .dep:last-child { border-bottom: 0; }
+  .dep.head { padding: 14px 0 10px; }
+  .dep .name { font: 700 24px/1 "Barlow Condensed"; text-transform: uppercase; }
+  .dep .tiles { font: 700 20px/1 "Barlow Condensed"; display: flex; gap: 3px; }
+  .dep .tiles span { background: var(--tile); border-radius: 4px; padding: 6px 7px; min-width: 24px; text-align: center; }
+  .dep.clean .name { color: var(--accent); }
+
+  /* clean spotlight */
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; }
+  .split .shot { justify-self: center; }
+  .split .phone { position: static; transform: none; width: 280px; }
+  .ticks { list-style: none; padding: 0; margin: 26px 0 0; display: grid; gap: 12px; }
+  .ticks li { display: flex; gap: 12px; color: var(--muted); }
+  .ticks li::before { content: ""; flex: none; width: 12px; height: 12px; margin-top: 7px; border-radius: 3px; background: var(--accent); }
+
+  /* features */
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 26px 32px; margin-top: 44px; }
+  .feat svg { width: 28px; height: 28px; stroke: var(--accent); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .feat h3 { margin-top: 12px; }
+  .feat p { color: var(--muted); margin-top: 8px; font-size: 16px; }
+
+  .gallery { display: flex; gap: 18px; overflow-x: auto; padding: 36px 0 10px; scroll-snap-type: x mandatory; }
+  .gallery figure { margin: 0; flex: none; width: 220px; scroll-snap-align: start; }
+  .gallery img { width: 100%; border-radius: 18px; border: 5px solid #050b1d; display: block; }
+  .gallery figcaption { margin-top: 10px; font: 600 14px/1.2 "Barlow Condensed"; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+
+  .final { text-align: center; }
+  .final .cta { justify-content: center; }
+  footer { border-top: 1px solid var(--hair); padding: 30px 0 40px; color: var(--muted); font-size: 14px; display: flex; flex-wrap: wrap; gap: 8px 24px; }
+  footer a { color: var(--muted); }
+
+  @media (max-width: 860px) {
+    nav .links a.opt { display: none; }
+    .hero, .split { grid-template-columns: 1fr; }
+    .hero { padding-top: 10px; }
+    .phones { height: 470px; max-width: 420px; margin: 0 auto; width: 100%; }
+    .phone { width: 210px; }
+    .steps, .grid { grid-template-columns: 1fr; }
+    .dep { grid-template-columns: 1fr 1fr; row-gap: 8px; }
+    .dep.head { display: none; }
+    .dep .name { grid-column: 1 / -1; }
+    section { padding: 60px 0; }
+  }
+  @media (prefers-reduced-motion: reduce) { .cell.flip { animation: none; } html { scroll-behavior: auto; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav>
+    <a class="mark" href="#"><img src="img/icon.svg" alt="">Cubit</a>
+    <div class="links">
+      <a class="opt" href="#play">How it plays</a>
+      <a class="opt" href="#clean">Clean mode</a>
+      <a href="https://github.com/taynotfound/cubit">GitHub</a>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <div>
+      <div class="board" id="board" aria-label="Cubit"></div>
+      <p class="tag"><b>A hard little cube of arrows.</b> Free the <span class="pink">pink</span> one.</p>
+      <div class="cta">
+        <a class="btn primary" href="https://github.com/taynotfound/cubit/releases/latest/download/Cubit.apk">Download for Android
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12M6 11l6 6 6-6M5 21h14"/></svg></a>
+        <a class="btn secondary" href="https://github.com/taynotfound/cubit">Source code</a>
+      </div>
+      <p class="fine">Free. No ads, no accounts, no tracking. Android 7.0 or newer.</p>
+    </div>
+    <div class="phones">
+      <div class="phone a"><img src="img/home.png" alt="Cubit home screen with a blue arrow cube"></div>
+      <div class="phone b"><img src="img/game-clean.png" alt="Clean mode: a see-through glass cube of arrows"></div>
+    </div>
+  </header>
+</div>
+
+<section id="play">
+  <div class="wrap">
+    <span class="label">How it plays</span>
+    <h2 style="margin-top:10px">Tap. Slide. Bump. Think.</h2>
+    <div class="steps">
+      <div class="step"><span class="num">1</span><h3>Tap an arrow</h3><p>It slides forward along its own winding path and off the cube, as long as nothing is in the way.</p></div>
+      <div class="step"><span class="num">2</span><h3>Mind the bumps</h3><p>If something blocks it, it bounces back, and on most modes that costs a life. Turn the cube and plan.</p></div>
+      <div class="step"><span class="num"></span><h3>Free the pink one</h3><p>Clear its way out and tap it to win. Every level buries it deeper, from 10×10 faces up to 18×18.</p></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <span class="label">Departures</span>
+    <h2 style="margin-top:10px">Pick your line</h2>
+    <p class="lede">Five modes with their own lives, timer and XP, plus an optional full clear: every arrow off, pink last.</p>
+    <div class="departures" role="table" aria-label="Game modes">
+      <div class="dep head label" role="row"><span>Mode</span><span>Lives</span><span>Timer</span><span>XP</span></div>
+      <div class="dep" role="row"><span class="name">Zen</span><span class="tiles"><span>∞</span></span><span class="tiles"><span>O</span><span>F</span><span>F</span></span><span class="tiles"><span>×</span><span>.5</span></span></div>
+      <div class="dep" role="row"><span class="name">Easy</span><span class="tiles"><span>0</span><span>5</span></span><span class="tiles"><span>O</span><span>F</span><span>F</span></span><span class="tiles"><span>×</span><span>1</span></span></div>
+      <div class="dep" role="row"><span class="name">Normal</span><span class="tiles"><span>0</span><span>3</span></span><span class="tiles"><span>4</span><span>S</span><span>/</span><span>↗</span></span><span class="tiles"><span>×</span><span>1.3</span></span></div>
+      <div class="dep" role="row"><span class="name">Hard</span><span class="tiles"><span>0</span><span>3</span></span><span class="tiles"><span>2</span><span>S</span><span>/</span><span>↗</span></span><span class="tiles"><span>×</span><span>1.7</span></span></div>
+      <div class="dep" role="row"><span class="name">Expert</span><span class="tiles"><span>0</span><span>1</span></span><span class="tiles"><span>1</span><span>.</span><span>2</span><span>S</span></span><span class="tiles"><span>×</span><span>2.4</span></span></div>
+      <div class="dep clean" role="row"><span class="name">Clean</span><span class="tiles"><span>∞</span></span><span class="tiles"><span>O</span><span>F</span><span>F</span></span><span class="tiles"><span>×</span><span>.5</span></span></div>
+    </div>
+    <p class="fine">Timers give you a few seconds per arrow (↗), so bigger cubes get more time.</p>
+  </div>
+</section>
+
+<section id="clean">
+  <div class="wrap split">
+    <div>
+      <span class="label">One tap from the home screen</span>
+      <h2 style="margin-top:10px">Clean mode</h2>
+      <p class="lede">Nothing but the cube. It turns to glass in your colourway, with the back faces showing through and the arrows fading with depth.</p>
+      <ul class="ticks">
+        <li>No lives, no timer, no buttons. Just an X to leave.</li>
+        <li>Two-finger tap to take back a move.</li>
+        <li>Your clean runs are marked on the global board.</li>
+      </ul>
+    </div>
+    <div class="shot"><div class="phone"><img src="img/game-clean.png" alt="Clean mode glass cube"></div></div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <span class="label">Everything else</span>
+    <h2 style="margin-top:10px">Tucked away, there when you want it</h2>
+    <div class="grid">
+      <div class="feat"><svg viewBox="0 0 24 24"><path d="M3 21v-7h6M9 21V8h6v13M15 12h6v9M2 21h20"/></svg><h3>Honest rankings</h3><p>Optional. The server replays every ranked run's taps against the same cube and scores it itself. Watch any run back.</p></div>
+      <div class="feat"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1.2"/><circle cx="15" cy="15" r="1.2"/><circle cx="12" cy="12" r="1.2"/></svg><h3>Daily cube</h3><p>One 12×12 cube a day, the same for everyone, with its own board and a streak to keep alive.</p></div>
+      <div class="feat"><svg viewBox="0 0 24 24"><path d="M13 2.5L5 13.5h6.5l-1 8L19 10h-6.5z"/></svg><h3>Powerups</h3><p>Scan, Shield, Freeze, Spare life and Undo, one each per level, all switchable. Hints are earned by playing well.</p></div>
+      <div class="feat"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg><h3>Pick up later</h3><p>Leave mid-level and it's saved. Continue from the home screen, even after the app closes.</p></div>
+      <div class="feat"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="6"/><path d="M8.5 13.5L7 21l5-2.5 5 2.5-1.5-7.5"/></svg><h3>Badges and XP</h3><p>Fourteen badges, player levels, an endless campaign, free roam from 2×2 to 18×18, and level replays.</p></div>
+      <div class="feat"><svg viewBox="0 0 24 24"><path d="M2.5 12Q12 3 21.5 12Q12 21 2.5 12z"/><circle cx="12" cy="12" r="3"/></svg><h3>Made to be played</h3><p>12 colourways, a striped target that doesn't rely on colour, a left-handed layout, real haptics and a quiet soundtrack.</p></div>
+    </div>
+    <div class="gallery">
+      <figure><img src="img/home.png" alt="" loading="lazy"><figcaption>Home</figcaption></figure>
+      <figure><img src="img/game.png" alt="" loading="lazy"><figcaption>A level</figcaption></figure>
+      <figure><img src="img/home-clean.png" alt="" loading="lazy"><figcaption>Clean preview</figcaption></figure>
+      <figure><img src="img/mode.png" alt="" loading="lazy"><figcaption>Modes</figcaption></figure>
+      <figure><img src="img/more.png" alt="" loading="lazy"><figcaption>Daily and free roam</figcaption></figure>
+      <figure><img src="img/setup.png" alt="" loading="lazy"><figcaption>First launch</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<section class="final">
+  <div class="wrap">
+    <h2>Free the pink arrow</h2>
+    <p class="lede" style="margin:16px auto 0">Free and open source. Get the APK from GitHub Releases and install it on your phone.</p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/taynotfound/cubit/releases/latest/download/Cubit.apk">Download Cubit
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12M6 11l6 6 6-6M5 21h14"/></svg></a>
+      <a class="btn secondary" href="https://github.com/taynotfound/cubit/releases">Release notes</a>
+    </div>
+  </div>
+</section>
+
+<div class="wrap">
+  <footer>
+    <span>Cubit by <a href="https://github.com/taynotfound">taynotfound</a></span>
+    <a href="https://github.com/taynotfound/cubit">Source on GitHub</a>
+    <span>Fonts: Barlow (OFL) · Sounds: Kenney (CC0)</span>
+  </footer>
+</div>
+
+<script>
+  // The wordmark arrives like a departure board: each tile clatters through letters before it lands.
+  const word = "CUBIT", abc = "ABCDEFGHIJKLMNOPQRSTUVWXYZ", board = document.getElementById("board");
+  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  [...word].forEach((ch, i) => {
+    const c = document.createElement("div"); c.className = "cell"; c.textContent = still ? ch : " "; board.appendChild(c);
+    if (still) return;
+    let n = 0; const target = abc.indexOf(ch), start = Math.max(0, target - 6 - i);
+    setTimeout(function tick() {
+      const k = start + n++; c.textContent = abc[Math.min(k, target)];
+      c.classList.remove("flip"); void c.offsetWidth; c.classList.add("flip");
+      if (k < target) setTimeout(tick, 70);
+    }, 200 + i * 110);
+  });
+</script>
+</body>
+</html>

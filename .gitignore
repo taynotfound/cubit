@@ -1,0 +1,23 @@
+# build output
+build/
+.gradle/
+*.apk
+!docs/**/*.apk
+
+# machine-specific and secrets
+local.properties
+keystore.properties
+*.jks
+*.keystore
+
+# leaderboard server runtime files
+server/cubit-leaderboard
+server/cubit-db*.json*
+server/admin.token
+server/backups/
+
+# editors
+.idea/
+*.iml
+.DS_Store
+.claude/
