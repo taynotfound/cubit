@@ -321,3 +321,23 @@ func TestDailyAndRunDetails(t *testing.T) {
 		t.Fatalf("missing replay: %d", code)
 	}
 }
+
+func TestWeekly(t *testing.T) {
+	h := newHarness(t)
+	_, reg := h.call("POST", "/v1/register", "", map[string]string{"name": "Weekly"})
+	tok := reg["token"].(string)
+	week := utcWeek(int(h.now.Unix() / 86400))
+	if code, _ := h.call("POST", "/v1/runs", tok, map[string]any{"mode": "weekly", "week": week - 3, "difficulty": "Zen"}); code != 400 {
+		t.Fatalf("old week accepted: %d", code)
+	}
+	_, st := h.call("POST", "/v1/runs", tok, map[string]any{"mode": "weekly", "week": week, "difficulty": "Zen"})
+	h.now = h.now.Add(20 * time.Minute)
+	if code, out := h.call("POST", "/v1/runs/"+st["run"].(string)+"/finish", tok, map[string]any{"moves": solve(generate(weekSpec(week)), human)}); code != 200 || out["status"] != "accepted" {
+		t.Fatalf("weekly run: %d %v", code, out)
+	}
+	_, b := h.call("GET", fmt.Sprintf("/v1/weekly/%d", week), "", nil)
+	sc := b["scores"].([]any)
+	if len(sc) != 1 || sc[0].(map[string]any)["size"] != float64(16) {
+		t.Fatalf("weekly board: %v", b)
+	}
+}

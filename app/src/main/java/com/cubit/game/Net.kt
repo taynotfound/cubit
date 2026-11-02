@@ -34,6 +34,12 @@ object Net {
         main.post { done(b) }
     }
 
+    /** One week's challenge board. */
+    fun weekly(week: Int, done: (List<ScoreEntry>?) -> Unit) = io.execute {
+        val b = call { parseBoard(JSONObject(request("GET", "/v1/weekly/$week", null, null))).scores }
+        main.post { done(b) }
+    }
+
     /** One day's daily-cube board (same run format as the best runs). */
     fun daily(day: Int, done: (List<ScoreEntry>?) -> Unit) = io.execute {
         val b = call { parseBoard(JSONObject(request("GET", "/v1/daily/$day", null, null))).scores }
@@ -41,12 +47,13 @@ object Net {
     }
 
     /** Opens a ranked run; registers this install first if it has no token yet. Done gets the run id. */
-    fun startRun(p: Prefs, spec: LevelSpec, campaignLevel: Int?, dailyDay: Int?, difficulty: String, fullClear: Boolean, done: (String?) -> Unit) {
+    fun startRun(p: Prefs, spec: LevelSpec, campaignLevel: Int?, dailyDay: Int?, difficulty: String, fullClear: Boolean, week: Int? = null, done: (String?) -> Unit) {
         val name = p.name
         io.execute {
             val id = call {
                 val body = JSONObject().put("difficulty", difficulty).put("name", name).put("goal", if (fullClear) "all" else "pink")
-                if (dailyDay != null) body.put("mode", "daily").put("day", dailyDay)
+                if (week != null) body.put("mode", "weekly").put("week", week)
+                else if (dailyDay != null) body.put("mode", "daily").put("day", dailyDay)
                 else if (campaignLevel != null) body.put("mode", "campaign").put("level", campaignLevel)
                 else body.put("mode", "free").put("n", spec.n).put("maxLen", spec.maxLen).put("seed", spec.seed)
                 JSONObject(authed(p, "POST", "/v1/runs", body.toString())).getString("run")

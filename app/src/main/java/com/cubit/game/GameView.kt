@@ -62,6 +62,12 @@ class GameView(ctx: Context) : View(ctx) {
     private var hintArrow = -1
     /** Removed arrows in order, for undo. */
     private val history = ArrayList<Int>()
+    /** Ghost race: another player's run replayed on a private copy of the board; arrows it has cleared draw faintly. */
+    var ghostOn = false
+    private lateinit var ghostOcc: IntArray
+    private lateinit var ghostGone: BooleanArray
+    private val ghostHist = ArrayList<Int>()
+    var ghostLeft = 0; private set
     /** Faces each track touches (bit per face), so glass mode only builds an arrow in the passes that need it. */
     private lateinit var faceMask: IntArray
     private var scanUntil = 0L
@@ -86,6 +92,7 @@ class GameView(ctx: Context) : View(ctx) {
         removed = BooleanArray(p.paths.size)
         remaining = p.paths.size
         anims.clear(); hintArrow = -1; scanUntil = 0L; history.clear()
+        ghostOcc = occ.copyOf(); ghostGone = BooleanArray(p.paths.size); ghostHist.clear(); ghostOn = false; ghostLeft = p.paths.size
         tracks = Array(p.paths.size) { buildTrack(it) }
         faceMask = IntArray(tracks.size) { a -> tracks[a].segFace.fold(1 shl tracks[a].headFace) { m, f -> if (f >= 0) m or (1 shl f) else m } }
         inputEnabled = true
@@ -212,6 +219,23 @@ class GameView(ctx: Context) : View(ctx) {
         invalidate()
     }
 
+    /** Plays one of the ghost's moves on its own board. Returns true when that move freed the pink arrow. */
+    fun ghostTap(a: Int): Boolean {
+        if (a == UNDO_TAP) {
+            val b = ghostHist.removeLastOrNull() ?: return false
+            puzzle.paths[b].forEach { ghostOcc[it] = b }; ghostGone[b] = false; ghostLeft++
+            invalidate(); return false
+        }
+        if (a !in tracks.indices || ghostGone[a]) return false
+        if (pinkLast && a == puzzle.target && ghostLeft > 1) return false
+        if (tracks[a].rayCells.any { ghostOcc[it] >= 0 && ghostOcc[it] != a }) return false
+        puzzle.paths[a].forEach { ghostOcc[it] = -1 }; ghostGone[a] = true; ghostHist.add(a); ghostLeft--
+        invalidate()
+        return a == puzzle.target
+    }
+
+    private fun ghosted(a: Int) = ghostOn && ghostGone[a]
+
     /** The win: a slow turntable spin while the confetti falls. */
     fun celebrate() { autoSpin = true; invalidate() }
 
@@ -299,7 +323,8 @@ class GameView(ctx: Context) : View(ctx) {
                 val pulse = 0.5f + 0.5f * sin(now / 140f)
                 drawSnake(canvas, tr, 0f, tr.headT, w * (2.4f + pulse), withAlpha(theme.accent, 80), lift = 0f, shadow = false)
                 drawSnake(canvas, tr, 0f, tr.headT, w, theme.accent)
-            } else drawSnake(canvas, tr, 0f, tr.headT, w, ink)
+            } else if (ghosted(a)) drawSnake(canvas, tr, 0f, tr.headT, w, withAlpha(ink, 80), shadow = false)
+            else drawSnake(canvas, tr, 0f, tr.headT, w, ink)
         }
         val tg = puzzle.target
         if (!removed[tg] && tg !in busy) {
@@ -366,7 +391,8 @@ class GameView(ctx: Context) : View(ctx) {
             for (a in tracks.indices) {
                 if (removed[a] || a in busy || faceMask[a] and (1 shl f) == 0) continue
                 val tr = tracks[a]
-                val c = if (a == puzzle.target) mix(ground, targetColor, (depth * 1.4f).coerceAtMost(1f)) else col
+                val c0 = if (a == puzzle.target) mix(ground, targetColor, (depth * 1.4f).coerceAtMost(1f)) else col
+                val c = if (ghosted(a)) mix(ground, c0, 0.35f) else c0
                 drawSnake(canvas, tr, 0f, tr.headT, w, c, lift = 0f, shadow = false)
                 if (markTarget && a == puzzle.target && fc > 0) drawSnake(canvas, tr, 0f, tr.headT - 0.6f, w * 0.35f, ground, lift = 0f, shadow = false)
             }

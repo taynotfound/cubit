@@ -11,6 +11,8 @@ No ads, no accounts, no nonsense. Native Android.</p>
   <a href="https://github.com/taynotfound/cubit/releases">All releases</a>
 </p>
 
+<p align="center"><img src="docs/img/trailer.gif" width="300" alt="Cubit opening, Clean mode and a level being played"></p>
+
 <p align="center">
   <img src="docs/img/home.png" width="23%" alt="Home screen">
   <img src="docs/img/game.png" width="23%" alt="A level in progress">
@@ -31,11 +33,14 @@ Levels start at 10×10 per side with about a hundred winding arrows and grow to 
 - **Clean mode.** One tap on the home screen. Just a see-through glass cube in your colours, back faces showing through, no lives, no timer, no buttons. Two-finger tap to take back a move.
 - **Modes:** Zen, Easy, Normal, Hard and Expert, each with its own lives, timer and XP multiplier.
 - **Full clear.** An optional goal: clear every arrow, and the pink one has to leave last.
-- **Endless campaign, a daily cube, free roam** (any size from 2×2 to 18×18) and replays of any level.
+- **Endless campaign, a daily cube and a weekly challenge**, the same cube for everyone, each with its own board. Share a link and a friend gets the same cube.
+- **Puzzle packs:** forty picked cubes in four packs, from tiny 5×5 puzzles to 18×18 monsters. Plus free roam (any size from 2×2 to 18×18) and replays of any level.
+- **Par for every cube:** the fewest taps that can win. Hit it for a star.
+- **Ghost race:** on the daily and weekly cubes, the leader's run plays out faintly on your cube as you go.
 - **Powerups,** each switchable: Scan, Shield, Freeze, Spare life and Undo. Hints are earned for levelling up, perfect runs and daily cubes.
 - **Leaving is safe.** Leave a level and it's saved; continue it from the home screen.
 - **Global rankings** (optional). Every ranked run is verified on the server by replaying your taps, so scores can't simply be posted. There are boards for players, best runs and today's daily cube, and you can watch any run back.
-- **Badges, XP and a daily streak.**
+- **Badges, XP and a daily streak.** Six colourways are earned with badges, and an opt-in reminder warns you the evening before a streak would end.
 - **12 colourways** with arrow colour and weight options. Sound effects, a small synthesized soundtrack and real haptics.
 - **Accessibility:** a striped target that doesn't rely on colour, a left-handed layout and arrows up to weight 14. It follows the system's Remove animations setting.
 - **A share card** for your best runs.
@@ -47,6 +52,8 @@ Download `Cubit.apk` from the [latest release](https://github.com/taynotfound/cu
 > Upgrading from a build before 1.0.0? Those were signed with a development key. Uninstall the old app first; 1.0.0 and later update in place.
 
 **GrapheneOS and other privacy ROMs:** if rankings say "can't reach the internet", allow Cubit's Network permission. The app works fully offline otherwise.
+
+**F-Droid:** the listing metadata lives in `fastlane/`, ready for an F-Droid submission.
 
 ## Build it yourself
 

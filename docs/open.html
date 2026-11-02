@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Open in Cubit</title>
+<meta name="description" content="Someone shared a Cubit cube with you. Open it in the app, or get Cubit free for Android.">
+<meta property="og:title" content="Can you beat this Cubit run?">
+<meta property="og:description" content="Same cube for everyone. Open it in Cubit, or get the game free for Android.">
+<meta property="og:image" content="https://taynotfound.github.io/cubit/img/social.png">
+<meta name="theme-color" content="#0E1B3D">
+<link rel="icon" href="img/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root { --bg: #0E1B3D; --panel: #172A57; --text: #F4F6FB; --muted: #AEB8D0; --hair: #2B3D69; --accent: #FFC72C; --on-accent: #0E1B3D; --pink: #FF3D7F; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: var(--bg); color: var(--text); font: 400 17px/1.5 Barlow, system-ui, sans-serif; padding: 24px 16px; }
+  main { width: 100%; max-width: 440px; text-align: center; }
+  img.icon { width: 88px; height: 88px; }
+  h1 { font: 700 40px/1 "Barlow Condensed", sans-serif; text-transform: uppercase; margin: 18px 0 10px; }
+  p { color: var(--muted); margin: 0 0 22px; }
+  .btn { display: flex; align-items: center; justify-content: center; min-height: 60px; border-radius: 6px; text-decoration: none; margin-top: 12px;
+         font: 700 22px/1 "Barlow Condensed"; text-transform: uppercase; letter-spacing: .02em; }
+  .primary { background: var(--accent); color: var(--on-accent); }
+  .secondary { background: var(--panel); border: 1px solid var(--hair); color: var(--text); font-size: 18px; }
+  small { display: block; margin-top: 18px; color: var(--muted); font-size: 14px; }
+  small a { color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <img class="icon" src="img/icon.svg" alt="">
+  <h1 id="title">A cube for you</h1>
+  <p id="what">Someone shared a Cubit cube. Everyone gets the same one, so you can compare runs.</p>
+  <a class="btn primary" id="open" href="https://taynotfound.github.io/cubit/">Open in Cubit</a>
+  <a class="btn secondary" href="https://github.com/taynotfound/cubit/releases/latest/download/Cubit.apk">Get Cubit for Android</a>
+  <small>Don't have it yet? It's free with no ads. <a href="https://taynotfound.github.io/cubit/">About Cubit</a></small>
+</main>
+<script>
+  // ?daily=<day> or ?week=<week> → cubit://daily/<day> or cubit://week/<week>. Only whole numbers get through.
+  const q = new URLSearchParams(location.search);
+  const kind = q.has("week") ? "week" : "daily";
+  const n = parseInt(q.get(kind), 10);
+  if (Number.isInteger(n) && n > 0 && n < 1e6) {
+    const link = `cubit://${kind}/${n}`;
+    const first = kind === "week" ? (n * 7 - 3) : n;
+    const date = new Date(first * 86400000).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+    document.getElementById("title").textContent = kind === "week" ? `Week of ${date}` : `Daily cube ${date}`;
+    document.getElementById("what").textContent = kind === "week"
+      ? "Someone shared this week's challenge: one big cube, the same for everyone. Can you beat their run?"
+      : "Someone shared a daily cube: the same one for everyone. Can you beat their run?";
+    const open = document.getElementById("open");
+    open.href = link;
+    // Try the app straight away; if it isn't installed, the page simply stays.
+    if (/Android/i.test(navigator.userAgent)) setTimeout(() => { location.href = link; }, 300);
+  }
+</script>
+</body>
+</html>

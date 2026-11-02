@@ -85,6 +85,13 @@ data class LevelSpec(val n: Int, val maxLen: Int, val seed: Long)
 fun dailySpec(day: Int) = LevelSpec(12, 10, day * 1_000_003L + 77)
 fun utcDay() = (System.currentTimeMillis() / 86_400_000L).toInt()
 
+/** The weekly challenge: one big cube for everyone, Monday to Sunday (UTC). Mirrors weekSpec in puzzle.go. */
+fun weekSpec(week: Int) = LevelSpec(16, 12, week * 7_000_003L + 5)
+/** Weeks since 1970, starting on Mondays (day 0 was a Thursday). */
+fun utcWeek(day: Int = utcDay()) = (day + 3) / 7
+/** First day (Monday) of a week, for labels. */
+fun weekStart(week: Int) = week * 7 - 3
+
 fun specForLevel(level: Int) = LevelSpec(
     n = (10 + (level - 1) / 3).coerceAtMost(18),
     maxLen = (8 + level / 4).coerceAtMost(16),

@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.3.0 (2026-11-02)
+
+- **Weekly challenge:** one 16×16 cube for everyone, Monday to Sunday, with its own board (Rankings → Week).
+- **Puzzle packs:** Pocket, Needlework, Long lines and Monster, with ten cubes each, picked for how deep the pink arrow sits.
+- **Par:** every cube has a fewest-taps-to-win number. Matching it counts as on par, and there's a badge for it.
+- **Ghost race:** on the daily and weekly cubes, the leader's recorded run plays on your cube by the same clock, and its cleared arrows fade.
+- **Colourways you earn:** six of the twelve open with badges. There are three new badges: On par, Weekender and Collector.
+- **Streak reminder (opt-in):** one notification around 7 pm if your daily streak would end tonight.
+- **Share links** to the daily or weekly cube open that cube in Cubit, or the download page if the friend doesn't have it.
+- **Update notices:** a small card on the Play screen when a new version is out. It can be switched off in About.
+- **Yesterday's cube:** a one-time card with how you placed.
+
 ## 1.2.0 (2026-11-02)
 
 - Settings has an About section with the version, an update check against GitHub releases, and links to the website, source and changelog. The version also sits at the bottom of Settings.

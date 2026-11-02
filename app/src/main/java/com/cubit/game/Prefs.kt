@@ -30,7 +30,28 @@ enum class Powerup(val label: String, val glyph: Glyph, val code: Int, val blurb
 }
 
 /** What a finished, won run looked like, for achievement checks. */
-class RunFacts(val diff: Difficulty, val perfect: Boolean, val cleared: Int, val ms: Long, val n: Int, val daily: Boolean, val usedPowerups: Boolean)
+class RunFacts(val diff: Difficulty, val perfect: Boolean, val cleared: Int, val ms: Long, val n: Int, val daily: Boolean, val usedPowerups: Boolean,
+               val atPar: Boolean = false, val weekly: Boolean = false)
+
+/** Colourways past the first six are earned: each one opens with a badge. */
+val THEME_UNLOCKS = mapOf(6 to Achievement.TEN, 7 to Achievement.PERFECT, 8 to Achievement.ARROWS_100, 9 to Achievement.DAILY, 10 to Achievement.PURIST, 11 to Achievement.PERFECT_EXPERT)
+
+/** A named set of hand-picked cubes (seeds chosen offline for how deep the pink arrow sits). */
+class Pack(val name: String, val blurb: String, val levels: List<LevelSpec>)
+
+private fun pack(name: String, blurb: String, n: Int, maxLen: Int, vararg seeds: Long) = Pack(name, blurb, seeds.map { LevelSpec(n, maxLen, it) })
+
+/** Seeds from a search over a few hundred cubes each, keeping the ten deepest, easiest first. */
+val PACKS = listOf(
+    pack("Pocket", "Tiny 5×5 cubes with the pink arrow at the very bottom.", 5, 4,
+        1000292, 1000527, 1000210, 1000538, 1000509, 1000086, 1000554, 1000349, 1000172, 1000245),
+    pack("Needlework", "Short, stubby arrows packed tight on 9×9 faces.", 9, 3,
+        2000115, 2000171, 2000300, 2000128, 2000118, 2000154, 2000157, 2000095, 2000027, 2000302),
+    pack("Long lines", "Few arrows, all of them long and winding round the cube.", 9, 20,
+        3000299, 3000399, 3000103, 3000302, 3000196, 3000377, 3000189, 3000387, 3000289, 3000025),
+    pack("Monster", "18×18 faces. The last one has 63 arrows in the pink one's way.", 18, 10,
+        4000021, 4000107, 4000058, 4000070, 4000085, 4000049, 4000048, 4000002, 4000077, 4000008),
+)
 
 /** Badges, checked after every win. [check] sees the prefs after this run's stats were added. */
 enum class Achievement(val title: String, val blurb: String, val check: (Prefs, RunFacts) -> Boolean) {
@@ -48,6 +69,9 @@ enum class Achievement(val title: String, val blurb: String, val check: (Prefs, 
     STREAK_7("On fire", "Solve the daily cube 7 days in a row.", { p, _ -> p.dailyStreak >= 7 }),
     BIG("Grand central", "Win on a 14×14 cube or bigger.", { _, r -> r.n >= 14 }),
     LEVEL_25("Long haul", "Reach player level 25.", { p, _ -> playerLevel(p.xp).first >= 25 }),
+    PAR("On par", "Win in the fewest taps possible.", { _, r -> r.atPar }),
+    WEEKLY("Weekender", "Finish a weekly challenge.", { _, r -> r.weekly }),
+    PACK("Collector", "Finish every level in a puzzle pack.", { p, _ -> PACKS.any { p.packSolved(it) >= it.levels.size } }),
 }
 
 class Theme(
@@ -124,6 +148,19 @@ class Prefs(ctx: Context) {
     var markTarget: Boolean get() = sp.getBoolean("markTarget", false); set(v) = sp.edit().putBoolean("markTarget", v).apply()
     /** A level left mid-way (JSON written by MainActivity.saveRun), or null. */
     var savedRun: String? get() = sp.getString("savedRun", null); set(v) = sp.edit().putString("savedRun", v).apply()
+    var weeklyDone: Int get() = sp.getInt("weeklyDone", -1); set(v) = sp.edit().putInt("weeklyDone", v).apply()
+    var parWins: Int get() = sp.getInt("parWins", 0); set(v) = sp.edit().putInt("parWins", v).apply()
+    /** Update check: on by default, once a day, against GitHub releases. */
+    var autoUpdate: Boolean get() = sp.getBoolean("autoUpdate", true); set(v) = sp.edit().putBoolean("autoUpdate", v).apply()
+    var updateCheckedDay: Int get() = sp.getInt("updDay", -1); set(v) = sp.edit().putInt("updDay", v).apply()
+    var latestVersion: String? get() = sp.getString("updLatest", null); set(v) = sp.edit().putString("updLatest", v).apply()
+    var dismissedVersion: String? get() = sp.getString("updDismissed", null); set(v) = sp.edit().putString("updDismissed", v).apply()
+    /** Evening reminder while a daily streak is alive and today's cube isn't done. Opt-in. */
+    var streakReminder: Boolean get() = sp.getBoolean("remind", false); set(v) = sp.edit().putBoolean("remind", v).apply()
+    /** Day whose "yesterday's cube" card was already shown or dismissed. */
+    var summarySeen: Int get() = sp.getInt("summarySeen", -1); set(v) = sp.edit().putInt("summarySeen", v).apply()
+    fun packSolved(p: Pack) = sp.getInt("pack_" + p.name, 0)
+    fun setPackSolved(p: Pack, n: Int) = sp.edit().putInt("pack_" + p.name, n).apply()
     var music: Boolean get() = sp.getBoolean("music", true); set(v) = sp.edit().putBoolean("music", v).apply()
     /** UTC day of the last solved daily cube. */
     var dailyDone: Int get() = sp.getInt("dailyDone", -1); set(v) = sp.edit().putInt("dailyDone", v).apply()
@@ -178,7 +215,8 @@ class Prefs(ctx: Context) {
     }
 
     fun resetProgress() = sp.edit().remove("level").remove("xp").remove("hints").remove("scores").remove("solved")
-        .remove("dailyDone").remove("dailyStreak").remove("totalArrows").remove("noPuStreak").remove("cleanSolved").remove("ach").apply()
+        .remove("dailyDone").remove("dailyStreak").remove("totalArrows").remove("noPuStreak").remove("cleanSolved").remove("ach")
+        .remove("weeklyDone").remove("parWins").apply { PACKS.forEach { remove("pack_" + it.name) } }.apply()
 }
 
 /** XP needed to go from player level k to k+1. */

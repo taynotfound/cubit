@@ -17,8 +17,8 @@ func fingerprint(p *Puzzle) int64 {
 
 // Same specs and values as GoldenTest in the app's PuzzleTest.kt: the app and server must build identical cubes.
 func TestFingerprintsMatchApp(t *testing.T) {
-	specs := []LevelSpec{specForLevel(1), specForLevel(7), specForLevel(30), {2, 2, 123}, {14, 20, -987654321}, dailySpec(20394)}
-	want := []int64{-7336180328909340747, -3800580958801716592, -1263255144737735575, -2333106797818041265, 1859335250571087320, -7805004108394037706}
+	specs := []LevelSpec{specForLevel(1), specForLevel(7), specForLevel(30), {2, 2, 123}, {14, 20, -987654321}, dailySpec(20394), weekSpec(2965)}
+	want := []int64{-7336180328909340747, -3800580958801716592, -1263255144737735575, -2333106797818041265, 1859335250571087320, -7805004108394037706, 2451205338930652789}
 	for i, s := range specs {
 		if got := fingerprint(generate(s)); got != want[i] {
 			t.Errorf("spec %+v: fingerprint %d, app has %d", s, got, want[i])

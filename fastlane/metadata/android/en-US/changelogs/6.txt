@@ -1,0 +1,3 @@
+- Weekly challenge with its own board, puzzle packs, par for every cube
+- Ghost race on the daily and weekly cubes, colourways earned with badges
+- Opt-in streak reminder, share links that open the same cube, update notices

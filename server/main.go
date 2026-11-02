@@ -33,6 +33,7 @@ type Run struct {
 	Spec                    LevelSpec
 	Free, All               bool // All: full-clear goal
 	Day                     int  // daily cube runs only
+	Week                    int  // weekly challenge runs only
 	Started                 time.Time
 }
 
@@ -213,6 +214,7 @@ func (a *App) startRun(w http.ResponseWriter, r *http.Request) {
 		Mode, Difficulty, Name string
 		Goal                   string // "" or "pink": free the pink arrow; "all": clear the cube, pink last
 		Level, N, MaxLen, Day  int
+		Week                   int
 		Seed                   int64
 	}
 	if !decode(w, r, 1024, &b) {
@@ -237,6 +239,14 @@ func (a *App) startRun(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		run.Spec, run.Label, run.Day = dailySpec(b.Day), "Daily "+time.Unix(int64(b.Day)*86400, 0).UTC().Format("2 Jan"), b.Day
+	case "weekly":
+		// Around the week boundary the phone and server may disagree by a week; allow one either way.
+		if now := utcWeek(int(a.now().Unix() / 86400)); b.Week < now-1 || b.Week > now+1 {
+			fail(w, http.StatusBadRequest, "that weekly challenge is closed")
+			return
+		}
+		run.Spec, run.Week = weekSpec(b.Week), b.Week
+		run.Label = "Week of " + time.Unix(int64(b.Week*7-3)*86400, 0).UTC().Format("2 Jan")
 	case "free":
 		if b.N < 2 || b.N > 18 || b.MaxLen < 2 || b.MaxLen > 24 { // 18 = replayed campaign levels
 			fail(w, http.StatusBadRequest, "bad cube size")
@@ -329,7 +339,7 @@ func (a *App) finishRun(w http.ResponseWriter, r *http.Request) {
 	}
 	sc, xp := score(rep, run.Spec, diff, run.Free, limit, serverMs)
 	entry := Score{RunID: run.ID, Device: dev, Score: sc, XP: xp, Label: run.Label, Difficulty: run.Diff, Arrows: rep.Cleared, Ms: rep.LastMs, Time: a.now().UnixMilli(),
-		Mistakes: rep.Mistakes, Size: run.Spec.N, Powerups: rep.Powerups, Spec: run.Spec, Moves: b.Moves, Day: run.Day}
+		Mistakes: rep.Mistakes, Size: run.Spec.N, Powerups: rep.Powerups, Spec: run.Spec, Moves: b.Moves, Day: run.Day, Week: run.Week}
 
 	if why := suspicion(rep, moves, limit, serverMs); len(why) > 0 {
 		a.store.mu.Lock()
@@ -481,6 +491,15 @@ func (a *App) routes() http.Handler {
 		}
 		w.Header().Set("Cache-Control", "public, max-age=10")
 		send(w, 200, map[string]any{"day": day, "scores": a.store.daily(day)})
+	})
+	m.HandleFunc("GET /v1/weekly/{week}", func(w http.ResponseWriter, r *http.Request) {
+		week, err := strconv.Atoi(r.PathValue("week"))
+		if err != nil || week < 0 || week > 200_000 {
+			fail(w, http.StatusBadRequest, "bad week")
+			return
+		}
+		w.Header().Set("Cache-Control", "public, max-age=10")
+		send(w, 200, map[string]any{"week": week, "scores": a.store.weekly(week)})
 	})
 	m.HandleFunc("POST /v1/register", a.register)
 	m.HandleFunc("POST /v1/runs", a.startRun)

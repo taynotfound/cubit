@@ -94,6 +94,11 @@ type LevelSpec struct {
 }
 
 // dailySpec mirrors dailySpec() in Puzzle.kt: one cube for everyone per UTC day (days since 1970).
+// weekSpec mirrors weekSpec() in Puzzle.kt: the weekly challenge cube. Weeks count from 1970 and start on Mondays.
+func weekSpec(week int) LevelSpec { return LevelSpec{16, 12, int64(week)*7_000_003 + 5} }
+
+func utcWeek(day int) int { return (day + 3) / 7 }
+
 func dailySpec(day int) LevelSpec { return LevelSpec{12, 10, int64(day)*1_000_003 + 77} }
 
 func specForLevel(level int) LevelSpec {

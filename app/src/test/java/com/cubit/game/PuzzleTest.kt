@@ -49,12 +49,12 @@ fun fingerprint(p: Puzzle): Long {
     return h
 }
 
-val GOLDEN_SPECS = listOf(specForLevel(1), specForLevel(7), specForLevel(30), LevelSpec(2, 2, 123), LevelSpec(14, 20, -987654321), dailySpec(20394))
+val GOLDEN_SPECS = listOf(specForLevel(1), specForLevel(7), specForLevel(30), LevelSpec(2, 2, 123), LevelSpec(14, 20, -987654321), dailySpec(20394), weekSpec(2965))
 
 class GoldenTest {
     // If these change, the server can no longer replay runs: update server/puzzle_test.go in the same commit.
     @Test fun fingerprintsMatchServer() {
-        val expected = listOf(-7336180328909340747L, -3800580958801716592L, -1263255144737735575L, -2333106797818041265L, 1859335250571087320L, -7805004108394037706L)
+        val expected = listOf(-7336180328909340747L, -3800580958801716592L, -1263255144737735575L, -2333106797818041265L, 1859335250571087320L, -7805004108394037706L, 2451205338930652789L)
         assertEquals(expected, GOLDEN_SPECS.map { fingerprint(generate(it)) })
     }
 }

@@ -1,0 +1,25 @@
+<p>Cubit is a cube covered in winding arrows. Tap one and it slides off the cube, unless another arrow is in its way. Dig the pink one out before your lives run out.</p>
+
+<p>Levels start at 10×10 per face with about a hundred arrows and grow to 18×18, and the pink arrow sits deeper every level. Arrows wrap over the edges onto the next face, so turn the cube, zoom in and plan ahead.</p>
+
+<p><b>Ways to play</b></p>
+<ul>
+<li>An endless campaign with five modes, from Zen (no lives, no timer) to Expert (one bump and it's over)</li>
+<li>Clean mode: just a see-through glass cube in your colours</li>
+<li>A daily cube and a weekly challenge, the same for everyone, each with its own board</li>
+<li>Puzzle packs: hand-picked cubes from tiny to monstrous</li>
+<li>Free roam: any cube from 2×2 to 18×18</li>
+<li>Optional full clear: every arrow off, pink last</li>
+</ul>
+
+<p><b>And</b></p>
+<ul>
+<li>Par for every cube, badges, XP, a daily streak and colourways you earn</li>
+<li>Race a ghost of the leader's run on the daily and weekly cubes</li>
+<li>Powerups, all switchable, and hints earned by playing well</li>
+<li>Leave mid-level and pick it up later</li>
+<li>Optional global rankings, verified by replaying every run on the server</li>
+<li>Accessibility: striped target, left-handed layout, heavier arrows</li>
+</ul>
+
+<p>No ads, no accounts, and no tracking. The network is used only if you turn on rankings or the update check.</p>

@@ -46,6 +46,7 @@ type Score struct {
 	Powerups   []string   `json:"powerups,omitempty"`
 	Spec       LevelSpec  `json:"spec"`
 	Day        int        `json:"day,omitempty"`   // daily cube runs: days since 1970 (UTC)
+	Week       int        `json:"week,omitempty"`  // weekly challenge runs: weeks since 1970
 	Moves      [][2]int64 `json:"moves,omitempty"` // kept so anyone can watch the run back
 }
 
@@ -258,13 +259,23 @@ func (s *Store) board() map[string]any {
 
 // daily is one day's board: best run per player on that day's cube, banned players hidden.
 func (s *Store) daily(day int) []publicScore {
+	return s.boardWhere(func(sc Score) bool { return sc.Day == day })
+}
+
+// weekly is one week's challenge board.
+func (s *Store) weekly(week int) []publicScore {
+	return s.boardWhere(func(sc Score) bool { return sc.Week == week })
+}
+
+// boardWhere is the best run per player among the matching scores (already sorted best first), top 50.
+func (s *Store) boardWhere(match func(Score) bool) []publicScore {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	out := []publicScore{}
 	seen := map[string]bool{}
 	for _, sc := range s.db.Scores {
 		d := s.db.Devices[sc.Device]
-		if sc.Day != day || d == nil || d.Banned || seen[sc.Device] {
+		if !match(sc) || d == nil || d.Banned || seen[sc.Device] {
 			continue
 		}
 		seen[sc.Device] = true

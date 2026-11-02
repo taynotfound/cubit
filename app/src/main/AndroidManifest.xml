@@ -2,10 +2,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <application
         android:label="Cubit"
         android:icon="@drawable/ic_launcher"
         android:theme="@style/Theme.Cubit">
+        <receiver android:name=".ReminderReceiver" android:exported="false" />
         <provider
             android:name=".ShareProvider"
             android:authorities="com.cubit.game.share"
@@ -15,10 +17,18 @@
             android:name=".MainActivity"
             android:exported="true"
             android:screenOrientation="portrait"
+            android:launchMode="singleTop"
             android:configChanges="orientation|screenSize|keyboardHidden">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- Shared links: cubit://daily/<day> and cubit://week/<week> open that cube. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="cubit" />
             </intent-filter>
         </activity>
     </application>
