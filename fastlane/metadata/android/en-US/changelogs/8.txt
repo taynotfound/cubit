@@ -1,0 +1,1 @@
+- New app ID: de.taymaerz.cubit. Installs as a new app, so remove the old Cubit after installing this one.

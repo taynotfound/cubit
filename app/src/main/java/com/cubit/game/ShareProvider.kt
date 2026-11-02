@@ -22,5 +22,5 @@ class ShareProvider : ContentProvider() {
     override fun delete(uri: Uri, selection: String?, args: Array<out String>?) = 0
     override fun update(uri: Uri, values: ContentValues?, selection: String?, args: Array<out String>?) = 0
 
-    companion object { const val AUTHORITY = "com.cubit.game.share" }
+    companion object { const val AUTHORITY = BuildConfig.APPLICATION_ID + ".share" }
 }

@@ -13,11 +13,11 @@ android {
     namespace = "com.cubit.game"
     compileSdk = 34
     defaultConfig {
-        applicationId = "com.cubit.game"
+        applicationId = "de.taymaerz.cubit"
         minSdk = 24
         targetSdk = 34
-        versionCode = 7
-        versionName = "1.3.1"
+        versionCode = 8
+        versionName = "1.4.0"
     }
     buildFeatures { buildConfig = true }
     // Two stores, one app: the GitHub build checks GitHub for new releases; the F-Droid build leaves updates to F-Droid.

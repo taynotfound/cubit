@@ -10,7 +10,7 @@
         <receiver android:name=".ReminderReceiver" android:exported="false" />
         <provider
             android:name=".ShareProvider"
-            android:authorities="com.cubit.game.share"
+            android:authorities="${applicationId}.share"
             android:exported="false"
             android:grantUriPermissions="true" />
         <activity
