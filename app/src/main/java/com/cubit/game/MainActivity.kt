@@ -84,7 +84,71 @@ class MainActivity : Activity(), GameView.Listener {
         root = FrameLayout(this)
         setContentView(root)
         buildShell()
-        if (!prefs.onboarded) showSetup()
+        // Opening screen on a cold start (not on rotation or when Android brings the activity back).
+        if (savedInstanceState == null) showIntro { if (!prefs.onboarded) showSetup() } else if (!prefs.onboarded) showSetup()
+    }
+
+    /**
+     * The opening: a small cube spins in, CUBIT clatters onto the flap board, the line fades up, then it all fades
+     * into the home screen. About two seconds; a tap skips it, and "Remove animations" skips it entirely.
+     */
+    private fun showIntro(then: () -> Unit) {
+        if (!motionEnabled()) { then(); return }
+        val layer = FrameLayout(this).apply { tag = "intro"; setBackgroundColor(th.bg); isClickable = true }
+        val col = column().apply { gravity = Gravity.CENTER_HORIZONTAL }
+        val cube = GameView(this).apply {
+            applyStyle(this); markTarget = prefs.markTarget
+            load(PuzzleCache.get(LevelSpec(4, 3, 2026))); inputEnabled = false; autoSpin = true
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        }
+        col.add(cube, 0, dp(280), dp(280))
+        val sign = FlapView(this, 5, 46f, th.tile, th.text, false).apply { haptics = prefs.haptics; setInstant("     "); contentDescription = "Cubit" }
+        col.add(sign, 18, WRAP_CONTENT)
+        val line = label("Free the pink arrow", th.muted).apply { alpha = 0f }
+        col.add(line, 16, WRAP_CONTENT)
+        layer.addView(col, FrameLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT, Gravity.CENTER).apply { bottomMargin = dp(40) })
+        root.addView(layer, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
+
+        var done = false
+        val finish = {
+            if (!done) {
+                done = true
+                layer.animate().alpha(0f).setDuration(280).withEndAction { root.removeView(layer); then() }.start()
+            }
+        }
+        handler.postDelayed({ sign.text = "CUBIT" }, 380)
+        handler.postDelayed({ line.animate().alpha(1f).translationY(0f).setDuration(320).start() }, 1050)
+        line.translationY = dp(6).toFloat()
+        handler.postDelayed(finish, 2200)
+        layer.setOnClickListener { finish() }
+    }
+
+    /**
+     * A big level that isn't cached yet is built off the main thread. If that takes more than a blink, a loading board
+     * covers the wait; quick builds never show it.
+     */
+    private fun whenBuilt(s: LevelSpec, go: () -> Unit) {
+        if (PuzzleCache.has(s)) { go(); return }
+        val layer = FrameLayout(this).apply { tag = "loading"; setBackgroundColor(th.bg); isClickable = true; alpha = 0f }
+        val col = column().apply { gravity = Gravity.CENTER_HORIZONTAL }
+        val sign = FlapView(this, 7, 34f, th.tile, th.text, false).apply { haptics = false; setInstant("       ") }
+        col.add(sign, 0, WRAP_CONTENT)
+        col.add(label("Building a ${s.n}×${s.n} cube"), 16, WRAP_CONTENT)
+        layer.addView(col, FrameLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT, Gravity.CENTER))
+        val show = Runnable {
+            root.addView(layer, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
+            layer.animate().alpha(1f).setDuration(160).start()
+            sign.text = "LOADING"
+        }
+        handler.postDelayed(show, 150)
+        bg.execute {
+            PuzzleCache.get(s)
+            handler.post {
+                handler.removeCallbacks(show)
+                if (layer.parent != null) layer.animate().alpha(0f).setDuration(200).withEndAction { root.removeView(layer) }.start()
+                go()
+            }
+        }
     }
 
     // The tick stops while we're in the background, or it would count that time and could end the level.
@@ -94,6 +158,7 @@ class MainActivity : Activity(), GameView.Listener {
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
         when {
+            root.findViewWithTag<View>("intro") != null || root.findViewWithTag<View>("loading") != null -> {}
             root.findViewWithTag<View>("welcome") != null -> {} // setup has to be finished once
             root.findViewWithTag<View>("replay") != null -> closeReplay()
             root.findViewWithTag<View>("details") != null -> root.removeView(root.findViewWithTag("details"))
@@ -993,6 +1058,7 @@ class MainActivity : Activity(), GameView.Listener {
     }
 
     private fun startRound(s: LevelSpec, label: String, resume: org.json.JSONObject? = null) {
+        if (!PuzzleCache.has(s)) { whenBuilt(s) { startRound(s, label, resume) }; return }
         stopRound()
         gameLayer?.let { root.removeView(it) }
         shell.visibility = View.GONE

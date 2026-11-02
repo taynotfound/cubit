@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 12+ draws its own splash: give it our ground and icon. -->
+    <style name="Theme.Cubit" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/cubit_bg</item>
+        <item name="android:statusBarColor">@color/cubit_bg</item>
+        <item name="android:navigationBarColor">@color/cubit_bg</item>
+        <item name="android:windowSplashScreenBackground">@color/cubit_bg</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_launcher</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@color/cubit_bg</item>
+    </style>
+</resources>

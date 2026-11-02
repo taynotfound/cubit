@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.0 (2026-11-02)
+
+- Opening screen: a small cube spins in, CUBIT clatters onto the split-flap board, and the tagline fades up. A tap skips it, and it's skipped when animations are turned off.
+- Launch screen: the app opens on its navy ground with the icon, using Android 12's own splash screen where available, so there's no white flash.
+- Loading board: if a big cube takes more than a moment to build, a LOADING board covers the wait.
+
 ## 1.0.0 (2026-11-02)
 
 The first release.

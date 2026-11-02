@@ -15,8 +15,8 @@ android {
         applicationId = "com.cubit.game"
         minSdk = 24
         targetSdk = 34
-        versionCode = 2
-        versionName = "1.0.0"
+        versionCode = 3
+        versionName = "1.1.0"
     }
     signingConfigs {
         if (keystore.isNotEmpty()) create("release") {

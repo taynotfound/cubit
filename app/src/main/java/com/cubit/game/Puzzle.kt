@@ -198,4 +198,5 @@ object PuzzleCache {
         override fun removeEldestEntry(e: MutableMap.MutableEntry<LevelSpec, Puzzle>?) = size > 4
     }
     @Synchronized fun get(spec: LevelSpec): Puzzle = map.getOrPut(spec) { generate(spec) }
+    @Synchronized fun has(spec: LevelSpec) = map.containsKey(spec)
 }

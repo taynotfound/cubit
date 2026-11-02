@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="cubit_bg">#0E1B3D</color>
+    <style name="Theme.Cubit" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@drawable/splash</item>
+        <item name="android:statusBarColor">@color/cubit_bg</item>
+        <item name="android:navigationBarColor">@color/cubit_bg</item>
+    </style>
+</resources>
