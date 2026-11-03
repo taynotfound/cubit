@@ -1,0 +1,1 @@
+- Camera fixes: no more stray zooms when you tap and then drag, no jerk after a pinch, smoother flicks

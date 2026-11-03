@@ -1,0 +1,141 @@
+# Builds and publishes a GitHub release when a commit on main starts with a version number,
+# e.g. "1.4.1.1: camera fixes" or "v1.5.0 new levels".
+#
+# Release notes come from that version's section in CHANGELOG.md ("## 1.4.1.1 (date)").
+# Without one, they list the commits since the previous release tag.
+#
+# Signing needs these repository secrets (Settings → Secrets and variables → Actions):
+#   KEYSTORE_BASE64    base64 of the release keystore file (`base64 -w0 cubit.jks`)
+#   KEYSTORE_PASSWORD  store password
+#   KEY_ALIAS          key alias
+#   KEY_PASSWORD       key password
+# The release key must be the same one as before, or the APK won't install over existing copies.
+
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (defaults to the one in the latest commit message)"
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # tags and history, for the commit list
+
+      - name: Read version from commit message
+        id: ver
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+        run: |
+          msg="$(git log -1 --format=%s)"
+          v="${INPUT_VERSION#v}"
+          if [ -z "$v" ]; then
+            v="$(printf '%s\n' "$msg" | sed -nE 's/^v?([0-9]+(\.[0-9]+)+)([: ].*)?$/\1/p')"
+          fi
+          if [ -z "$v" ]; then
+            echo "Commit message doesn't start with a version number; nothing to release."
+            echo "release=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if git rev-parse -q --verify "refs/tags/v$v" >/dev/null; then
+            echo "Tag v$v already exists; skipping."
+            echo "release=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          app="$(sed -nE 's/^ *versionName = "([^"]+)".*/\1/p' app/build.gradle.kts)"
+          if [ "$app" != "$v" ]; then
+            echo "::error::Commit says $v but app/build.gradle.kts has versionName \"$app\". Bump versionName (and versionCode) first, or the in-app update check and installs over the old version will break."
+            exit 1
+          fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "release=true" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-java@v4
+        if: steps.ver.outputs.release == 'true'
+        with:
+          distribution: temurin
+          java-version: "21" # matches F-Droid's build server, so builds are reproducible
+
+      - uses: gradle/actions/setup-gradle@v4
+        if: steps.ver.outputs.release == 'true'
+
+      - name: Set up signing
+        if: steps.ver.outputs.release == 'true'
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
+            echo "::error::Signing secrets are missing (KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD). Not publishing an unsigned APK."
+            exit 1
+          fi
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          {
+            echo "storeFile=$RUNNER_TEMP/release.jks"
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > keystore.properties
+
+      - name: Test and build
+        if: steps.ver.outputs.release == 'true'
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon testGithubDebugUnitTest assembleGithubRelease assembleFdroidRelease
+          cp app/build/outputs/apk/github/release/app-github-release.apk Cubit.apk
+          cp app/build/outputs/apk/fdroid/release/app-fdroid-release.apk Cubit-fdroid.apk
+
+      - name: Write release notes
+        if: steps.ver.outputs.release == 'true'
+        env:
+          V: ${{ steps.ver.outputs.version }}
+        run: |
+          # This version's section of CHANGELOG.md: from "## $V" up to the next "## ".
+          awk -v v="$V" '
+            /^## / { if (on) exit; split($0, a, " "); if (a[2] == v) { on = 1; next } }
+            on { print }
+          ' CHANGELOG.md | sed -e '/./,$!d' > notes.md
+          if ! grep -q '[^[:space:]]' notes.md; then
+            prev="$(git describe --tags --abbrev=0 --match 'v[0-9]*' HEAD^ 2>/dev/null || true)"
+            if [ -n "$prev" ]; then
+              echo "Changes since $prev:" > notes.md; echo >> notes.md
+              git log --no-merges --format='- %s' "$prev..HEAD" >> notes.md
+            else
+              git log --no-merges --format='- %s' HEAD >> notes.md
+            fi
+          fi
+          {
+            echo
+            echo "SHA-256:"
+            echo "- \`Cubit.apk\`: \`$(sha256sum Cubit.apk | cut -d' ' -f1)\`"
+            echo "- \`Cubit-fdroid.apk\`: \`$(sha256sum Cubit-fdroid.apk | cut -d' ' -f1)\`"
+          } >> notes.md
+          cat notes.md
+
+      - name: Publish release
+        if: steps.ver.outputs.release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          V: ${{ steps.ver.outputs.version }}
+        run: |
+          gh release create "v$V" Cubit.apk Cubit-fdroid.apk \
+            --target "$GITHUB_SHA" --title "Cubit $V" --notes-file notes.md --latest
+
+      - name: Clean up keystore
+        if: always()
+        run: rm -f keystore.properties "$RUNNER_TEMP/release.jks"
