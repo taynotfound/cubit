@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.1.1 (2026-11-03)
+
+- Fixed the cube sometimes zooming when you tapped and then dragged to turn it. Only a two-finger pinch zooms now.
+- Lifting one finger after a pinch no longer jerks the cube round.
+- Flicking the cube spins the same on every phone, and it no longer flings if your finger stopped before lifting.
+- Tapping to stop a spinning cube no longer removes an arrow by accident.
+- Find next resets zoom and pan, so the face it turns to stays on screen.
+
 ## 1.4.1 (2026-11-03)
 
 - Support links (Ko-fi and GitHub Sponsors) in Settings, About, and on the website.
