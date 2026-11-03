@@ -15,6 +15,7 @@ import android.view.View
 import android.view.ViewConfiguration
 import kotlin.math.abs
 import kotlin.math.cos
+import kotlin.math.exp
 import kotlin.math.hypot
 import kotlin.math.min
 import kotlin.math.sin
@@ -78,6 +79,7 @@ class GameView(ctx: Context) : View(ctx) {
     private var panX = 0f
     private var panY = 0f
     private val camDist = 6f
+    /** Coasting spin in radians per second about the screen axes (tilt, turn). */
     private var spinX = 0f
     private var spinY = 0f
 
@@ -98,7 +100,7 @@ class GameView(ctx: Context) : View(ctx) {
         inputEnabled = true
         resetView()
         // Intro: start half-size and turned away, then coast into the resting pose.
-        rotateBy(0f, -1.2f); spinY = 0.096f
+        rotateBy(0f, -1.2f); spinY = 6f // coasts 6/5 = 1.2 rad back to rest
         introStart = SystemClock.uptimeMillis()
     }
 
@@ -117,6 +119,8 @@ class GameView(ctx: Context) : View(ctx) {
         val ry = floatArrayOf(cos(tb), 0f, sin(tb), 0f, 1f, 0f, -sin(tb), 0f, cos(tb))
         val rx = floatArrayOf(1f, 0f, 0f, 0f, cos(ta), -sin(ta), 0f, sin(ta), cos(ta))
         mul(rx, ry, m); mul(m, base, rot)
+        // Recentre too, or a zoomed/panned view could leave the face it just turned to off-screen.
+        zoom = 1f; panX = 0f; panY = 0f
         spinX = 0f; spinY = 0f; hintArrow = a
         invalidate()
     }
@@ -299,7 +303,7 @@ class GameView(ctx: Context) : View(ctx) {
             canvas.translate(sin(shakeT * 0.11f) * dp * 9f * k, 0f)
         }
         if (!glass) drawShadow(canvas)
-        stepSpin()
+        stepSpin(dt)
         if (autoSpin && !dragging) {
             // Turntable: spin about the cube's own vertical axis, not the screen's.
             val a = 0.005f
@@ -656,6 +660,10 @@ class GameView(ctx: Context) : View(ctx) {
     private var multi = false
     private var dragging = false
 
+    private var lastMoveTime = 0L
+    /** The touch landed on a spinning cube: it only stops the spin, it never taps an arrow. */
+    private var caught = false
+
     private val scaler = ScaleGestureDetector(ctx, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
         override fun onScale(d: ScaleGestureDetector): Boolean {
             val nz = (zoom * d.scaleFactor).coerceIn(0.6f, 6f)
@@ -668,7 +676,10 @@ class GameView(ctx: Context) : View(ctx) {
             invalidate()
             return true
         }
-    })
+    }).apply {
+        // Quick scale (double-tap then drag) zooms when you tap and then start turning the cube; pinch only.
+        isQuickScaleEnabled = false
+    }
 
     private fun clampPan() {
         val lim = min(width, height) * 0.6f * zoom
@@ -683,10 +694,11 @@ class GameView(ctx: Context) : View(ctx) {
         when (e.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 downX = e.x; downY = e.y; lastX = cx; lastY = cy
-                downTime = e.eventTime; moved = false; multi = false; dragging = true; spinX = 0f; spinY = 0f
+                caught = abs(spinX) + abs(spinY) > 0.6f
+                downTime = e.eventTime; lastMoveTime = e.eventTime; moved = false; multi = false; dragging = true; spinX = 0f; spinY = 0f
             }
             MotionEvent.ACTION_POINTER_DOWN, MotionEvent.ACTION_POINTER_UP -> {
-                multi = true; lastX = cx; lastY = cy
+                multi = true; lastX = cx; lastY = cy; spinX = 0f; spinY = 0f
                 if (e.actionMasked == MotionEvent.ACTION_POINTER_UP) {
                     // Re-anchor on the fingers that stay down so the view doesn't jump.
                     val up = e.actionIndex
@@ -700,14 +712,25 @@ class GameView(ctx: Context) : View(ctx) {
                 if (!moved && hypot(e.x - downX, e.y - downY) > slop) moved = true
                 if (!moved && !multi) return true
                 if (e.pointerCount >= 2) { panX += dx; panY += dy; clampPan() }
-                else { val k = 0.007f / sqrt(zoom); spinX = dy * k; spinY = dx * k; rotateBy(spinX, spinY) }
+                else if (!multi) {
+                    // One finger turns the cube. The finger left over after a pinch does nothing, so lifting
+                    // one finger of a pinch doesn't jerk the cube round.
+                    val k = 0.007f / sqrt(zoom)
+                    val ax = dy * k; val ay = dx * k
+                    rotateBy(ax, ay)
+                    // Track the drag speed (rad/s), smoothed over a few events, for the coast after release.
+                    val ms = (e.eventTime - lastMoveTime).coerceIn(4L, 50L) / 1000f
+                    spinX = lerp(spinX, ax / ms, 0.5f); spinY = lerp(spinY, ay / ms, 0.5f)
+                }
+                lastMoveTime = e.eventTime
                 invalidate()
             }
             MotionEvent.ACTION_UP -> {
                 dragging = false
-                if (!moved && !multi && e.eventTime - downTime < 450) { spinX = 0f; spinY = 0f; tap(e.x, e.y) }
+                if (!moved && !multi && e.eventTime - downTime < 450) { spinX = 0f; spinY = 0f; if (!caught) tap(e.x, e.y) }
                 else if (multi && !moved && e.eventTime - downTime < 350 && inputEnabled) { spinX = 0f; spinY = 0f; listener?.onTwoFingerTap() }
-                else if (multi || abs(spinX) + abs(spinY) < 0.002f) { spinX = 0f; spinY = 0f }
+                // No coast after a pinch, or when the finger paused before lifting.
+                else if (multi || e.eventTime - lastMoveTime > 60 || abs(spinX) + abs(spinY) < 0.15f) { spinX = 0f; spinY = 0f }
                 invalidate()
             }
             MotionEvent.ACTION_CANCEL -> { dragging = false; spinX = 0f; spinY = 0f }
@@ -715,12 +738,16 @@ class GameView(ctx: Context) : View(ctx) {
         return true
     }
 
-    private fun stepSpin() {
+    private fun stepSpin(dt: Float) {
         if (spinX == 0f && spinY == 0f) return
         if (dragging) return // coast only after the finger lifts
-        rotateBy(spinX, spinY)
-        spinX *= 0.92f; spinY *= 0.92f
-        if (abs(spinX) + abs(spinY) < 0.0005f) { spinX = 0f; spinY = 0f }
+        // Time-based so the coast feels the same at any frame or touch rate.
+        // Integrates v·e^(-5t) exactly, so a spin of v always travels v/5 radians in total.
+        val decay = exp(-5f * dt.coerceAtMost(1f / 30f))
+        val k = (1f - decay) / 5f
+        rotateBy(spinX * k, spinY * k)
+        spinX *= decay; spinY *= decay
+        if (abs(spinX) + abs(spinY) < 0.03f) { spinX = 0f; spinY = 0f }
     }
 
     private fun tap(x: Float, y: Float) {
