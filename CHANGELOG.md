@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.6.0 (2026-11-05)
 
 - **Friends** (Rankings → Friends): swap 8-character friend codes and see each other's level, XP and best run side by side.
 - **Challenge a friend**: the share text after a win carries a link that opens the same cube with your run as a ghost to race.
@@ -8,9 +8,11 @@
 - **Replay controls**: pause, 2× speed and a scrub bar.
 - **Stats** (tap your name on Play): wins, losses, best and average times per mode, and a five-week calendar of daily solves.
 - **Streak freezes**: finishing a weekly challenge earns one (hold up to two), and each covers one missed daily cube.
+- **Race your best**: replay a cube you've won before and your best run on it comes along as a ghost.
 - Your best daily score shows under More → Daily cube.
 - **High contrast** (Settings → Accessibility): a black-and-white colourway with line colours that stay distinct for colour-blind players.
-- Fixed: replaying a solved daily cube gave a bonus hint every time; Zen and Clean replays ignored take-backs; a saved pack level didn't count towards its pack; the streak reminder stopped after a reboot; "See badges" opened the Daily tab; big cubes could freeze the screen while building; one-letter names couldn't join the rankings.
+- Fixed: replaying a solved daily cube gave a bonus hint every time; Zen and Clean replays ignored take-backs; a saved pack level didn't count towards its pack; the streak reminder stopped after a reboot; "See badges" opened the Daily tab; big cubes could freeze the screen while building; one-letter names couldn't join the rankings; full-clear replays let the pink arrow out early; leaving a level before clearing anything kept an empty saved level.
+- New permission, "run at startup": used only to set the streak reminder again after a reboot.
 
 ## 1.5.0 (2026-11-04)
 

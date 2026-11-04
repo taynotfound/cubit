@@ -1,0 +1,7 @@
+- Friends: swap friend codes and compare levels and best runs.
+- Challenge links: share a run, your friend races its ghost on the same cube.
+- My pack: save cubes you've won and share them as a pack.
+- Race your own best run on cubes you've won before.
+- Replay controls, a Stats page, streak freezes from weekly challenges.
+- High contrast colourway for colour-blind players.
+- Many fixes.
