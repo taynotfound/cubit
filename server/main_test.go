@@ -120,6 +120,16 @@ func TestRankedRunEndToEnd(t *testing.T) {
 	if code != 404 {
 		t.Fatalf("replayed run accepted: %d", code)
 	}
+	// A weaker run than the player's best still reports where they stand, not "unranked".
+	code, st = h.call("POST", "/v1/runs", tok, map[string]any{"mode": "campaign", "level": 1, "difficulty": "Zen"})
+	if code != 200 {
+		t.Fatalf("second start: %d %v", code, st)
+	}
+	h.now = h.now.Add(time.Duration(moves[len(moves)-1][1]+800) * time.Millisecond)
+	code, fin2 := h.call("POST", "/v1/runs/"+st["run"].(string)+"/finish", tok, map[string]any{"moves": moves})
+	if code != 200 || fin2["status"] != "accepted" || fin2["score"].(float64) >= fin["score"].(float64) || fin2["rank"].(float64) != 1 {
+		t.Fatalf("second finish: %d %v", code, fin2)
+	}
 	_, board := h.call("GET", "/v1/leaderboard", "", nil)
 	scores := board["scores"].([]any)
 	if len(scores) != 1 || scores[0].(map[string]any)["name"] != "Tay script" {

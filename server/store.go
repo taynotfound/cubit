@@ -180,11 +180,12 @@ func (s *Store) addScore(sc Score) int {
 	if len(s.db.Scores) > maxScores {
 		s.db.Scores = s.db.Scores[:maxScores]
 	}
-	return s.rankOf(sc.RunID)
+	return s.rankOf(sc.Device)
 }
 
-// rankOf is the run's position on the public board (one best run per player). Call with mu held.
-func (s *Store) rankOf(run string) int {
+// rankOf is the player's position on the public board, which lists one best run per player, so a run that
+// doesn't beat the player's best still reports where they stand. 0 if they aren't on it. Call with mu held.
+func (s *Store) rankOf(device string) int {
 	seen := map[string]bool{}
 	rank := 0
 	for _, sc := range s.db.Scores {
@@ -194,7 +195,7 @@ func (s *Store) rankOf(run string) int {
 		}
 		seen[sc.Device] = true
 		rank++
-		if sc.RunID == run {
+		if sc.Device == device {
 			return rank
 		}
 	}
