@@ -19,6 +19,8 @@ import java.util.Calendar
 class ReminderReceiver : BroadcastReceiver() {
     override fun onReceive(ctx: Context, intent: Intent) {
         val p = Prefs(ctx)
+        // Alarms don't survive a reboot; set it again or the reminder stays silent until the app is next opened.
+        if (intent.action == Intent.ACTION_BOOT_COMPLETED) { schedule(ctx, p.streakReminder); return }
         val today = utcDay()
         val streak = p.liveStreak(today)
         if (!p.streakReminder || streak <= 0 || p.dailyDone == today) return

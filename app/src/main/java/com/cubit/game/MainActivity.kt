@@ -1078,6 +1078,7 @@ class MainActivity : Activity(), GameView.Listener {
 
     /** Plays a run's recorded taps back on its own cube. Long pauses are cut to 1.5 s so replays stay watchable. */
     private fun showReplay(s: LevelSpec, mv: List<LongArray>, title: String) {
+        if (!PuzzleCache.has(s)) { whenBuilt(s) { showReplay(s, mv, title) }; return } // someone else's big cube: build it off the main thread
         closeReplay()
         val layer = FrameLayout(this).apply { tag = "replay"; setBackgroundColor(th.bg); isClickable = true }
         val gv = GameView(this).apply {
@@ -1103,7 +1104,7 @@ class MainActivity : Activity(), GameView.Listener {
         mv.forEach { m ->
             at += (m[1] - prev).coerceIn(0L, 1500L); prev = m[1]
             val a = m[0].toInt()
-            handler.postAtTime({ if (a >= 0) gv.playTap(a) else if (a == Powerup.SCAN.code) gv.scan() }, replayToken, start + at)
+            handler.postAtTime({ if (a >= 0) gv.playTap(a) else if (a == UNDO_TAP) gv.undoLast() else if (a == Powerup.SCAN.code) gv.scan() }, replayToken, start + at)
         }
     }
 
@@ -1186,12 +1187,14 @@ class MainActivity : Activity(), GameView.Listener {
             .put("elapsed", elapsedMillis()).put("mistakes", mistakes).put("lives", livesLeft).put("limit", timeLimit)
             .put("shield", shield).put("used", org.json.JSONArray(usedPowerups.map { it.name })).put("run", runId ?: "")
             .put("left", g.remaining).put("level", prefs.level)
+            .apply { packRun?.let { (pk, i) -> put("pack", pk.name).put("packIdx", i) } }
             .put("moves", org.json.JSONArray().apply { moves.forEach { put(org.json.JSONArray().put(it[0]).put(it[1])) } })
         prefs.savedRun = o.toString()
     }
 
     private fun resumeRun(o: org.json.JSONObject) {
-        freeRoam = o.optBoolean("free"); dailyDay = o.optInt("daily", -1).takeIf { it >= 0 }; weekNo = o.optInt("week", -1).takeIf { it >= 0 }; packRun = null; tutorial = false
+        freeRoam = o.optBoolean("free"); dailyDay = o.optInt("daily", -1).takeIf { it >= 0 }; weekNo = o.optInt("week", -1).takeIf { it >= 0 }; tutorial = false
+        packRun = PACKS.firstOrNull { it.name == o.optString("pack") }?.let { pk -> o.optInt("packIdx", -1).takeIf { it in pk.levels.indices }?.let { pk to it } }
         startRound(LevelSpec(o.getInt("n"), o.getInt("maxLen"), o.getLong("seed")), o.optString("label"), o)
     }
     private fun dailyDate(day: Int) = java.text.SimpleDateFormat("d MMM", java.util.Locale.ENGLISH).apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }.format(java.util.Date(day * 86_400_000L))
@@ -1518,8 +1521,10 @@ class MainActivity : Activity(), GameView.Listener {
         prefs.xp = prefs.xp + xpGain
         val after = playerLevel(prefs.xp).first
         if (after > before) prefs.hints = prefs.hints + (after - before)
-        // Hints are earned by playing well: a perfect run on a mode with lives, and every daily cube.
-        val bonusHints = (if (perfect && diff.lives > 0) 1 else 0) + (if (dailyDay != null) 1 else 0)
+        // Hints are earned by playing well: a perfect run on a mode with lives, and each day's first daily solve
+        // (replaying an already solved daily cube would otherwise farm unlimited hints).
+        val firstDaily = dailyDay != null && prefs.dailyDone != dailyDay
+        val bonusHints = (if (perfect && diff.lives > 0) 1 else 0) + (if (firstDaily) 1 else 0)
         prefs.hints = prefs.hints + bonusHints
         prefs.solved = prefs.solved + 1
         dailyDay?.let { d ->
@@ -1556,7 +1561,7 @@ class MainActivity : Activity(), GameView.Listener {
         val extra = buildList {
             add(if (perfect) "Perfect run · +25% XP" else "$mistakes mistake${if (mistakes == 1) "" else "s"}")
             if (after > before) add("Level up · you're now LV $after · +${after - before} hint")
-            if (bonusHints > 0) add("+$bonusHints hint for ${if (dailyDay != null && perfect && diff.lives > 0) "a perfect daily" else if (dailyDay != null) "the daily cube" else "a perfect run"}")
+            if (bonusHints > 0) add("+$bonusHints hint for ${if (firstDaily && perfect && diff.lives > 0) "a perfect daily" else if (firstDaily) "the daily cube" else "a perfect run"}")
             if (atPar) add("On par · nobody can do it in fewer taps")
             unlocked.forEach { a ->
                 add("Badge earned · ${a.title}: ${a.blurb}")

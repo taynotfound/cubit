@@ -232,6 +232,8 @@ object PuzzleCache {
     private val map = object : LinkedHashMap<LevelSpec, Puzzle>(8, 0.75f, true) {
         override fun removeEldestEntry(e: MutableMap.MutableEntry<LevelSpec, Puzzle>?) = size > 4
     }
-    @Synchronized fun get(spec: LevelSpec): Puzzle = map.getOrPut(spec) { generate(spec) }
+    // Generate outside the lock: a big cube building in the background must not stall the main thread's has()/get().
+    // Two threads may build the same spec at once; generation is deterministic, so either result is fine.
+    fun get(spec: LevelSpec): Puzzle = synchronized(this) { map[spec] } ?: generate(spec).also { synchronized(this) { map[spec] = it } }
     @Synchronized fun has(spec: LevelSpec) = map.containsKey(spec)
 }

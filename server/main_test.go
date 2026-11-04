@@ -351,3 +351,25 @@ func TestWeekly(t *testing.T) {
 		t.Fatalf("weekly board: %v", b)
 	}
 }
+
+func TestUnusableNameStillRegisters(t *testing.T) {
+	h := newHarness(t)
+	if code, reg := h.call("POST", "/v1/register", "", map[string]string{"name": "A"}); code != 200 || reg["name"] != "Player" {
+		t.Fatalf("one-letter name: %d %v", code, reg)
+	}
+}
+
+func TestSaveKeepsFileAndBackup(t *testing.T) {
+	st, _ := openStore(t.TempDir() + "/db.json")
+	for i := 0; i < 2; i++ {
+		st.db.Devices[fmt.Sprint(i)] = &Device{Name: "x"}
+		if err := st.save(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cur, err1 := openStore(st.file)
+	bak, err2 := openStore(st.file + ".bak")
+	if err1 != nil || err2 != nil || len(cur.db.Devices) != 2 || len(bak.db.Devices) != 1 {
+		t.Fatalf("after two saves: current %d devices (%v), backup %d (%v)", len(cur.db.Devices), err1, len(bak.db.Devices), err2)
+	}
+}

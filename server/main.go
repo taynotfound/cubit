@@ -186,10 +186,11 @@ func (a *App) register(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, 1024, &b) {
 		return
 	}
+	// The app allows any 1-16 character name; one that doesn't clean (one letter, emoji only) must not lock the
+	// player out of rankings forever, so it registers as "Player" and can be renamed on a later run.
 	name, ok := cleanName(b.Name)
 	if !ok {
-		fail(w, http.StatusBadRequest, "name must be 2-16 letters or digits")
-		return
+		name = "Player"
 	}
 	id, secret := randID(16), base64.RawURLEncoding.EncodeToString([]byte(randID(32)))
 	a.store.mu.Lock()

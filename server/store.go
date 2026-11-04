@@ -143,7 +143,7 @@ func (s *Store) backupOnce(day string) error {
 	return nil
 }
 
-// save writes a temp file, fsyncs it, keeps the previous file as .bak, then renames into place.
+// save writes a temp file, fsyncs it, keeps the previous file as .bak, then atomically renames into place.
 func (s *Store) save() error {
 	s.mu.Lock()
 	b, err := json.Marshal(s.db)
@@ -165,9 +165,10 @@ func (s *Store) save() error {
 	if err != nil {
 		return err
 	}
-	if _, err := os.Stat(s.file); err == nil {
-		_ = os.Rename(s.file, s.file+".bak")
-	}
+	// Hard-link the old file as .bak, then rename over it: the database path never goes missing, so a crash here
+	// can't make the next start see no file and begin (and save) an empty board over the backup.
+	_ = os.Remove(s.file + ".bak")
+	_ = os.Link(s.file, s.file+".bak")
 	return os.Rename(tmp, s.file)
 }
 
