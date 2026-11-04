@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.1 (2026-11-05)
+
+- Cubit is by Tay März ([taymaerz.de](https://taymaerz.de)): the credit in Settings now says so and opens the site, and About has a "Made by Tay März" link.
+
 ## 1.6.0 (2026-11-05)
 
 - **Friends** (Rankings → Friends): swap 8-character friend codes and see each other's level, XP and best run side by side.

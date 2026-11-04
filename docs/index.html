@@ -197,7 +197,7 @@
 
   <header class="hero">
     <div>
-      <a class="newpill" href="#new"><b>New</b><span data-newline>Friends and challenge links</span> · <span data-ver>1.6.0</span></a>
+      <a class="newpill" href="#new"><b>New</b><span data-newline>Friends</span> · <span data-newver>1.6.0</span></a>
       <h1 class="board" id="board" aria-label="Cubit"></h1>
       <p class="headline">Free the <span class="pink">pink</span> arrow.</p>
       <p class="sub">Cubit is a cube covered in winding arrows. Tap one and it slides off the cube, unless another arrow is in its way. Dig the pink one out before your lives run out.</p>
@@ -218,8 +218,8 @@
 
 <section id="new">
   <div class="wrap">
-    <span class="label">What's new · version <span data-ver>1.6.0</span><span data-date></span></span>
-    <h2 style="margin-top:10px">New in Cubit <span data-ver>1.6.0</span></h2>
+    <span class="label">What's new · version <span data-newver>1.6.0</span><span data-newdate></span></span>
+    <h2 style="margin-top:10px">New in Cubit <span data-newver>1.6.0</span></h2>
     <!-- Filled from the latest GitHub release's notes when the page loads, so it always shows the newest version. This list is the fallback. -->
     <ul class="news" id="news">
       <li><span><b>Friends:</b> swap 8-character friend codes and see each other's level, XP and best run side by side.</span></li>
@@ -231,7 +231,7 @@
       <li><span><b>Streak freezes:</b> finish a weekly challenge to earn one. It covers a missed daily cube.</span></li>
       <li><span><b>High contrast:</b> a black-and-white colourway with line colours that stay distinct for colour-blind players.</span></li>
     </ul>
-    <p class="fine" style="margin-top:22px"><a href="https://github.com/taynotfound/cubit/releases/latest">All changes in this version</a> · <a href="https://github.com/taynotfound/cubit/blob/main/CHANGELOG.md">full changelog</a></p>
+    <p class="fine" style="margin-top:22px"><a data-newlink href="https://github.com/taynotfound/cubit/releases/tag/v1.6.0">All changes in this version</a> · <a href="https://github.com/taynotfound/cubit/blob/main/CHANGELOG.md">full changelog</a></p>
   </div>
 </section>
 
@@ -409,19 +409,25 @@ fetch("https://api.github.com/repos/taynotfound/cubit/releases/latest").then(r =
   document.querySelectorAll("[data-ver]").forEach(el => el.textContent = v);
   const d = new Date(rel.published_at);
   if (!isNaN(d)) document.querySelectorAll("[data-date]").forEach(el => el.textContent = " · " + d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }));
-  showNews(rel);
 }).catch(() => {});
 
-// "What's new" is the latest release's notes: its "- " lines, with **bold** kept. Built with text nodes only, so
+// "What's new" advertises the newest release that has headline features, so a bug-fix release doesn't hide them.
+fetch("https://api.github.com/repos/taynotfound/cubit/releases?per_page=10").then(r => r.ok ? r.json() : null).then(list => {
+  for (const rel of list || []) if (!rel.draft && !rel.prerelease && showNews(rel)) return;
+}).catch(() => {});
+
+// Fills "What's new" from one release's notes: its "- **Feature**" lines, bold kept, built with text nodes only, so
 // it needs no editing here when a new version ships.
 function showNews(rel) {
   const lines = (rel.body || "").split(/\r?\n/).map(l => l.trim());
   const end = lines.findIndex(l => /^SHA-256/i.test(l));
-  const all = (end < 0 ? lines : lines.slice(0, end)).filter(l => /^[-*] /.test(l)).map(l => l.slice(2));
-  // Advertise the headline features (bold lead-ins); a release without any shows its plain notes instead.
-  const bold = all.filter(t => t.startsWith("**"));
-  const items = (bold.length ? bold : all).slice(0, 10);
-  if (!items.length) return;
+  // Headline features are the lines that lead with **bold**; returns false when this release has none.
+  const items = (end < 0 ? lines : lines.slice(0, end)).filter(l => /^[-*] \*\*/.test(l)).map(l => l.slice(2)).slice(0, 10);
+  if (!items.length) return false;
+  const v = rel.tag_name.replace(/^v/, ""), d = new Date(rel.published_at);
+  document.querySelectorAll("[data-newver]").forEach(el => el.textContent = v);
+  document.querySelectorAll("[data-newdate]").forEach(el => el.textContent = isNaN(d) ? "" : " · " + d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }));
+  document.querySelectorAll("[data-newlink]").forEach(el => el.href = rel.html_url);
   const ul = document.getElementById("news");
   ul.textContent = "";
   for (const text of items) {
@@ -436,6 +442,7 @@ function showNews(rel) {
   // The hero badge names the release's first headline feature.
   const first = items.map(t => (t.match(/^\*\*(.+?)\*\*/) || [])[1]).find(Boolean);
   if (first) document.querySelectorAll("[data-newline]").forEach(el => el.textContent = first);
+  return true;
 }
 
 </script>
