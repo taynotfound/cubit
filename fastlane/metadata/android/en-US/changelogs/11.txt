@@ -1,0 +1,3 @@
+- Nightmare mode: arrows run a full lap round the cube before they leave, so check every face they pass. One life, tight timer, no hints or powerups, x3.5 XP, and a new badge.
+- Global rank after a run shows where you stand even when it wasn't your best run.
+- Rankings say "Player LV" and each tab keeps its own subtitle.
