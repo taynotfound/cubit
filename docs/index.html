@@ -32,7 +32,7 @@
   "softwareVersion": "1.4.1",
   "downloadUrl": "https://github.com/taynotfound/cubit/releases/latest/download/Cubit.apk",
   "license": "https://github.com/taynotfound/cubit/blob/main/LICENSE",
-  "author": { "@type": "Person", "name": "taynotfound", "url": "https://github.com/taynotfound" },
+  "author": { "@type": "Person", "name": "Tay März", "url": "https://taymaerz.de" },
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" }
 }
 </script>
@@ -153,6 +153,14 @@
   .faq details[open] summary::after { content: "–"; }
   .faq details p { color: var(--muted); padding-bottom: 18px; }
 
+  .newpill { display: inline-flex; align-items: center; gap: 10px; margin-bottom: 18px; padding: 6px 12px 6px 6px; border-radius: 6px; background: var(--panel);
+             border: 1px solid var(--hair); text-decoration: none; font: 600 15px/1.2 "Barlow Condensed"; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+  .newpill b { background: var(--pink); color: #fff; border-radius: 4px; padding: 4px 7px; font-weight: 700; }
+  .newpill span { color: var(--text); }
+  .news { margin-top: 30px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px 32px; list-style: none; padding: 0; }
+  .news li { display: flex; gap: 12px; color: var(--muted); }
+  .news li::before { content: ""; flex: none; width: 12px; height: 12px; margin-top: 7px; border-radius: 3px; background: var(--pink); }
+  .news li b { color: var(--text); font-weight: 500; }
   .final { text-align: center; }
   .final .cta { justify-content: center; }
   .final .lede { margin: 16px auto 0; }
@@ -163,7 +171,7 @@
     nav .links a.opt { display: none; }
     .hero, .split { grid-template-columns: 1fr; }
     .hero { padding-top: 6px; gap: 34px; }
-    .steps, .grid, .install { grid-template-columns: 1fr; }
+    .steps, .grid, .install, .news { grid-template-columns: 1fr; }
     .dep { grid-template-columns: 1fr 1fr 1fr; row-gap: 8px; }
     .dep.head { display: none; }
     .dep .name { grid-column: 1 / -1; }
@@ -189,6 +197,7 @@
 
   <header class="hero">
     <div>
+      <a class="newpill" href="#new"><b>New</b><span data-newline>Friends and challenge links</span> · <span data-ver>1.6.0</span></a>
       <h1 class="board" id="board" aria-label="Cubit"></h1>
       <p class="headline">Free the <span class="pink">pink</span> arrow.</p>
       <p class="sub">Cubit is a cube covered in winding arrows. Tap one and it slides off the cube, unless another arrow is in its way. Dig the pink one out before your lives run out.</p>
@@ -197,7 +206,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12M6 11l6 6 6-6M5 21h14"/></svg></a>
       </div>
       <p class="fine" style="margin-top:12px"><a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium%3A%2F%2Fapp%2F%257B%2522id%2522%253A%2522de.taymaerz.cubit%2522%252C%2522url%2522%253A%2522https%253A%252F%252Fgithub.com%252Ftaynotfound%252Fcubit%2522%252C%2522author%2522%253A%2522taynotfound%2522%252C%2522name%2522%253A%2522Cubit%2522%252C%2522additionalSettings%2522%253A%2522%257B%255C%2522apkFilterRegEx%255C%2522%253A%2520%255C%2522%255ECubit%255C%255C%255C%255C.apk%2524%255C%2522%257D%2522%257D">Get it on Obtainium</a> for automatic updates</p>
-      <p class="fine"><a class="ver" href="https://github.com/taynotfound/cubit/releases/latest">Version <span data-ver>1.4.1</span><span data-date></span></a> · free with no ads · under 1 MB · Android 7.0 or newer · <a href="#install">how to install</a></p>
+      <p class="fine"><a class="ver" href="https://github.com/taynotfound/cubit/releases/latest">Version <span data-ver>1.6.0</span><span data-date></span></a> · free with no ads · under 1 MB · Android 7.0 or newer · <a href="#install">how to install</a></p>
     </div>
 
     <div class="phones">
@@ -206,6 +215,25 @@
     </div>
   </header>
 </div>
+
+<section id="new">
+  <div class="wrap">
+    <span class="label">What's new · version <span data-ver>1.6.0</span><span data-date></span></span>
+    <h2 style="margin-top:10px">New in Cubit <span data-ver>1.6.0</span></h2>
+    <!-- Filled from the latest GitHub release's notes when the page loads, so it always shows the newest version. This list is the fallback. -->
+    <ul class="news" id="news">
+      <li><span><b>Friends:</b> swap 8-character friend codes and see each other's level, XP and best run side by side.</span></li>
+      <li><span><b>Challenge a friend:</b> share a run as a link. Your friend gets the same cube with your run as a ghost to race.</span></li>
+      <li><span><b>My pack:</b> save cubes you've won and share them as a pack. Shared packs land in More → Puzzle packs.</span></li>
+      <li><span><b>Race your best:</b> replay a cube you've won and your best run comes along as a ghost.</span></li>
+      <li><span><b>Replay controls:</b> pause, 2× speed and a scrub bar.</span></li>
+      <li><span><b>Stats:</b> wins, losses and times per mode, and a calendar of daily solves.</span></li>
+      <li><span><b>Streak freezes:</b> finish a weekly challenge to earn one. It covers a missed daily cube.</span></li>
+      <li><span><b>High contrast:</b> a black-and-white colourway with line colours that stay distinct for colour-blind players.</span></li>
+    </ul>
+    <p class="fine" style="margin-top:22px"><a href="https://github.com/taynotfound/cubit/releases/latest">All changes in this version</a> · <a href="https://github.com/taynotfound/cubit/blob/main/CHANGELOG.md">full changelog</a></p>
+  </div>
+</section>
 
 <section>
   <div class="wrap" style="text-align:center">
@@ -247,6 +275,7 @@
       <div class="dep" role="row"><span class="name">Normal</span><span class="tiles"><span>0</span><span>3</span></span><span class="tiles"><span>4</span><span>S</span></span><span class="tiles"><span>×</span><span>1.3</span></span></div>
       <div class="dep" role="row"><span class="name">Hard</span><span class="tiles"><span>0</span><span>3</span></span><span class="tiles"><span>2</span><span>S</span></span><span class="tiles"><span>×</span><span>1.7</span></span></div>
       <div class="dep" role="row"><span class="name">Expert<small>One bump and it's over</small></span><span class="tiles"><span>0</span><span>1</span></span><span class="tiles"><span>1</span><span>.</span><span>2</span><span>S</span></span><span class="tiles"><span>×</span><span>2.4</span></span></div>
+      <div class="dep" role="row"><span class="name">Nightmare<small>Arrows lap the whole cube before they leave</small></span><span class="tiles"><span>0</span><span>1</span></span><span class="tiles"><span>2</span><span>.</span><span>5</span><span>S</span></span><span class="tiles"><span>×</span><span>3.5</span></span></div>
       <div class="dep clean" role="row"><span class="name">Clean<small>Just the cube</small></span><span class="tiles"><span>∞</span></span><span class="tiles"><span>O</span><span>F</span><span>F</span></span><span class="tiles"><span>×</span><span>.5</span></span></div>
     </div>
     <p class="fine">Timer seconds are per arrow, plus ten. Want more? Turn on Full clear: every arrow has to go, and the pink one leaves last.</p>
@@ -280,10 +309,12 @@
       <div class="feat"><svg viewBox="0 0 24 24"><path d="M3 21v-7h6M9 21V8h6v13M15 12h6v9M2 21h20"/></svg><h3>Scores you can trust</h3><p>Rankings are optional. When they're on, the server replays your taps on the same cube and works out the score itself. You can watch any run on the board play back.</p></div>
       <div class="feat"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1.2"/><circle cx="15" cy="15" r="1.2"/><circle cx="12" cy="12" r="1.2"/></svg><h3>Daily and weekly</h3><p>A 12×12 cube every day and a 16×16 challenge every week, the same for everyone, each with its own board. Share a link and a friend gets the same cube.</p></div>
       <div class="feat"><svg viewBox="0 0 24 24"><path d="M13 2.5L5 13.5h6.5l-1 8L19 10h-6.5z"/></svg><h3>Five powerups</h3><p>Scan lights up every free arrow. Shield, Freeze, Spare life and Undo save a bad moment. One of each per level, and you can switch any of them off.</p></div>
-      <div class="feat"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="6"/><path d="M8.5 13.5L7 21l5-2.5 5 2.5-1.5-7.5"/></svg><h3>Badges that pay off</h3><p>Seventeen badges, from your first win to a perfect run on Expert. Six colourways open as you earn them, and a daily streak keeps you coming back.</p></div>
-      <div class="feat"><svg viewBox="0 0 24 24"><path d="M2.5 12Q12 3 21.5 12Q12 21 2.5 12z"/><circle cx="12" cy="12" r="3"/></svg><h3>Your colours</h3><p>Twelve colourways, your own arrow colour and thickness, and a stripe on the pink arrow if colour alone doesn't work for you.</p></div>
-      <div class="feat"><svg viewBox="0 0 24 24"><circle cx="12" cy="10" r="7"/><path d="M5 21c1-2 2-3 3.5-3S10 21 12 21s2-3 3.5-3 2.5 1 3.5 3"/></svg><h3>Race a ghost</h3><p>On the daily and weekly cubes, the leader's run plays out faintly on your cube as you go. Beat it to the pink arrow.</p></div>
-      <div class="feat"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="13" height="13" rx="2"/><path d="M8 4h11a2 2 0 0 1 2 2v11"/></svg><h3>Packs and par</h3><p>Forty picked cubes in four packs, from tiny 5×5 puzzles to 18×18 monsters. Every cube has a par: the fewest taps that can win it.</p></div>
+      <div class="feat"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="6"/><path d="M8.5 13.5L7 21l5-2.5 5 2.5-1.5-7.5"/></svg><h3>Badges that pay off</h3><p>Eighteen badges, from your first win to a win on Nightmare. Six colourways open as you earn them, and a daily streak keeps you coming back, with streak freezes from the weekly challenge.</p></div>
+      <div class="feat"><svg viewBox="0 0 24 24"><path d="M2.5 12Q12 3 21.5 12Q12 21 2.5 12z"/><circle cx="12" cy="12" r="3"/></svg><h3>Your colours</h3><p>Thirteen colourways, including a high-contrast one that works for colour-blind players, your own arrow colour and thickness, and a stripe on the pink arrow.</p></div>
+      <div class="feat"><svg viewBox="0 0 24 24"><circle cx="12" cy="10" r="7"/><path d="M5 21c1-2 2-3 3.5-3S10 21 12 21s2-3 3.5-3 2.5 1 3.5 3"/></svg><h3>Race a ghost</h3><p>On the daily and weekly cubes you race the leader's run. Share a challenge link and a friend races yours, and any cube you've won brings back your own best.</p></div>
+      <div class="feat"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="13" height="13" rx="2"/><path d="M8 4h11a2 2 0 0 1 2 2v11"/></svg><h3>Packs and par</h3><p>Forty picked cubes in four packs, from tiny 5×5 puzzles to 18×18 monsters, plus your own pack to share. Every cube has a par: the fewest taps that can win it.</p></div>
+      <div class="feat"><svg viewBox="0 0 24 24"><circle cx="8" cy="8" r="3.5"/><circle cx="17" cy="9" r="2.8"/><path d="M2 20c.5-3.5 3-5.5 6-5.5s5.5 2 6 5.5M14.5 14.6c.8-.4 1.6-.6 2.5-.6 2.5 0 4.4 1.7 5 4.5"/></svg><h3>Friends</h3><p>Swap friend codes and keep a board of just your friends: their level, XP and best run next to yours.</p></div>
+      <div class="feat"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><h3>Your stats</h3><p>Wins, losses, best and average times for every mode, a calendar of your daily solves, and replays you can pause, speed up and scrub.</p></div>
       <div class="feat"><svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg><h3>Sound and touch</h3><p>Real split-flap clacks, a soft swoosh for every arrow, a quiet soundtrack, and a vibration you can feel when you bump.</p></div>
     </div>
     <div class="gallery">
@@ -337,13 +368,13 @@
       <a class="btn secondary" href="#clean">See Clean mode</a>
     </div>
     <p class="fine" style="margin-top:22px">Enjoying it? Cubit stays free with no ads. You can chip in on <a href="https://ko-fi.com/taygotkofi">Ko-fi</a> or <a href="https://github.com/sponsors/taynotfound">GitHub Sponsors</a>.</p>
-    <p class="fine">Version <span data-ver>1.4.1</span> · free with no ads · Android 7.0 or newer · <a href="https://github.com/taynotfound/cubit/releases/latest">what's new</a></p>
+    <p class="fine">Version <span data-ver>1.6.0</span> · free with no ads · Android 7.0 or newer · <a href="https://github.com/taynotfound/cubit/releases/latest">what's new</a></p>
   </div>
 </section>
 
 <div class="wrap">
   <footer>
-    <span>Cubit by <a href="https://github.com/taynotfound">taynotfound</a></span>
+    <span>Cubit by <a href="https://taymaerz.de">Tay März</a></span>
     <a href="https://github.com/taynotfound/cubit">Source on GitHub</a>
     <a href="https://github.com/taynotfound/cubit/blob/main/LICENSE">MIT licensed</a>
     <a href="https://ko-fi.com/taygotkofi">Ko-fi</a>
@@ -378,7 +409,34 @@ fetch("https://api.github.com/repos/taynotfound/cubit/releases/latest").then(r =
   document.querySelectorAll("[data-ver]").forEach(el => el.textContent = v);
   const d = new Date(rel.published_at);
   if (!isNaN(d)) document.querySelectorAll("[data-date]").forEach(el => el.textContent = " · " + d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }));
+  showNews(rel);
 }).catch(() => {});
+
+// "What's new" is the latest release's notes: its "- " lines, with **bold** kept. Built with text nodes only, so
+// it needs no editing here when a new version ships.
+function showNews(rel) {
+  const lines = (rel.body || "").split(/\r?\n/).map(l => l.trim());
+  const end = lines.findIndex(l => /^SHA-256/i.test(l));
+  const all = (end < 0 ? lines : lines.slice(0, end)).filter(l => /^[-*] /.test(l)).map(l => l.slice(2));
+  // Advertise the headline features (bold lead-ins); a release without any shows its plain notes instead.
+  const bold = all.filter(t => t.startsWith("**"));
+  const items = (bold.length ? bold : all).slice(0, 10);
+  if (!items.length) return;
+  const ul = document.getElementById("news");
+  ul.textContent = "";
+  for (const text of items) {
+    const li = document.createElement("li"), span = document.createElement("span");
+    text.split(/\*\*(.+?)\*\*/).forEach((part, i) => {
+      if (!part) return;
+      if (i % 2) { const b = document.createElement("b"); b.textContent = part; span.appendChild(b); }
+      else span.appendChild(document.createTextNode(part.replace(/`/g, "")));
+    });
+    li.appendChild(span); ul.appendChild(li);
+  }
+  // The hero badge names the release's first headline feature.
+  const first = items.map(t => (t.match(/^\*\*(.+?)\*\*/) || [])[1]).find(Boolean);
+  if (first) document.querySelectorAll("[data-newline]").forEach(el => el.textContent = first);
+}
 
 </script>
 </body>

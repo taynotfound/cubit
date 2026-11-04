@@ -111,5 +111,7 @@ There's also a [changelog](CHANGELOG.md) and [how to report a security problem](
 
 ## Credits
 
+- Made by [Tay März](https://taymaerz.de).
+
 - Fonts: [Barlow](https://github.com/jpt/barlow) by Jeremy Tribby, under the SIL Open Font License.
 - Sound effects: [Kenney](https://kenney.nl) packs, CC0. The split-flap clacks were cut from a real display recording, and the swoosh and the music are synthesized by the scripts in `tools/`.

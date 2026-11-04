@@ -1069,6 +1069,7 @@ class MainActivity : Activity(), GameView.Listener {
             about.add(switchRow("Check automatically", "Once a day, ask GitHub for a newer version and show a small card on the Play screen.", prefs.autoUpdate) { prefs.autoUpdate = it }, 4)
         } else updateBox.add(body("Updates come through the app store you installed Cubit from.", th.muted))
         about.add(secondary("Website", glyph = Glyph.ARROW) { open("https://taynotfound.github.io/cubit/") }, 10)
+        about.add(secondary("Made by Tay März", glyph = Glyph.ARROW) { open("https://taymaerz.de") }, 8)
         about.add(secondary("Source code and licences", glyph = Glyph.ARROW) { open("https://github.com/taynotfound/cubit") }, 8)
         about.add(secondary("Changelog", glyph = Glyph.ARROW) { open("https://github.com/taynotfound/cubit/blob/main/CHANGELOG.md") }, 8)
         about.add(label("Support Cubit"), 22)
@@ -1080,7 +1081,7 @@ class MainActivity : Activity(), GameView.Listener {
         about.add(support, 10)
 
         // Always visible, even with every section folded.
-        col.add(label("Cubit $appVersion · by taynotfound · MIT").apply { gravity = Gravity.CENTER }, 22)
+        col.add(label("Cubit $appVersion · by Tay März · MIT").apply { gravity = Gravity.CENTER; contentDescription = "Cubit $appVersion by Tay März, taymaerz.de"; pressable { open("https://taymaerz.de") } }, 22)
         return scroll
     }
 
