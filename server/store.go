@@ -92,6 +92,7 @@ func openStore(file string) (*Store, error) {
 	for _, d := range s.db.Devices { // players from before friend codes
 		if d.Code == "" {
 			d.Code = s.newCode()
+			s.markDirty() // save them now: a restart before the next write would hand out different codes
 		}
 	}
 	return s, nil

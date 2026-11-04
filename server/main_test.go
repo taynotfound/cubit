@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -404,5 +405,22 @@ func TestReplayKnowsFullClear(t *testing.T) {
 	st.db.Scores = []Score{{RunID: "a", Device: "d", Label: "Level 3 · full clear", Moves: [][2]int64{{0, 1}}}, {RunID: "b", Device: "d", Label: "Level 3", Moves: [][2]int64{{0, 1}}}}
 	if st.replayOf("a")["all"] != true || st.replayOf("b")["all"] != false {
 		t.Fatal("full-clear flag wrong in replays")
+	}
+}
+
+func TestBackfilledCodesAreSaved(t *testing.T) {
+	file := t.TempDir() + "/db.json"
+	os.WriteFile(file, []byte(`{"devices":{"d":{"name":"Old"}},"scores":[]}`), 0o600)
+	st, _ := openStore(file)
+	code := st.db.Devices["d"].Code
+	select {
+	case <-st.dirty:
+	default:
+		t.Fatal("backfilled codes not queued for saving")
+	}
+	st.save()
+	again, _ := openStore(file)
+	if code == "" || again.db.Devices["d"].Code != code {
+		t.Fatalf("code changed across restart: %q then %q", code, again.db.Devices["d"].Code)
 	}
 }
