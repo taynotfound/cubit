@@ -94,12 +94,12 @@ object Net {
         main.post { done(r) }
     }
 
-    /** A board run's cube and taps, for watching it back. */
-    fun replay(run: String, done: (Pair<LevelSpec, List<LongArray>>?) -> Unit) = io.execute {
+    /** A board run's cube, taps, and whether it was a full clear (pink arrow last), for watching it back. */
+    fun replay(run: String, done: (Triple<LevelSpec, List<LongArray>, Boolean>?) -> Unit) = io.execute {
         val r = call {
             val o = JSONObject(request("GET", "/v1/runs/$run/replay", null, null))
             val mv = o.getJSONArray("moves")
-            LevelSpec(o.getInt("n"), o.getInt("maxLen"), o.getLong("seed"), o.optBoolean("lap")) to (0 until mv.length()).map { val m = mv.getJSONArray(it); longArrayOf(m.getLong(0), m.getLong(1)) }
+            Triple(LevelSpec(o.getInt("n"), o.getInt("maxLen"), o.getLong("seed"), o.optBoolean("lap")), (0 until mv.length()).map { val m = mv.getJSONArray(it); longArrayOf(m.getLong(0), m.getLong(1)) }, o.optBoolean("all"))
         }
         main.post { done(r) }
     }

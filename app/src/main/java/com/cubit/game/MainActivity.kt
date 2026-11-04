@@ -84,6 +84,8 @@ class MainActivity : Activity(), GameView.Listener {
     private var coach: TextView? = null
     /** A friend's shared run: this round is played on its cube, rules and goal, against its ghost. */
     private var challenge: Challenge? = null
+    /** The ghost is your own best run on this cube. */
+    private var ownGhost = false
     private val bg = java.util.concurrent.Executors.newSingleThreadExecutor()
 
     private class Hud(val level: FlapView, val timer: FlapView, val lamps: LampsView?, val cleared: FlapView, val hints: TextView, val sheet: FrameLayout)
@@ -212,7 +214,7 @@ class MainActivity : Activity(), GameView.Listener {
     }
 
     // The tick stops while we're in the background, or it would count that time and could end the level.
-    override fun onPause() { super.onPause(); pauseClock(); handler.removeCallbacks(tick); Music.pause(); if (running && !tutorial) saveRun() }
+    override fun onPause() { super.onPause(); pauseClock(); handler.removeCallbacks(tick); Music.pause(); if (running && !tutorial && game?.let { it.remaining < it.total } == true) saveRun() } // nothing to keep before the first arrow goes
     override fun onResume() { super.onResume(); if (running) { resumedAt = SystemClock.uptimeMillis(); handler.post(tick) }; Music.resume() }
 
     @Deprecated("Deprecated in Java")
@@ -779,6 +781,7 @@ class MainActivity : Activity(), GameView.Listener {
         var weekBoard: List<ScoreEntry>? = null
         var boardStatus = "" // the Players and Best subtitle: board size, offline note or error
         var friendRows: List<Pair<GlobalPlayer, ScoreEntry?>>? = null
+        var codeError: String? = null
         lateinit var render: () -> Unit
 
         fun loadFriends() {
@@ -792,7 +795,7 @@ class MainActivity : Activity(), GameView.Listener {
         fun renderFriends() {
             if (!prefs.postOnline) { status.text = "Friends need global rankings. Turn them on to swap codes."; return }
             val mine = prefs.friendCode
-            status.text = if (mine == null) "Getting your friend code…" else "Your friend code: ${mine.chunked(4).joinToString("-")}"
+            status.text = if (mine == null) codeError?.let { "Couldn't get your friend code ($it). Try again later." } ?: "Getting your friend code…" else "Your friend code: ${mine.chunked(4).joinToString("-")}"
             if (mine != null) list.add(secondary("Share your code", glyph = Glyph.SHARE) {
                 shareText("Add me on Cubit: my friend code is ${mine.chunked(4).joinToString("-")}. ${Links.WEB}?f=$mine", "Share your friend code")
             })
@@ -885,7 +888,7 @@ class MainActivity : Activity(), GameView.Listener {
             boardStatus = "Loading the board…"; status.text = boardStatus
             Net.daily(utcDay()) { d -> dailyBoard = d; if (tab == Tab.RANKS && ranksMode == 2) render() }
             Net.weekly(utcWeek()) { w -> weekBoard = w; if (tab == Tab.RANKS && ranksMode == 3) render() }
-            if (prefs.friendCode == null) Net.me(prefs) { c -> if (c != null) loadFriends(); if (tab == Tab.RANKS && ranksMode == 5) render() }
+            if (prefs.friendCode == null) Net.me(prefs) { c -> codeError = if (c == null) Net.lastError else null; if (c != null) loadFriends(); if (tab == Tab.RANKS && ranksMode == 5) render() }
             loadFriends()
             Net.fetch { b ->
                 if (tab != Tab.RANKS) return@fetch
@@ -1210,9 +1213,9 @@ class MainActivity : Activity(), GameView.Listener {
         } else c.add(body("This run was saved before Cubit kept run details.", th.muted), 12)
         val who = "${e.name} · ${e.label}"
         when {
-            e.spec != null && e.moves.isNotEmpty() -> c.add(primary("Watch replay", Glyph.REPLAY) { showReplay(e.spec, e.moves, who) }, 18)
+            e.spec != null && e.moves.isNotEmpty() -> c.add(primary("Watch replay", Glyph.REPLAY) { showReplay(e.spec, e.moves, who, e.label.endsWith("full clear")) }, 18)
             e.run.isNotEmpty() -> c.add(primary("Watch replay", Glyph.REPLAY) {
-                Net.replay(e.run) { r -> if (r == null) toast("No replay for this run. Runs keep their taps from this version on.") else showReplay(r.first, r.second, who) }
+                Net.replay(e.run) { r -> if (r == null) toast("No replay for this run. Runs keep their taps from this version on.") else showReplay(r.first, r.second, who, r.third) }
             }, 18)
         }
         c.add(secondary("Close") { root.removeView(scrim) }, 10)
@@ -1226,12 +1229,12 @@ class MainActivity : Activity(), GameView.Listener {
     private val replayToken = Any()
 
     /** Plays a run's recorded taps back on its own cube. Long pauses are cut to 1.5 s so replays stay watchable. */
-    private fun showReplay(s: LevelSpec, mv: List<LongArray>, title: String) {
-        if (!PuzzleCache.has(s)) { whenBuilt(s) { showReplay(s, mv, title) }; return } // someone else's big cube: build it off the main thread
+    private fun showReplay(s: LevelSpec, mv: List<LongArray>, title: String, full: Boolean = false) {
+        if (!PuzzleCache.has(s)) { whenBuilt(s) { showReplay(s, mv, title, full) }; return } // someone else's big cube: build it off the main thread
         closeReplay()
         val layer = FrameLayout(this).apply { tag = "replay"; setBackgroundColor(th.bg); isClickable = true }
         val gv = GameView(this).apply {
-            applyStyle(this); load(PuzzleCache.get(s)); inputEnabled = false
+            applyStyle(this); load(PuzzleCache.get(s)); inputEnabled = false; pinkLast = full
             listener = object : GameView.Listener {
                 override fun onArrowRemoved(left: Int, total: Int) = Sfx.slide()
                 override fun onMistake() = Sfx.bump()
@@ -1245,7 +1248,7 @@ class MainActivity : Activity(), GameView.Listener {
         val tb = column().apply { setPadding(dp(14), 0, dp(8), 0) }
         tb.add(label("Replay")); tb.add(tv(title, 17f, Fonts.bodyMedium), 4)
         bar.add(tb, 0, 0, WRAP_CONTENT, 1f)
-        bar.add(iconButton(Glyph.REPLAY, "Watch again") { showReplay(s, mv, title) }, 0, dp(48), dp(48))
+        bar.add(iconButton(Glyph.REPLAY, "Watch again") { showReplay(s, mv, title, full) }, 0, dp(48), dp(48))
         layer.addView(bar, FrameLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT, Gravity.TOP))
 
         // Transport: play/pause, speed, and a scrub bar over the taps. Seeking rebuilds the cube up to that tap.
@@ -1268,7 +1271,7 @@ class MainActivity : Activity(), GameView.Listener {
         }
         pauseBtn.setOnClickListener {
             Sfx.click()
-            if (at >= mv.size) { showReplay(s, mv, title); return@setOnClickListener } // finished: play from the top
+            if (at >= mv.size) { showReplay(s, mv, title, full); return@setOnClickListener } // finished: play from the top
             paused = !paused; paintPause(); schedule(300)
         }
         val speedBtn = secondary("1×") {}
@@ -1373,14 +1376,15 @@ class MainActivity : Activity(), GameView.Listener {
             .put("elapsed", elapsedMillis()).put("mistakes", mistakes).put("lives", livesLeft).put("limit", timeLimit)
             .put("shield", shield).put("used", org.json.JSONArray(usedPowerups.map { it.name })).put("run", runId ?: "")
             .put("left", g.remaining).put("level", prefs.level)
-            .apply { packRun?.let { (pk, i) -> put("pack", pk.name).put("packIdx", i) } }
+            .apply { packRun?.let { (pk, i) -> put("pack", pk.name).put("packIdx", i) }; challenge?.let { put("challenge", Links.challengePayload(it)) } }
             .put("moves", org.json.JSONArray().apply { moves.forEach { put(org.json.JSONArray().put(it[0]).put(it[1])) } })
         prefs.savedRun = o.toString()
     }
 
     private fun resumeRun(o: org.json.JSONObject) {
-        freeRoam = o.optBoolean("free"); dailyDay = o.optInt("daily", -1).takeIf { it >= 0 }; weekNo = o.optInt("week", -1).takeIf { it >= 0 }; tutorial = false; challenge = null
-        packRun = PACKS.firstOrNull { it.name == o.optString("pack") }?.let { pk -> o.optInt("packIdx", -1).takeIf { it in pk.levels.indices }?.let { pk to it } }
+        freeRoam = o.optBoolean("free"); dailyDay = o.optInt("daily", -1).takeIf { it >= 0 }; weekNo = o.optInt("week", -1).takeIf { it >= 0 }; tutorial = false
+        challenge = o.optString("challenge").takeIf { it.isNotEmpty() }?.let { Links.parseChallenge(java.net.URLDecoder.decode(it, "UTF-8")) }
+        packRun = prefs.allPacks().firstOrNull { it.name == o.optString("pack") }?.let { pk -> o.optInt("packIdx", -1).takeIf { it in pk.levels.indices }?.let { pk to it } }
         startRound(LevelSpec(o.getInt("n"), o.getInt("maxLen"), o.getLong("seed")), o.optString("label"), o)
     }
     private fun dailyDate(day: Int) = java.text.SimpleDateFormat("d MMM", java.util.Locale.ENGLISH).apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }.format(java.util.Date(day * 86_400_000L))
@@ -1534,7 +1538,11 @@ class MainActivity : Activity(), GameView.Listener {
         // Ghost race on the daily and weekly cubes: race the leader's recorded run, by the same game clock.
         ghost = emptyList(); ghostAt = 0; ghostDoneMs = -1; ghostLabel = null
         val ch = challenge
-        if (ch != null || (prefs.postOnline && !roundFull && (dailyDay != null || weekNo != null))) {
+        // Your own best run on this exact cube and goal (kept with local scores), raced when nothing else is.
+        val mine = if (ch != null || tutorial || dailyDay != null || weekNo != null) null
+            else prefs.scores().filter { it.spec == s && it.moves.isNotEmpty() && it.label.endsWith("full clear") == roundFull }.maxByOrNull { it.score }
+        ownGhost = mine != null
+        if (ch != null || mine != null || (prefs.postOnline && !roundFull && (dailyDay != null || weekNo != null))) {
             val g = row().apply { visibility = View.GONE }
             val gl = label("", th.muted)
             g.add(gl, 0, WRAP_CONTENT)
@@ -1550,6 +1558,7 @@ class MainActivity : Activity(), GameView.Listener {
             }
             // A shared challenge brings its own ghost; the daily and weekly ones race the board's leader.
             if (ch != null) { ghost = ch.moves; ghostName = ch.name; gv.ghostOn = true; g.visibility = View.VISIBLE }
+            else if (mine != null) { ghost = mine.moves; ghostName = "Your best"; gv.ghostOn = true; g.visibility = View.VISIBLE }
             else if (weekNo != null) Net.weekly(weekNo!!, board) else Net.daily(dailyDay!!, board)
         }
         if (resume != null) {
@@ -1593,7 +1602,7 @@ class MainActivity : Activity(), GameView.Listener {
         ghostLabel?.text = when {
             ghost.isEmpty() -> ""
             ghostDoneMs >= 0 -> "$ghostName freed it at %d:%02d".format(ghostDoneMs / 60000, ghostDoneMs / 1000 % 60)
-            else -> "Ghost: $ghostName"
+            else -> if (ownGhost) "Ghost: your best" else "Ghost: $ghostName"
         }
     }
 
@@ -1773,7 +1782,11 @@ class MainActivity : Activity(), GameView.Listener {
                 add("Badge earned · ${a.title}: ${a.blurb}")
                 THEME_UNLOCKS.entries.firstOrNull { it.value == a }?.let { add("Unlocked the ${THEMES[it.key].name} colourway in Settings") }
             }
-            if (ghost.isNotEmpty()) add(if (ghostDoneMs in 1 until ms) "$ghostName was faster this time" else "You beat $ghostName's run")
+            if (ghost.isNotEmpty()) add(when {
+                ownGhost -> if (ghostDoneMs in 1 until ms) "Your best run was faster" else "Faster than your best run"
+                ghostDoneMs in 1 until ms -> "$ghostName was faster this time"
+                else -> "You beat $ghostName's run"
+            })
         }
         if (unlocked.isNotEmpty()) handler.postDelayed({ Sfx.hint(); Haptics.double() }, 1400)
         val shareLine = "${roundLabel} · ${modeName(diff.label)}"

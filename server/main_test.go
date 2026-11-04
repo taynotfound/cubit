@@ -317,7 +317,7 @@ func TestDailyAndRunDetails(t *testing.T) {
 		t.Fatalf("details missing: %v", sc)
 	}
 	code, rp := h.call("GET", "/v1/runs/"+sc["run"].(string)+"/replay", "", nil)
-	if code != 200 || rp["seed"] != float64(dailySpec(today).Seed) || len(rp["moves"].([]any)) != len(moves) {
+	if code != 200 || rp["seed"] != float64(dailySpec(today).Seed) || len(rp["moves"].([]any)) != len(moves) || rp["all"] != false {
 		t.Fatalf("replay: %d %v", code, rp)
 	}
 	_, daily := h.call("GET", fmt.Sprintf("/v1/daily/%d", today), "", nil)
@@ -395,5 +395,14 @@ func TestFriendCodes(t *testing.T) {
 	h.app.store.db.Devices[strings.Split(b["token"].(string), ".")[0]].Banned = true
 	if _, out := h.call("GET", "/v1/friends?codes="+meB["code"].(string), "", nil); len(out["friends"].([]any)) != 0 {
 		t.Fatalf("banned friend shown: %v", out)
+	}
+}
+
+func TestReplayKnowsFullClear(t *testing.T) {
+	st, _ := openStore(t.TempDir() + "/db.json")
+	st.db.Devices["d"] = &Device{Name: "x"}
+	st.db.Scores = []Score{{RunID: "a", Device: "d", Label: "Level 3 · full clear", Moves: [][2]int64{{0, 1}}}, {RunID: "b", Device: "d", Label: "Level 3", Moves: [][2]int64{{0, 1}}}}
+	if st.replayOf("a")["all"] != true || st.replayOf("b")["all"] != false {
+		t.Fatal("full-clear flag wrong in replays")
 	}
 }
