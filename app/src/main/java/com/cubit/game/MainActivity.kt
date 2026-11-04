@@ -688,6 +688,7 @@ class MainActivity : Activity(), GameView.Listener {
         var board: GlobalBoard? = null
         var dailyBoard: List<ScoreEntry>? = null
         var weekBoard: List<ScoreEntry>? = null
+        var boardStatus = "" // the Players and Best subtitle: board size, offline note or error
 
         fun render() {
             list.removeAllViews()
@@ -700,11 +701,13 @@ class MainActivity : Activity(), GameView.Listener {
                 3 -> if (prefs.postOnline) weekBoard ?: emptyList() else prefs.scores().filter { it.label.startsWith("Week of " + dailyDate(weekStart(utcWeek()))) }
                 else -> emptyList()
             }
+            // Every tab sets its own subtitle, so switching tabs never leaves another tab's line behind.
+            if (ranksMode < 2) status.text = boardStatus
             if (ranksMode == 2) status.text = "Daily cube ${dailyDate(today)} · same cube for everyone" + if (prefs.postOnline) "" else " · this device"
             if (ranksMode == 3) status.text = "Weekly challenge · week of ${dailyDate(weekStart(utcWeek()))}" + if (prefs.postOnline) "" else " · this device"
             val rows: List<Triple<String, String, String>> = if (ranksMode == 0) {
-                if (online) board!!.players.map { Triple(it.name, "Level ${it.level}" + if (it.cleanRuns > 0) " · ${it.cleanRuns} clean run${if (it.cleanRuns == 1) "" else "s"}" else "", "${it.xp} XP") }
-                else listOf(Triple(prefs.name, "Level ${playerLevel(prefs.xp).first} · this device", "${prefs.xp} XP"))
+                if (online) board!!.players.map { Triple(it.name, "Player LV ${it.level}" + if (it.cleanRuns > 0) " · ${it.cleanRuns} clean run${if (it.cleanRuns == 1) "" else "s"}" else "", "${it.xp} XP") }
+                else listOf(Triple(prefs.name, "Player LV ${playerLevel(prefs.xp).first} · this device", "${prefs.xp} XP"))
             } else {
                 runs.map { Triple(it.name, "${it.label} · ${modeName(it.difficulty)}", "${it.score}") }
             }
@@ -731,18 +734,18 @@ class MainActivity : Activity(), GameView.Listener {
         fun load() {
             action.removeAllViews()
             if (!prefs.postOnline) {
-                status.text = "Global rankings are off. You're seeing this device only."
+                boardStatus = "Global rankings are off. You're seeing this device only."
                 action.addView(secondary("Turn on global rankings", glyph = Glyph.RANKS) { prefs.postOnline = true; showTab(Tab.RANKS) })
                 render(); return
             }
-            status.text = "Loading the board…"
+            boardStatus = "Loading the board…"; status.text = boardStatus
             Net.daily(utcDay()) { d -> dailyBoard = d; if (tab == Tab.RANKS && ranksMode == 2) render() }
             Net.weekly(utcWeek()) { w -> weekBoard = w; if (tab == Tab.RANKS && ranksMode == 3) render() }
             Net.fetch { b ->
                 if (tab != Tab.RANKS) return@fetch
                 board = b
                 if (b == null && Net.noNetwork) {
-                    status.text = "Cubit can't reach the internet. If you're online, the app's network access is probably off: on GrapheneOS, allow the Network permission for Cubit. Showing this device for now."
+                    boardStatus = "Cubit can't reach the internet. If you're online, the app's network access is probably off: on GrapheneOS, allow the Network permission for Cubit. Showing this device for now."
                     action.removeAllViews()
                     val btns = column()
                     btns.add(secondary("Open app permissions", glyph = Glyph.SETTINGS) {
@@ -751,9 +754,9 @@ class MainActivity : Activity(), GameView.Listener {
                     btns.add(secondary("Retry", glyph = Glyph.REPLAY) { load() }, 8)
                     action.addView(btns)
                 } else if (b == null) {
-                    status.text = "Can't reach the board (${Net.lastError}). Showing this device."
+                    boardStatus = "Can't reach the board (${Net.lastError}). Showing this device."
                     action.removeAllViews(); action.addView(secondary("Retry", glyph = Glyph.REPLAY) { load() })
-                } else status.text = "Global board · ${b.players.size} players"
+                } else boardStatus = "Global board · ${b.players.size} players"
                 render()
             }
         }
