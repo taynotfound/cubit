@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- **Nightmare mode** (Mode on the Play tab): arrows run a full lap round the cube before they leave, so you have to check every face they pass, back faces included. One life, a tight timer, no hints, no powerups, ×3.5 XP. A new badge, Night shift, for your first win.
+- Rankings say "Player LV" for the level from XP, and each tab keeps its own subtitle.
+- After a run, Global rank shows where you stand on the board even when it wasn't your best run.
+
 ## 1.4.1.1 (2026-11-03)
 
 - Fixed the cube sometimes zooming when you tapped and then dragged to turn it. Only a two-finger pinch zooms now.

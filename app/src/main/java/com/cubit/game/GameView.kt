@@ -83,7 +83,7 @@ class GameView(ctx: Context) : View(ctx) {
     private var spinX = 0f
     private var spinY = 0f
 
-    /** One arrow's full route: its body, the straight run to the face edge, then off into space. */
+    /** One arrow's full route: its body, the straight run to the face edge (on Nightmare a lap of the cube first), then off into space. */
     private class Track(val x: FloatArray, val y: FloatArray, val z: FloatArray, val t: FloatArray, val segFace: IntArray, val headT: Float, val headFace: Int, val rayCells: IntArray)
 
     fun load(p: Puzzle) {
@@ -96,7 +96,8 @@ class GameView(ctx: Context) : View(ctx) {
         anims.clear(); hintArrow = -1; scanUntil = 0L; history.clear()
         ghostOcc = occ.copyOf(); ghostGone = BooleanArray(p.paths.size); ghostHist.clear(); ghostOn = false; ghostLeft = p.paths.size
         tracks = Array(p.paths.size) { buildTrack(it) }
-        faceMask = IntArray(tracks.size) { a -> tracks[a].segFace.fold(1 shl tracks[a].headFace) { m, f -> if (f >= 0) m or (1 shl f) else m } }
+        // The faces an arrow's body lies on (not its way out, which on Nightmare goes all round the cube).
+        faceMask = IntArray(tracks.size) { a -> p.paths[a].fold(0) { m, c -> m or (1 shl cube.face[c]) } }
         inputEnabled = true
         resetView()
         // Intro: start half-size and turned away, then coast into the resting pose.
@@ -141,7 +142,7 @@ class GameView(ctx: Context) : View(ctx) {
     private fun buildTrack(a: Int): Track {
         val cube = puzzle.cube; val n = cube.n.toFloat()
         val path = puzzle.paths[a]; val dir = puzzle.dirs[a]
-        val ray = cube.ray(path.last(), dir)
+        val ray = puzzle.exit(a)
         val cells = path + ray
         val xs = ArrayList<Float>(); val ys = ArrayList<Float>(); val zs = ArrayList<Float>(); val ts = ArrayList<Float>(); val fs = ArrayList<Int>()
         fun add(x: Int, y: Int, z: Int, t: Float, f: Int) { xs.add(x / n); ys.add(y / n); zs.add(z / n); ts.add(t); fs.add(f) }
@@ -614,7 +615,8 @@ class GameView(ctx: Context) : View(ctx) {
             prevFace = f
         }
         if (!withHead) return
-        // Head: ahead of t1 the track is always straight on one face (or flying straight off it), so the tip is safe.
+        // Head: ahead of t1 the track is straight on one face (or flying straight off it), so the tip is safe. A Nightmare
+        // lap crosses edges with the head too; there the tip skews for a frame as it wraps, which reads fine.
         val hi = pointAt3(tr, t1 + 0.4f, w3b)
         if (surfaceOnly && tr.segFace[hi] < 0) return
         val f = segFace(tr, hi)

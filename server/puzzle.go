@@ -82,24 +82,53 @@ func (c *Cube) ray(cell, d int) []int {
 	}
 }
 
+// lap mirrors Cube.lap in Puzzle.kt: every cell once around the cube from [cell] in [d], over the edges and back.
+func (c *Cube) lap(cell, d int) []int {
+	var out []int
+	cur := cell
+	for {
+		s := c.step(cur, d)
+		cur, d = s/8, s%8
+		if cur == cell {
+			return out
+		}
+		out = append(out, cur)
+	}
+}
+
+// exit mirrors Cube.exit in Puzzle.kt: the cells an arrow's head crosses on its way out. Normally just the run to
+// the face edge; on a lap cube (Nightmare) a whole lap round the cube first, back over its own start, then that run.
+func (c *Cube) exit(cell, d int, lap bool) []int {
+	if !lap {
+		return c.ray(cell, d)
+	}
+	return append(append(c.lap(cell, d), cell), c.ray(cell, d)...)
+}
+
 type Puzzle struct {
 	cube  *Cube
 	paths [][]int
 	dirs  []int
+	lap   bool
 }
 
 type LevelSpec struct {
 	N, MaxLen int
 	Seed      int64
+	Lap       bool `json:",omitempty"` // Nightmare: arrows lap the whole cube before they leave
 }
 
 // dailySpec mirrors dailySpec() in Puzzle.kt: one cube for everyone per UTC day (days since 1970).
 // weekSpec mirrors weekSpec() in Puzzle.kt: the weekly challenge cube. Weeks count from 1970 and start on Mondays.
-func weekSpec(week int) LevelSpec { return LevelSpec{16, 12, int64(week)*7_000_003 + 5} }
+func weekSpec(week int) LevelSpec {
+	return LevelSpec{N: 16, MaxLen: 12, Seed: int64(week)*7_000_003 + 5}
+}
 
 func utcWeek(day int) int { return (day + 3) / 7 }
 
-func dailySpec(day int) LevelSpec { return LevelSpec{12, 10, int64(day)*1_000_003 + 77} }
+func dailySpec(day int) LevelSpec {
+	return LevelSpec{N: 12, MaxLen: 10, Seed: int64(day)*1_000_003 + 77}
+}
 
 func specForLevel(level int) LevelSpec {
 	return LevelSpec{N: min(10+(level-1)/3, 18), MaxLen: min(8+level/4, 16), Seed: int64(level)*7919 + 17}
@@ -126,13 +155,18 @@ func shuffle[T any](r *Rng, xs []T) {
 }
 
 // generate mirrors generate() in Puzzle.kt: up to 10 rerolls until enough arrows stand between the pink one and
-// the edge (an eighth at first, over a fifth as arrows lengthen with the level).
+// the edge (an eighth at first, over a fifth as arrows lengthen with the level; a third on Nightmare's sparse cubes).
 func generate(spec LevelSpec) *Puzzle {
 	best := build(spec)
 	bestDepth := mustClear(best)
-	need := func(p *Puzzle) int { return len(p.paths) * (10 + max(0, spec.MaxLen-8)) / 80 }
+	need := func(p *Puzzle) int {
+		if spec.Lap {
+			return len(p.paths) / 3
+		}
+		return len(p.paths) * (10 + max(0, spec.MaxLen-8)) / 80
+	}
 	for k := int64(1); bestDepth < need(best) && k <= 10; k++ {
-		p := build(LevelSpec{spec.N, spec.MaxLen, spec.Seed + k*1_000_003})
+		p := build(LevelSpec{spec.N, spec.MaxLen, spec.Seed + k*1_000_003, spec.Lap})
 		if d := mustClear(p); d > bestDepth {
 			best, bestDepth = p, d
 		}
@@ -160,7 +194,7 @@ func mustClear(p *Puzzle) int {
 		a := queue[0]
 		queue = queue[1:]
 		path := p.paths[a]
-		for _, c := range p.cube.ray(path[len(path)-1], p.dirs[a]) {
+		for _, c := range p.cube.exit(path[len(path)-1], p.dirs[a], p.lap) {
 			if b := occ[c]; b >= 0 && !seen[b] {
 				seen[b] = true
 				n++
@@ -186,7 +220,11 @@ func build(spec LevelSpec) *Puzzle {
 	center := cube.cellAt(mid, mid, spec.N)
 
 	free := newFreeCells(cube.size)
-	for filled < goal && fails < 400 {
+	maxFails := 400
+	if spec.Lap {
+		maxFails = 2000 // a clear lap is rare once a few arrows are down: keep trying longer
+	}
+	for filled < goal && fails < maxFails {
 		if free.count < 2 {
 			break
 		}
@@ -255,8 +293,9 @@ func build(spec LevelSpec) *Puzzle {
 		picked := -1
 		for oi, o := range options {
 			ok := true
-			for _, c := range cube.ray(o.p[len(o.p)-1], o.d) {
-				if occ[c] >= 0 || inPath[c] {
+			for _, c := range cube.exit(o.p[len(o.p)-1], o.d, spec.Lap) {
+				// A lap may cross the arrow's own body: it slides along behind its head, so that's no block.
+				if occ[c] >= 0 || inPath[c] && !spec.Lap {
 					ok = false
 					break
 				}
@@ -280,7 +319,7 @@ func build(spec LevelSpec) *Puzzle {
 		filled += len(options[picked].p)
 		fails = 0
 	}
-	return &Puzzle{cube, paths, dirs}
+	return &Puzzle{cube, paths, dirs, spec.Lap}
 }
 
 // freeCells mirrors FreeCells in Puzzle.kt: a Fenwick tree over empty cells, so picking the k-th empty cell in index

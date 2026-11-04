@@ -58,3 +58,36 @@ class GoldenTest {
         assertEquals(expected, GOLDEN_SPECS.map { fingerprint(generate(it)) })
     }
 }
+
+class NightmareGoldenTest {
+    // Pinned against TestLapFingerprintsMatchApp in server/puzzle_test.go.
+    @Test fun lapFingerprintsMatchServer() {
+        val specs = listOf(specForLevel(1), specForLevel(30), dailySpec(20394), LevelSpec(5, 4, 9)).map { it.copy(lap = true) }
+        val expected = listOf(7105386055276243586L, 6209352114291553430L, 2357449551511870926L, 1908624766125275580L)
+        assertEquals(expected, specs.map { fingerprint(generate(it)) })
+    }
+
+    @Test fun lapCubesAreSolvableUnderTheLapRule() {
+        for (level in listOf(1, 5, 20, 60)) {
+            val p = generate(specForLevel(level).copy(lap = true))
+            assertTrue(p.lap)
+            val occ = IntArray(p.cube.size) { -1 }
+            p.paths.forEachIndexed { i, path -> path.forEach { occ[it] = i } }
+            val left = p.paths.indices.toMutableSet()
+            while (left.isNotEmpty()) {
+                val free = left.firstOrNull { a -> p.exit(a).all { occ[it] < 0 || occ[it] == a } }
+                assertTrue("lap cube stuck at level $level with ${left.size} left", free != null)
+                p.paths[free!!].forEach { occ[it] = -1 }; left.remove(free)
+            }
+        }
+    }
+
+    @Test fun aLapCrossesFourFacesAndComesBack() {
+        val cube = Cube(4)
+        for (c in 0 until cube.size) for (d in cube.tangents(c)) {
+            val l = cube.lap(c, d)
+            assertEquals(4 * 4 - 1, l.size)
+            assertEquals(4, l.map { cube.face[it] }.toSet().size)
+        }
+    }
+}

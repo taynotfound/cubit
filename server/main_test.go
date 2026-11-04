@@ -58,7 +58,7 @@ func solve(p *Puzzle, gap func(i int) int64) [][2]int64 {
 	}
 	free := func(a int) bool {
 		path := p.paths[a]
-		for _, c := range p.cube.ray(path[len(path)-1], p.dirs[a]) {
+		for _, c := range p.cube.exit(path[len(path)-1], p.dirs[a], p.lap) {
 			if occ[c] >= 0 && occ[c] != a {
 				return false
 			}
@@ -148,7 +148,7 @@ func TestForgedAndBotRuns(t *testing.T) {
 		_, st := h.call("POST", "/v1/runs", tok, map[string]any{"mode": "free", "n": 6, "maxLen": 6, "seed": 42, "difficulty": "Easy"})
 		return st["run"].(string)
 	}
-	p := generate(LevelSpec{6, 6, 42})
+	p := generate(LevelSpec{N: 6, MaxLen: 6, Seed: 42})
 	cases := []struct {
 		name  string
 		moves [][2]int64
@@ -211,7 +211,7 @@ func TestDirectAccessBlocked(t *testing.T) {
 }
 
 func TestPowerupsReplay(t *testing.T) {
-	p := generate(LevelSpec{6, 6, 42})
+	p := generate(LevelSpec{N: 6, MaxLen: 6, Seed: 42})
 	sol := solve(p, human)
 	blocker := Move{0, 100} // the pink arrow before anything is cleared: a bump
 	toMoves := func(m [][2]int64) []Move {
@@ -283,7 +283,7 @@ func TestCleanRunTagged(t *testing.T) {
 	tok := reg["token"].(string)
 	_, st := h.call("POST", "/v1/runs", tok, map[string]any{"mode": "free", "n": 6, "maxLen": 6, "seed": 42, "difficulty": "Clean"})
 	h.now = h.now.Add(2 * time.Minute)
-	code, out := h.call("POST", "/v1/runs/"+st["run"].(string)+"/finish", tok, map[string]any{"moves": solve(generate(LevelSpec{6, 6, 42}), human)})
+	code, out := h.call("POST", "/v1/runs/"+st["run"].(string)+"/finish", tok, map[string]any{"moves": solve(generate(LevelSpec{N: 6, MaxLen: 6, Seed: 42}), human)})
 	if code != 200 || out["status"] != "accepted" {
 		t.Fatalf("clean run: %d %v", code, out)
 	}

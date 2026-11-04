@@ -55,10 +55,35 @@ class Cube(val n: Int) {
         }
         return out.toIntArray()
     }
+
+    /** Every cell once around the cube from [c] heading [d], over the edges and back to (not including) [c]. */
+    fun lap(c: Int, d: Int): IntArray {
+        val out = ArrayList<Int>()
+        var cur = c; var dir = d
+        while (true) {
+            val s = step(cur, dir)
+            cur = s / 8; dir = s % 8
+            if (cur == c) break
+            out.add(cur)
+        }
+        return out.toIntArray()
+    }
+
+    /**
+     * The cells an arrow's head crosses on its way out: normally the run to the face edge. On a lap cube (Nightmare)
+     * a whole lap round the cube first, back over its own start, then that run. Mirrors exit in puzzle.go.
+     */
+    fun exit(c: Int, d: Int, lapRule: Boolean): IntArray = if (!lapRule) ray(c, d) else lap(c, d) + c + ray(c, d)
 }
 
-/** paths[i] runs tail → head; dirs[i] is the head's travel direction. paths[target] is the pink arrow to free. */
-class Puzzle(val cube: Cube, val paths: List<IntArray>, val dirs: IntArray, val target: Int = 0)
+/**
+ * paths[i] runs tail → head; dirs[i] is the head's travel direction. paths[target] is the pink arrow to free.
+ * [lap]: Nightmare's rule, an arrow only leaves if its whole lap round the cube is clear.
+ */
+class Puzzle(val cube: Cube, val paths: List<IntArray>, val dirs: IntArray, val target: Int = 0, val lap: Boolean = false) {
+    /** The cells arrow [a] must find empty to leave. */
+    fun exit(a: Int) = cube.exit(paths[a].last(), dirs[a], lap)
+}
 
 /**
  * SplitMix64. Puzzles must come out bit-identical on the phone and on the leaderboard server (server/puzzle.go),
@@ -79,7 +104,8 @@ class Rng(private var s: Long) {
     }
 }
 
-data class LevelSpec(val n: Int, val maxLen: Int, val seed: Long)
+/** [lap] makes it a Nightmare cube: built so every arrow can clear a full lap of the cube, in some order. */
+data class LevelSpec(val n: Int, val maxLen: Int, val seed: Long, val lap: Boolean = false)
 
 /** One cube for everyone per UTC day (days since 1970). The server builds the same one (dailySpec in puzzle.go). */
 fun dailySpec(day: Int) = LevelSpec(12, 10, day * 1_000_003L + 77)
@@ -105,11 +131,11 @@ fun specForLevel(level: Int) = LevelSpec(
  */
 /**
  * Rerolls (up to 10 times) until enough arrows stand between the pink one and the edge: an eighth at first, rising
- * to over a fifth as arrows get longer with the level.
+ * to over a fifth as arrows get longer with the level. Nightmare's cubes are sparse, so there it's a third.
  */
 fun generate(spec: LevelSpec): Puzzle {
     var best = build(spec); var bestDepth = mustClear(best)
-    fun need(p: Puzzle) = p.paths.size * (10 + maxOf(0, spec.maxLen - 8)) / 80
+    fun need(p: Puzzle) = if (spec.lap) p.paths.size / 3 else p.paths.size * (10 + maxOf(0, spec.maxLen - 8)) / 80
     var k = 1
     while (bestDepth < need(best) && k <= 10) {
         val p = build(spec.copy(seed = spec.seed + k * 1_000_003L)); val d = mustClear(p)
@@ -127,7 +153,7 @@ fun mustClear(p: Puzzle): Int {
     val queue = ArrayDeque(listOf(0)); var n = 0
     while (queue.isNotEmpty()) {
         val a = queue.removeFirst()
-        for (c in p.cube.ray(p.paths[a].last(), p.dirs[a])) {
+        for (c in p.exit(a)) {
             val b = occ[c]
             if (b >= 0 && !seen[b]) { seen[b] = true; n++; queue.add(b) }
         }
@@ -146,7 +172,8 @@ private fun build(spec: LevelSpec): Puzzle {
     val center = cube.cellAt(mid, mid, spec.n) // front (+z) face
 
     val free = FreeCells(cube.size)
-    while (filled < goal && fails < 400) {
+    val maxFails = if (spec.lap) 2000 else 400 // a clear lap is rare once a few arrows are down: keep trying longer
+    while (filled < goal && fails < maxFails) {
         if (free.count < 2) break
         // Placed first = the pink target: it sits under everything placed after it.
         val start = if (paths.isEmpty()) center else free.kth(rnd.nextInt(free.count))
@@ -173,14 +200,15 @@ private fun build(spec: LevelSpec): Puzzle {
 
         // Head can be either end: the walk's end (moving on), or its start (moving back against the first step).
         val options = rnd.shuffle(mutableListOf(path.toIntArray() to arrive, path.reversed().toIntArray() to opposite(firstDir)))
-        val pick = options.firstOrNull { (p, d) -> cube.ray(p.last(), d).all { occ[it] < 0 && it !in inPath } }
+        // A lap may cross the arrow's own body: it slides along behind its head, so that's no block.
+        val pick = options.firstOrNull { (p, d) -> cube.exit(p.last(), d, spec.lap).all { occ[it] < 0 && (spec.lap || it !in inPath) } }
         if (pick == null) { fails++; continue }
         val id = paths.size
         paths.add(pick.first); dirs.add(pick.second)
         for (c in pick.first) { occ[c] = id; free.take(c) }
         filled += pick.first.size; fails = 0
     }
-    return Puzzle(cube, paths, dirs.toIntArray())
+    return Puzzle(cube, paths, dirs.toIntArray(), lap = spec.lap)
 }
 
 /**

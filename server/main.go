@@ -252,11 +252,13 @@ func (a *App) startRun(w http.ResponseWriter, r *http.Request) {
 			fail(w, http.StatusBadRequest, "bad cube size")
 			return
 		}
-		run.Spec, run.Free, run.Label = LevelSpec{b.N, b.MaxLen, b.Seed}, true, fmt.Sprintf("Free %d×%d", b.N, b.N)
+		run.Spec, run.Free, run.Label = LevelSpec{N: b.N, MaxLen: b.MaxLen, Seed: b.Seed}, true, fmt.Sprintf("Free %d×%d", b.N, b.N)
 	default:
 		fail(w, http.StatusBadRequest, "unknown mode")
 		return
 	}
+	// Nightmare is played on a lap cube: same spec, but every arrow has to clear a full lap round the cube.
+	run.Spec.Lap = difficulties[b.Difficulty].Nightmare
 	switch b.Goal {
 	case "", "pink":
 	case "all":

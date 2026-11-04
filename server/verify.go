@@ -12,15 +12,17 @@ type Difficulty struct {
 	Lives       int
 	SecPerArrow float32
 	XPMult      float32
+	Nightmare   bool // arrows lap the whole cube before leaving (a lap cube), and no powerups
 }
 
 var difficulties = map[string]Difficulty{
-	"Zen":    {0, 0, 0.5},
-	"Easy":   {5, 0, 1},
-	"Normal": {3, 4, 1.3},
-	"Hard":   {3, 2, 1.7},
-	"Expert": {1, 1.2, 2.4},
-	"Clean":  {0, 0, 0.5}, // Zen rules with nothing on screen but the cube; tagged on the board
+	"Zen":       {0, 0, 0.5, false},
+	"Easy":      {5, 0, 1, false},
+	"Normal":    {3, 4, 1.3, false},
+	"Hard":      {3, 2, 1.7, false},
+	"Expert":    {1, 1.2, 2.4, false},
+	"Clean":     {0, 0, 0.5, false}, // Zen rules with nothing on screen but the cube; tagged on the board
+	"Nightmare": {1, 2.5, 3.5, true},
 }
 
 // Powerup codes a run records as a negative arrow index (Powerup.code in Prefs.kt). Each works once per run.
@@ -104,6 +106,9 @@ func replay(p *Puzzle, d Difficulty, moves []Move, all bool) (Replay, error) {
 			continue
 		}
 		if m.Arrow < 0 {
+			if d.Nightmare {
+				return r, fmt.Errorf("move %d: no powerups on Nightmare", i)
+			}
 			if used[m.Arrow] {
 				return r, fmt.Errorf("move %d: powerup used twice", i)
 			}
@@ -136,7 +141,7 @@ func replay(p *Puzzle, d Difficulty, moves []Move, all bool) (Replay, error) {
 		}
 		path := p.paths[m.Arrow]
 		blocked := all && m.Arrow == 0 && r.Cleared < n-1 // full clear: the pink arrow leaves last, early taps bump
-		for _, c := range p.cube.ray(path[len(path)-1], p.dirs[m.Arrow]) {
+		for _, c := range p.cube.exit(path[len(path)-1], p.dirs[m.Arrow], p.lap) {
 			if occ[c] >= 0 && occ[c] != m.Arrow {
 				blocked = true
 				break

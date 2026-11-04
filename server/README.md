@@ -7,7 +7,7 @@ Ranked runs are **verified, not trusted**:
 2. It records every tap.
 3. It sends them to `POST /v1/runs/{id}/finish`.
 4. The server regenerates the exact cube (`puzzle.go` is a bit-identical port of the app's generator, pinned by fingerprint tests on both sides), replays the taps under the game rules, and computes score and XP itself.
-   Powerups are recorded as negative arrow indices (-1 shield, -2 freeze +15 s, -3 spare life), each allowed once per run and only where the difficulty has lives or a timer. `Clean` is Zen rules with a tag: the board shows it and counts each player's `cleanRuns`.
+   Powerups are recorded as negative arrow indices (-1 shield, -2 freeze +15 s, -3 spare life), each allowed once per run and only where the difficulty has lives or a timer. `Clean` is Zen rules with a tag: the board shows it and counts each player's `cleanRuns`. `Nightmare` runs are generated and replayed on a lap cube (`LevelSpec.Lap`): an arrow only leaves if its whole lap round the cube is clear. It has one life, a timer and no powerups.
 
 **Rejected outright:** impossible runs, such as a tap on a blocked or missing arrow, running out of lives, a backwards clock, or a pink arrow that never gets out.
 

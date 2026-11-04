@@ -445,7 +445,7 @@ class MainActivity : Activity(), GameView.Listener {
         handler.postDelayed({ sign.text = "LEVEL %03d".format(level % 1000) }, 200)
         // Big cubes take a moment to build: do it off the main thread, then hand the cube to the preview.
         bg.execute {
-            val pz = PuzzleCache.get(specForLevel(level))
+            val pz = PuzzleCache.get(specForLevel(level).copy(lap = prefs.difficulty == Difficulty.NIGHTMARE))
             handler.post { puzzle = pz; demo.load(pz); demo.inputEnabled = false; demo.autoSpin = true; describe() }
         }
 
@@ -472,6 +472,8 @@ class MainActivity : Activity(), GameView.Listener {
             Sfx.click(); Haptics.tick()
             val on = prefs.difficulty != Difficulty.CLEAN
             prefs.difficulty = if (on) Difficulty.CLEAN else prefs.lastMode
+            // Nightmare's preview is a different (lap) cube: rebuild the screen rather than relabel it.
+            if (prefs.lastMode == Difficulty.NIGHTMARE) { showTab(Tab.PLAY); return@setOnClickListener }
             paintClean(on); demo.glass = on; demo.invalidate(); describe()
             modeChip.alpha = if (on) 0.5f else 1f
             ((modeChip as LinearLayout).getChildAt(1) as TextView).text = prefs.lastMode.label.uppercase()
@@ -979,8 +981,10 @@ class MainActivity : Activity(), GameView.Listener {
                     sign.text = "MODE"
                     pageCol.add(display("How do you want to play?", 30f))
                     val blurb = tv(prefs.difficulty.blurb, 14f, Fonts.body, th.muted)
-                    pageCol.add(segmented(Difficulty.entries.map { it.label }, prefs.difficulty.ordinal) {
-                        prefs.difficulty = Difficulty.entries[it]; blurb.text = prefs.difficulty.blurb
+                    // Nightmare isn't offered to newcomers: it's in Mode on the Play tab once they know the game.
+                    val modes = Difficulty.entries.filter { it != Difficulty.NIGHTMARE }
+                    pageCol.add(segmented(modes.map { it.label }, modes.indexOf(prefs.difficulty).coerceAtLeast(0)) {
+                        prefs.difficulty = modes[it]; blurb.text = prefs.difficulty.blurb
                     }, 16)
                     pageCol.add(blurb, 8)
                     pageCol.add(body("Clean shows nothing but the cube. Your clean runs are marked on the board. Change mode any time on the Play tab.", th.muted), 14)
@@ -1214,13 +1218,16 @@ class MainActivity : Activity(), GameView.Listener {
         showTab(tab)
     }
 
-    private fun startRound(s: LevelSpec, label: String, resume: org.json.JSONObject? = null) {
+    private fun startRound(base: LevelSpec, label: String, resume: org.json.JSONObject? = null) {
+        val mode = if (tutorial) Difficulty.ZEN else resume?.let { Difficulty.entries.getOrNull(it.optInt("diff")) } ?: prefs.difficulty
+        // Nightmare plays the same level on a lap cube; every other mode on the normal one, whatever spec came in.
+        val s = base.copy(lap = mode == Difficulty.NIGHTMARE)
         if (!PuzzleCache.has(s)) { whenBuilt(s) { startRound(s, label, resume) }; return }
         stopRound()
         gameLayer?.let { root.removeView(it) }
         shell.visibility = View.GONE
         if (resume == null && !tutorial) prefs.savedRun = null // a new level replaces any saved one
-        diff = if (tutorial) Difficulty.ZEN else resume?.let { Difficulty.entries.getOrNull(it.optInt("diff")) } ?: prefs.difficulty
+        diff = mode
         roundFull = if (tutorial) false else resume?.optBoolean("full") ?: prefs.fullClear
         spec = s; baseLabel = label; roundLabel = if (roundFull) "$label · full clear" else label
         val puzzle = PuzzleCache.get(s)
@@ -1271,7 +1278,7 @@ class MainActivity : Activity(), GameView.Listener {
         }
         val hintCount = tv("${prefs.hints}", 20f, Fonts.display).apply { setPadding(dp(6), 0, 0, 0) }
         hintBtn.addView(hintCount)
-        tray.add(hintBtn, 0, WRAP_CONTENT, dp(48))
+        if (diff != Difficulty.NIGHTMARE) tray.add(hintBtn, 0, WRAP_CONTENT, dp(48)) // Nightmare: no hints, no powerups
         powerupBtns.clear(); usedPowerups.clear(); shield = false
         Powerup.entries.filter { prefs.powerupOn(it) && it.appliesTo(diff) }.forEach { pu ->
             val b = iconButton(pu.glyph, "Use ${pu.label}: ${pu.blurb}") { usePowerup(pu); tray.visibility = View.GONE }
@@ -1280,6 +1287,7 @@ class MainActivity : Activity(), GameView.Listener {
             powerupBtns[pu] = b
         }
         ui.add(tray)
+        if (tray.childCount == 0) boost.visibility = View.GONE
 
         ui.space(0, 1f)
 
@@ -1293,7 +1301,7 @@ class MainActivity : Activity(), GameView.Listener {
         cBox.add(label("Left"), 0, WRAP_CONTENT); cBox.add(clearedFlap, 4, WRAP_CONTENT)
         bottom.add(cBox, 0, WRAP_CONTENT)
         // Few arrows left: the button turns the cube to them instead of just resetting the view.
-        bottom.add(iconButton(Glyph.RECENTER, "Reset camera, or find the last arrows") { game?.let { if (it.remaining <= 6) it.findNext() else it.resetView() } }, 0, dp(48), dp(48))
+        bottom.add(iconButton(Glyph.RECENTER, "Reset camera, or find the last arrows") { game?.let { if (it.remaining <= 6 && diff != Difficulty.NIGHTMARE) it.findNext() else it.resetView() } }, 0, dp(48), dp(48))
         ui.add(bottom)
         if (tutorial) {
             val c = tv("", 17f, Fonts.bodyMedium).apply {
@@ -1343,7 +1351,8 @@ class MainActivity : Activity(), GameView.Listener {
             lampsRow.space(0, 1f); lampsRow.add(g, 0, WRAP_CONTENT)
             ghostLabel = gl
             val board: (List<ScoreEntry>?) -> Unit = { b ->
-                val lead = b?.firstOrNull { it.run.isNotEmpty() && it.name != prefs.name }
+                // Race someone on the same cube: Nightmare runs are on the lap cube, every other mode on the normal one.
+                val lead = b?.firstOrNull { it.run.isNotEmpty() && it.name != prefs.name && (it.difficulty == Difficulty.NIGHTMARE.label) == s.lap }
                 if (lead != null && serial == roundSerial) Net.replay(lead.run) { r ->
                     if (r == null || serial != roundSerial || r.first != s) return@replay
                     ghost = r.second; ghostName = lead.name; gv.ghostOn = true; g.visibility = View.VISIBLE; updateHud()
@@ -1416,7 +1425,7 @@ class MainActivity : Activity(), GameView.Listener {
 
     private fun useHint() {
         val g = game ?: return
-        if (!running) return
+        if (!running || diff == Difficulty.NIGHTMARE) return
         if (prefs.hints <= 0) { toast("No hints left. You earn one every player level."); return }
         if (g.showHint()) { prefs.hints = prefs.hints - 1; Sfx.hint() }
         updateHud()

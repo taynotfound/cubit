@@ -303,7 +303,7 @@ func (s *Store) replayOf(run string) map[string]any {
 		if d := s.db.Devices[sc.Device]; d == nil || d.Banned || sc.Moves == nil {
 			return nil
 		}
-		return map[string]any{"n": sc.Spec.N, "maxLen": sc.Spec.MaxLen, "seed": sc.Spec.Seed, "moves": sc.Moves}
+		return map[string]any{"n": sc.Spec.N, "maxLen": sc.Spec.MaxLen, "seed": sc.Spec.Seed, "lap": sc.Spec.Lap, "moves": sc.Moves}
 	}
 	return nil
 }

@@ -36,6 +36,7 @@ Levels start at 10×10 per side with about a hundred winding arrows and grow to 
 
 - **Clean mode.** One tap on the home screen. Just a see-through glass cube in your colours, back faces showing through, no lives, no timer, no buttons. Two-finger tap to take back a move.
 - **Modes:** Zen, Easy, Normal, Hard and Expert, each with its own lives, timer and XP multiplier.
+- **Nightmare.** The hardest mode. An arrow doesn't just slide off its face: it runs a full lap round the cube first, so everything on that lap, back faces included, has to be gone. One life, a tight timer, no hints, no powerups.
 - **Full clear.** An optional goal: clear every arrow, and the pink one has to leave last.
 - **Endless campaign, a daily cube and a weekly challenge**, the same cube for everyone, each with its own board. Share a link and a friend gets the same cube.
 - **Puzzle packs:** forty picked cubes in four packs, from tiny 5×5 puzzles to 18×18 monsters. Plus free roam (any size from 2×2 to 18×18) and replays of any level.

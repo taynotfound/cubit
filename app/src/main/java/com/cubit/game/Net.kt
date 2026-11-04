@@ -81,7 +81,7 @@ object Net {
         val r = call {
             val o = JSONObject(request("GET", "/v1/runs/$run/replay", null, null))
             val mv = o.getJSONArray("moves")
-            LevelSpec(o.getInt("n"), o.getInt("maxLen"), o.getLong("seed")) to (0 until mv.length()).map { val m = mv.getJSONArray(it); longArrayOf(m.getLong(0), m.getLong(1)) }
+            LevelSpec(o.getInt("n"), o.getInt("maxLen"), o.getLong("seed"), o.optBoolean("lap")) to (0 until mv.length()).map { val m = mv.getJSONArray(it); longArrayOf(m.getLong(0), m.getLong(1)) }
         }
         main.post { done(r) }
     }

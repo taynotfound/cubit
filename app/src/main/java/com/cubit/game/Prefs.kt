@@ -13,7 +13,10 @@ enum class Difficulty(val label: String, val lives: Int, val secPerArrow: Float,
     HARD("Hard", 3, 2f, 1.7f, "3 lives · tight timer"),
     EXPERT("Expert", 1, 1.2f, 2.4f, "1 life · brutal timer"),
     /** Only the cube and a close button on screen. Ranked runs are tagged Clean on the board. */
-    CLEAN("Clean", 0, 0f, 0.5f, "Just the cube · no lives · no timer");
+    CLEAN("Clean", 0, 0f, 0.5f, "Just the cube · no lives · no timer"),
+    /** The hardest mode: arrows lap the whole cube before leaving (a lap cube), one life, no hints or powerups.
+     *  Last in the list so saved difficulty ordinals stay put. Mirrors "Nightmare" in server/verify.go. */
+    NIGHTMARE("Nightmare", 1, 2.5f, 3.5f, "Arrows lap the whole cube before leaving · 1 life · no help");
 
     fun timeLimitSec(arrows: Int) = if (secPerArrow == 0f) 0 else (10 + arrows * secPerArrow).toInt()
 }
@@ -26,7 +29,7 @@ enum class Powerup(val label: String, val glyph: Glyph, val code: Int, val blurb
     LIFE("Spare life", Glyph.LIFE, -3, "One extra life for this level."),
     UNDO("Undo", Glyph.UNDO, -5, "Takes back your last bump: the mistake comes off your record and its life comes back.");
 
-    fun appliesTo(d: Difficulty) = when (this) { SCAN, UNDO -> d != Difficulty.CLEAN; SHIELD, LIFE -> d.lives > 0; FREEZE -> d.secPerArrow > 0 }
+    fun appliesTo(d: Difficulty) = d != Difficulty.NIGHTMARE && when (this) { SCAN, UNDO -> d != Difficulty.CLEAN; SHIELD, LIFE -> d.lives > 0; FREEZE -> d.secPerArrow > 0 }
 }
 
 /** What a finished, won run looked like, for achievement checks. */
@@ -60,6 +63,7 @@ enum class Achievement(val title: String, val blurb: String, val check: (Prefs, 
     HUNDRED("Season ticket", "Win 100 levels.", { p, _ -> p.solved >= 100 }),
     PERFECT("Spotless", "Win without a single bump.", { _, r -> r.perfect }),
     PERFECT_EXPERT("Signal master", "A perfect run on Expert.", { _, r -> r.perfect && r.diff == Difficulty.EXPERT }),
+    NIGHTMARE("Night shift", "Win a level on Nightmare.", { _, r -> r.diff == Difficulty.NIGHTMARE }),
     ARROWS_100("Rush hour", "Clear 100 arrows in total.", { p, _ -> p.totalArrows >= 100 }),
     ARROWS_1000("Terminus", "Clear 1,000 arrows in total.", { p, _ -> p.totalArrows >= 1000 }),
     SPEED("Express", "Win with 20 or more arrows cleared in under 30 seconds.", { _, r -> r.cleared >= 20 && r.ms < 30_000 }),
@@ -195,7 +199,7 @@ class Prefs(ctx: Context) {
             val pu = o.optJSONArray("p") ?: JSONArray()
             ScoreEntry(o.optString("n"), o.optInt("s"), o.optString("l"), o.optString("d"), o.optLong("t"),
                 o.optInt("a"), o.optLong("ms"), o.optInt("m"), o.optInt("z"), (0 until pu.length()).map { pu.getString(it) }, o.optInt("lv"),
-                spec = if (o.has("sn")) LevelSpec(o.getInt("sn"), o.getInt("sl"), o.getLong("ss")) else null,
+                spec = if (o.has("sn")) LevelSpec(o.getInt("sn"), o.getInt("sl"), o.getLong("ss"), o.optBoolean("sp")) else null,
                 moves = o.optJSONArray("mv")?.let { mv -> (0 until mv.length()).map { val m = mv.getJSONArray(it); longArrayOf(m.getLong(0), m.getLong(1)) } } ?: emptyList())
         }
     }
@@ -207,7 +211,7 @@ class Prefs(ctx: Context) {
         all.forEach {
             arr.put(JSONObject().put("n", it.name).put("s", it.score).put("l", it.label).put("d", it.difficulty).put("t", it.time)
                 .put("a", it.arrows).put("ms", it.ms).put("m", it.mistakes).put("z", it.size).put("p", JSONArray(it.powerups)).put("lv", it.playerLevel)
-                .apply { it.spec?.let { s -> put("sn", s.n).put("sl", s.maxLen).put("ss", s.seed) } }
+                .apply { it.spec?.let { s -> put("sn", s.n).put("sl", s.maxLen).put("ss", s.seed).put("sp", s.lap) } }
                 .put("mv", JSONArray().apply { it.moves.forEach { m -> put(JSONArray().put(m[0]).put(m[1])) } }))
         }
         sp.edit().putString("scores", arr.toString()).apply()
