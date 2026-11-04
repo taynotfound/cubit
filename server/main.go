@@ -194,7 +194,7 @@ func (a *App) register(w http.ResponseWriter, r *http.Request) {
 	}
 	id, secret := randID(16), base64.RawURLEncoding.EncodeToString([]byte(randID(32)))
 	a.store.mu.Lock()
-	a.store.db.Devices[id] = &Device{Name: name, TokenHash: hashSecret(secret), Created: a.now().Unix()}
+	a.store.db.Devices[id] = &Device{Name: name, TokenHash: hashSecret(secret), Created: a.now().Unix(), Code: a.store.newCode()}
 	a.store.mu.Unlock()
 	a.store.markDirty()
 	log.Printf("register %s %q from %s", id[:8], name, ip)
@@ -503,6 +503,31 @@ func (a *App) routes() http.Handler {
 		}
 		w.Header().Set("Cache-Control", "public, max-age=10")
 		send(w, 200, map[string]any{"week": week, "scores": a.store.weekly(week)})
+	})
+	m.HandleFunc("GET /v1/me", func(w http.ResponseWriter, r *http.Request) {
+		_, d, code := a.auth(r)
+		if code != 0 {
+			fail(w, code, "not signed in")
+			return
+		}
+		a.store.mu.Lock()
+		out := map[string]any{"code": d.Code, "name": d.Name, "xp": d.XP, "level": playerLevel(d.XP)}
+		a.store.mu.Unlock()
+		send(w, 200, out)
+	})
+	m.HandleFunc("GET /v1/friends", func(w http.ResponseWriter, r *http.Request) {
+		var codes []string
+		for _, c := range strings.Split(r.URL.Query().Get("codes"), ",") {
+			if c = strings.ToUpper(strings.TrimSpace(c)); len(c) == 8 {
+				codes = append(codes, c)
+			}
+		}
+		if len(codes) > 50 {
+			fail(w, http.StatusBadRequest, "at most 50 friends")
+			return
+		}
+		w.Header().Set("Cache-Control", "public, max-age=10")
+		send(w, 200, map[string]any{"friends": a.store.friends(codes)})
 	})
 	m.HandleFunc("POST /v1/register", a.register)
 	m.HandleFunc("POST /v1/runs", a.startRun)

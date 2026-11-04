@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
@@ -371,5 +372,28 @@ func TestSaveKeepsFileAndBackup(t *testing.T) {
 	bak, err2 := openStore(st.file + ".bak")
 	if err1 != nil || err2 != nil || len(cur.db.Devices) != 2 || len(bak.db.Devices) != 1 {
 		t.Fatalf("after two saves: current %d devices (%v), backup %d (%v)", len(cur.db.Devices), err1, len(bak.db.Devices), err2)
+	}
+}
+
+func TestFriendCodes(t *testing.T) {
+	h := newHarness(t)
+	_, a := h.call("POST", "/v1/register", "", map[string]string{"name": "Ana"})
+	_, b := h.call("POST", "/v1/register", "", map[string]string{"name": "Ben"})
+	code, me := h.call("GET", "/v1/me", a["token"].(string), nil)
+	if code != 200 || len(me["code"].(string)) != 8 || me["name"] != "Ana" {
+		t.Fatalf("me: %d %v", code, me)
+	}
+	_, meB := h.call("GET", "/v1/me", b["token"].(string), nil)
+	if code, _ := h.call("GET", "/v1/me", "", nil); code != 401 {
+		t.Fatalf("me without a token: %d", code)
+	}
+	// Lower case and an unknown code are fine; banned players drop out.
+	code, out := h.call("GET", "/v1/friends?codes="+strings.ToLower(me["code"].(string))+",DEADBEEF,"+meB["code"].(string), "", nil)
+	if fr := out["friends"].([]any); code != 200 || len(fr) != 2 || fr[0].(map[string]any)["name"] != "Ana" || fr[0].(map[string]any)["best"] != nil {
+		t.Fatalf("friends: %d %v", code, out)
+	}
+	h.app.store.db.Devices[strings.Split(b["token"].(string), ".")[0]].Banned = true
+	if _, out := h.call("GET", "/v1/friends?codes="+meB["code"].(string), "", nil); len(out["friends"].([]any)) != 0 {
+		t.Fatalf("banned friend shown: %v", out)
 	}
 }

@@ -8,7 +8,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.Executors
 
-data class GlobalPlayer(val name: String, val xp: Int, val level: Int, val cleanRuns: Int)
+data class GlobalPlayer(val name: String, val xp: Int, val level: Int, val cleanRuns: Int, val code: String = "")
 data class GlobalBoard(val players: List<GlobalPlayer>, val scores: List<ScoreEntry>)
 data class RunResult(val status: String, val score: Int, val xp: Int, val rank: Int)
 
@@ -76,6 +76,24 @@ object Net {
         }
     }
 
+    /** This install's friend code (registering first if needed); stored in [Prefs.friendCode]. */
+    fun me(p: Prefs, done: (String?) -> Unit) = io.execute {
+        val code = call { JSONObject(authed(p, "GET", "/v1/me", null)).getString("code").also { p.friendCode = it } }
+        main.post { done(code) }
+    }
+
+    /** Players behind these friend codes, each with their best run (null if none yet). Unknown codes are left out. */
+    fun friends(codes: Collection<String>, done: (List<Pair<GlobalPlayer, ScoreEntry?>>?) -> Unit) = io.execute {
+        val r = call {
+            val a = JSONObject(request("GET", "/v1/friends?codes=" + codes.joinToString(","), null, null)).getJSONArray("friends")
+            (0 until a.length()).map { a.getJSONObject(it) }.map { f ->
+                val best = f.optJSONObject("best")?.let { parseBoard(JSONObject().put("scores", JSONArray().put(it))).scores.first() }
+                GlobalPlayer(f.optString("name"), f.optInt("xp"), f.optInt("level"), f.optInt("cleanRuns"), f.optString("code")) to best
+            }
+        }
+        main.post { done(r) }
+    }
+
     /** A board run's cube and taps, for watching it back. */
     fun replay(run: String, done: (Pair<LevelSpec, List<LongArray>>?) -> Unit) = io.execute {
         val r = call {
@@ -108,7 +126,7 @@ object Net {
     }
 
     // Runs on the io thread.
-    private fun authed(p: Prefs, method: String, path: String, body: String): String {
+    private fun authed(p: Prefs, method: String, path: String, body: String?): String {
         val token = p.lbToken ?: JSONObject(request("POST", "/v1/register", JSONObject().put("name", p.name).toString(), null))
             .getString("token").also { p.lbToken = it }
         try {

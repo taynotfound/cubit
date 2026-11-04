@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 )
@@ -20,6 +21,7 @@ type Device struct {
 	Created   int64  `json:"created"`
 	Runs      int    `json:"runs"`
 	CleanRuns int    `json:"cleanRuns,omitempty"`
+	Code      string `json:"code,omitempty"` // public friend code: 8 hex digits, upper case
 }
 
 // credit books a verified run to its player. Call with the store's mu held.
@@ -86,6 +88,11 @@ func openStore(file string) (*Store, error) {
 	}
 	if s.db.Devices == nil {
 		s.db.Devices = map[string]*Device{}
+	}
+	for _, d := range s.db.Devices { // players from before friend codes
+		if d.Code == "" {
+			d.Code = s.newCode()
+		}
 	}
 	return s, nil
 }
@@ -307,6 +314,64 @@ func (s *Store) replayOf(run string) map[string]any {
 		return map[string]any{"n": sc.Spec.N, "maxLen": sc.Spec.MaxLen, "seed": sc.Spec.Seed, "lap": sc.Spec.Lap, "moves": sc.Moves}
 	}
 	return nil
+}
+
+// newCode is an unused friend code. Call with mu held (or before the store is shared).
+func (s *Store) newCode() string {
+	for {
+		c := strings.ToUpper(randID(4))
+		if s.byCode(c) == "" {
+			return c
+		}
+	}
+}
+
+// byCode finds a device id by friend code, or "". Call with mu held.
+// shortcut: a linear scan over devices, fine for thousands of players; add a code index if the board grows past that.
+func (s *Store) byCode(code string) string {
+	for id, d := range s.db.Devices {
+		if d.Code == code {
+			return id
+		}
+	}
+	return ""
+}
+
+type friendView struct {
+	Code      string       `json:"code"`
+	Name      string       `json:"name"`
+	Level     int          `json:"level"`
+	XP        int          `json:"xp"`
+	CleanRuns int          `json:"cleanRuns"`
+	Best      *publicScore `json:"best"`
+}
+
+// friends is the public view of the players behind these codes (unknown and banned ones left out), each with their
+// best run. It shows no more than the public board would.
+func (s *Store) friends(codes []string) []friendView {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := []friendView{}
+	for _, c := range codes {
+		id := s.byCode(c)
+		d := s.db.Devices[id]
+		if d == nil || d.Banned {
+			continue
+		}
+		f := friendView{Code: c, Name: d.Name, Level: playerLevel(d.XP), XP: d.XP, CleanRuns: d.CleanRuns}
+		for _, sc := range s.db.Scores {
+			if sc.Device == id {
+				pu := sc.Powerups
+				if pu == nil {
+					pu = []string{}
+				}
+				f.Best = &publicScore{sc.RunID, d.Name, f.Level, sc.Score, sc.Label, sc.Difficulty, sc.Time, sc.Arrows, sc.Ms, sc.Mistakes, sc.Size, pu}
+				break
+			}
+		}
+		out = append(out, f)
+	}
+	return out
 }
 
 // playerLevel mirrors playerLevel() in Prefs.kt.

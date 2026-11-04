@@ -111,6 +111,10 @@ val THEMES = listOf(
     Theme("Sunset", Color.rgb(43, 16, 53), Color.rgb(242, 120, 75), Color.rgb(255, 247, 240), Color.rgb(255, 209, 102), Color.rgb(255, 238, 230), Color.rgb(62, 26, 72)),
     Theme("Forest", Color.rgb(19, 38, 27), Color.rgb(233, 226, 207), Color.rgb(30, 58, 42), Color.rgb(242, 165, 65), Color.rgb(236, 232, 218), Color.rgb(27, 52, 38)),
     Theme("Mono", Color.rgb(17, 17, 17), Color.rgb(237, 237, 237), Color.rgb(17, 17, 17), Color.WHITE, Color.rgb(240, 240, 240), Color.rgb(32, 32, 32)),
+    // Accessibility, free for everyone: black and white at full contrast, and Okabe–Ito line colours that stay
+    // distinct with every common colour-vision deficiency.
+    Theme("Contrast", Color.BLACK, Color.WHITE, Color.BLACK, Color.rgb(255, 212, 0), Color.WHITE, Color.rgb(28, 28, 28), intArrayOf(
+        Color.rgb(0, 114, 178), Color.rgb(0, 158, 115), Color.rgb(213, 94, 0), Color.rgb(240, 228, 66), Color.rgb(86, 180, 233), Color.rgb(230, 159, 0))),
 )
 
 /** Arrow colour override; 0 means "use the colourway's arrows". */
@@ -173,8 +177,43 @@ class Prefs(ctx: Context) {
     var noPowerupStreak: Int get() = sp.getInt("noPuStreak", 0); set(v) = sp.edit().putInt("noPuStreak", v).apply()
     var cleanSolved: Int get() = sp.getInt("cleanSolved", 0); set(v) = sp.edit().putInt("cleanSolved", v).apply()
     var achievements: Set<String> get() = sp.getStringSet("ach", emptySet())!!; set(v) = sp.edit().putStringSet("ach", HashSet(v)).apply()
-    /** The streak as it stands today: it lapses once a whole day passes without a daily solve. */
-    fun liveStreak(today: Int) = if (dailyDone >= today - 1) dailyStreak else 0
+    /** Earned by finishing a weekly challenge; each one covers a missed day of the daily streak. Up to [MAX_FREEZES]. */
+    var streakFreezes: Int get() = sp.getInt("freezes", 0); set(v) = sp.edit().putInt("freezes", v.coerceIn(0, MAX_FREEZES)).apply()
+    /** The streak as it stands today: it lapses once more whole days pass without a daily solve than freezes cover. */
+    fun liveStreak(today: Int) = if (today - 1 - dailyDone <= streakFreezes) dailyStreak else 0
+    /** Best daily-cube score and the day it was set. */
+    var dailyBest: Int get() = sp.getInt("dailyBest", 0); set(v) = sp.edit().putInt("dailyBest", v).apply()
+    var dailyBestDay: Int get() = sp.getInt("dailyBestDay", -1); set(v) = sp.edit().putInt("dailyBestDay", v).apply()
+    /** Every UTC day whose daily cube was solved here, for the calendar in Stats. */
+    var dailyDays: Set<Int>
+        get() = (sp.getStringSet("dailyDays", null) ?: emptySet()).mapNotNull { it.toIntOrNull() }.toSet() + listOfNotNull(dailyDone.takeIf { it >= 0 })
+        set(v) = sp.edit().putStringSet("dailyDays", v.sortedDescending().take(400).map { "$it" }.toHashSet()).apply()
+
+    /** Per-mode record: wins, losses, mistakes in wins, total win seconds, fastest win seconds (0 = none yet). */
+    fun stats(d: Difficulty): IntArray = runCatching { JSONObject(sp.getString("stats", "{}")).optJSONArray(d.name) }.getOrNull()
+        ?.let { a -> IntArray(5) { a.optInt(it) } } ?: IntArray(5)
+    fun recordRun(d: Difficulty, won: Boolean, mistakes: Int, secs: Int) {
+        val all = runCatching { JSONObject(sp.getString("stats", "{}")) }.getOrElse { JSONObject() }
+        val s = stats(d)
+        if (won) { s[0]++; s[2] += mistakes; s[3] += secs; s[4] = if (s[4] == 0) secs.coerceAtLeast(1) else minOf(s[4], secs.coerceAtLeast(1)) } else s[1]++
+        sp.edit().putString("stats", all.put(d.name, JSONArray(s.toList())).toString()).apply()
+    }
+
+    /** Friend codes added in Rankings → Friends, and this install's own code once the board has issued it. */
+    var friends: Set<String> get() = sp.getStringSet("friends", emptySet())!!; set(v) = sp.edit().putStringSet("friends", HashSet(v)).apply()
+    var friendCode: String? get() = sp.getString("friendCode", null); set(v) = sp.edit().putString("friendCode", v).apply()
+
+    /** Cubes saved from the win sheet into "My pack", which can be shared as a link. */
+    var myPack: List<LevelSpec>
+        get() = (sp.getString("myPack", "") ?: "").split(";").mapNotNull { s -> s.split(".").takeIf { it.size == 3 }?.let { (n, l, seed) -> LevelSpec(n.toInt(), l.toInt(), seed.toLong()) } }
+        set(v) = sp.edit().putString("myPack", v.takeLast(30).joinToString(";") { "${it.n}.${it.maxLen}.${it.seed}" }).apply()
+    /** Packs opened from someone's link, as their payloads. */
+    var sharedPacks: List<String>
+        get() = runCatching { JSONArray(sp.getString("sharedPacks", "[]")) }.getOrElse { JSONArray() }.let { a -> (0 until a.length()).map { a.getString(it) } }
+        set(v) = sp.edit().putString("sharedPacks", JSONArray(v.takeLast(20)).toString()).apply()
+    /** Built-in packs, then My pack (if it has cubes), then shared ones. */
+    fun allPacks(): List<Pack> = PACKS + listOfNotNull(myPack.takeIf { it.isNotEmpty() }?.let { Pack(MY_PACK, "Cubes you saved from the win sheet.", it) }) +
+        sharedPacks.mapNotNull { Links.parsePack(it) }
     var haptics: Boolean get() = sp.getBoolean("haptics", true); set(v) = sp.edit().putBoolean("haptics", v).apply()
     var thickness: Int get() = sp.getInt("thick", 5); set(v) = sp.edit().putInt("thick", v).apply()
     var freeSize: Int get() = sp.getInt("freeSize", 5); set(v) = sp.edit().putInt("freeSize", v).apply()
@@ -220,8 +259,12 @@ class Prefs(ctx: Context) {
 
     fun resetProgress() = sp.edit().remove("level").remove("xp").remove("hints").remove("scores").remove("solved")
         .remove("dailyDone").remove("dailyStreak").remove("totalArrows").remove("noPuStreak").remove("cleanSolved").remove("ach")
-        .remove("weeklyDone").remove("parWins").apply { PACKS.forEach { remove("pack_" + it.name) } }.apply()
+        .remove("weeklyDone").remove("parWins").remove("freezes").remove("dailyBest").remove("dailyBestDay").remove("dailyDays").remove("stats")
+        .apply { allPacks().forEach { remove("pack_" + it.name) } }.apply()
 }
+
+const val MAX_FREEZES = 2
+const val MY_PACK = "My pack"
 
 /** XP needed to go from player level k to k+1. */
 fun xpForLevel(k: Int) = 100 + 60 * (k - 1)

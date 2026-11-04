@@ -39,11 +39,28 @@
   <small>Don't have it yet? It's free with no ads. <a href="https://taynotfound.github.io/cubit/">About Cubit</a></small>
 </main>
 <script>
-  // ?daily=<day> or ?week=<week> → cubit://daily/<day> or cubit://week/<week>. Only whole numbers get through.
   const q = new URLSearchParams(location.search);
+  const isAndroid = /Android/i.test(navigator.userAgent);
+  function go(link, title, what) {
+    document.getElementById("title").textContent = title;
+    document.getElementById("what").textContent = what;
+    document.getElementById("open").href = link;
+    // Try the app straight away; if it isn't installed, the page simply stays.
+    if (isAndroid) setTimeout(() => { location.href = link; }, 300);
+  }
+  // ?c=<run>, ?pack=<pack>, ?f=<code>: passed through re-encoded; the app checks them. Codes are 8 hex digits.
+  const c = q.get("c"), pack = q.get("pack"), f = q.get("f");
+  if (c && c.length < 8000) {
+    go("cubit://challenge/" + encodeURIComponent(c), "A challenge for you", "Someone shared their run. Play the same cube and race their ghost.");
+  } else if (pack && pack.length < 4000) {
+    go("cubit://pack/" + encodeURIComponent(pack), "A puzzle pack for you", "Someone shared a set of Cubit cubes. Open it and the pack lands in More → Puzzle packs.");
+  } else if (f && /^[0-9A-Fa-f]{8}$/.test(f)) {
+    go("cubit://friend/" + f.toUpperCase(), "Add a friend", "Someone wants to compare runs with you. Open Cubit to add them to Rankings → Friends.");
+  }
+  // ?daily=<day> or ?week=<week> → cubit://daily/<day> or cubit://week/<week>. Only whole numbers get through.
   const kind = q.has("week") ? "week" : "daily";
   const n = parseInt(q.get(kind), 10);
-  if (Number.isInteger(n) && n > 0 && n < 1e6) {
+  if (!c && !pack && !f && Number.isInteger(n) && n > 0 && n < 1e6) {
     const link = `cubit://${kind}/${n}`;
     const first = kind === "week" ? (n * 7 - 3) : n;
     const date = new Date(first * 86400000).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
