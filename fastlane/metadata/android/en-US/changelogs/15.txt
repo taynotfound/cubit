@@ -1,0 +1,1 @@
+- Plain cubes (Settings → Look): just the arrows and the cube, with no bombs, locked or two-way arrows, and no wormholes.

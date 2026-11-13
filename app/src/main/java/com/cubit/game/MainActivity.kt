@@ -682,7 +682,7 @@ class MainActivity : Activity(), GameView.Listener {
         handler.postDelayed({ sign.text = "LEVEL %03d".format(level % 1000) }, 200)
         // Big cubes take a moment to build: do it off the main thread, then hand the cube to the preview.
         bg.execute {
-            val pz = PuzzleCache.get(specForLevel(level).copy(lap = prefs.difficulty == Difficulty.NIGHTMARE))
+            val pz = PuzzleCache.get(specForLevel(level).let { it.copy(lap = prefs.difficulty == Difficulty.NIGHTMARE, special = it.special && !prefs.plainCubes) })
             handler.post { puzzle = pz; demo.load(pz); demo.inputEnabled = false; demo.autoSpin = true; describe() }
         }
 
@@ -1471,6 +1471,7 @@ class MainActivity : Activity(), GameView.Listener {
         look.add(slider(1, 14, prefs.thickness) { prefs.thickness = it; thick.text = "%02d".format(it) }, 4)
         look.add(switchRow("Lines per side", "Colour each face like a transit line so you always know which side you're on.", prefs.tintSides) { prefs.tintSides = it }, 4)
         look.add(switchRow("Side dots", "Faint dice dots on each face. Opposite sides add up to seven.", prefs.sideMarkers) { prefs.sideMarkers = it })
+        look.add(switchRow("Plain cubes", "Just the arrows and the cube: no bombs, locked or two-way arrows, and no wormholes. The World Cube stays as it is for everyone.", prefs.plainCubes) { prefs.plainCubes = it })
 
         val access = section(col, "Accessibility", Glyph.SCAN)
         access.add(switchRow("Mark the pink arrow", "A stripe down the target, so it stands out without relying on colour.", prefs.markTarget) { prefs.markTarget = it }, 4)
@@ -1586,22 +1587,28 @@ class MainActivity : Activity(), GameView.Listener {
     private fun maybeWhatsNew() {
         if (prefs.seenVersion == appVersion) { maybeCloudInvite(); return }
         if (!prefs.onboarded || gameLayer != null || worldLayer != null) return
+        val since = prefs.seenVersion
         prefs.seenVersion = appVersion
-        whatsNewSheet()
+        whatsNewSheet(since)
     }
 
     /** "What's new": the version's changelog lines with their bold headlines, and a quiet word about Ko-fi at the end. */
-    private fun whatsNewSheet() {
-        val notes = runCatching { whatsNew(assets.open("CHANGELOG.md").bufferedReader().use { it.readText() }, appVersion) }.getOrDefault(emptyList())
-        if (notes.isEmpty()) return
+    /** [since]: the version last seen, to show everything newer (from Settings: just this version's notes). */
+    private fun whatsNewSheet(since: String? = appVersion) {
+        val md = runCatching { assets.open("CHANGELOG.md").bufferedReader().use { it.readText() } }.getOrNull() ?: return
+        val sections = if (since == appVersion) listOf(appVersion to whatsNew(md, appVersion)).filter { it.second.isNotEmpty() } else whatsNewSince(md, appVersion, since)
+        if (sections.isEmpty()) return
         val c = openSheet()
         c.add(label("Cubit $appVersion", th.accent))
         c.add(display("What's new", 34f), 6)
-        notes.forEach { line ->
-            val r = row().apply { gravity = Gravity.TOP }
-            r.add(View(this).apply { background = rect(th.accent, 2) }, 0, dp(8), dp(8)).let { (it.layoutParams as LinearLayout.LayoutParams).topMargin = dp(9) }
-            r.add(body("").apply { text = boldMarks(line); setPadding(dp(12), 0, 0, 0) }, 0, 0, WRAP_CONTENT, 1f)
-            c.add(r, 12)
+        sections.forEach { (v, notes) ->
+            if (sections.size > 1) c.add(label("In $v"), 18)
+            notes.forEach { line ->
+                val r = row().apply { gravity = Gravity.TOP }
+                r.add(View(this).apply { background = rect(th.accent, 2) }, 0, dp(8), dp(8)).let { (it.layoutParams as LinearLayout.LayoutParams).topMargin = dp(9) }
+                r.add(body("").apply { text = boldMarks(line); setPadding(dp(12), 0, 0, 0) }, 0, 0, WRAP_CONTENT, 1f)
+                c.add(r, 12)
+            }
         }
         c.add(primary("Play") { closeSheet(); maybeCloudInvite() }, 22)
         // The nudge: one line and a small button, at the very end, after everything new.
@@ -2029,7 +2036,8 @@ class MainActivity : Activity(), GameView.Listener {
     private fun startRound(base: LevelSpec, label: String, resume: org.json.JSONObject? = null) {
         val mode = if (tutorial) Difficulty.ZEN else resume?.let { Difficulty.entries.getOrNull(it.optInt("diff")) } ?: challenge?.mode ?: prefs.difficulty
         // Nightmare plays the same level on a lap cube; every other mode on the normal one, whatever spec came in.
-        val s = base.copy(lap = mode == Difficulty.NIGHTMARE)
+        // Plain cubes drops the special arrows and wormholes from new rounds; a saved level resumes as it was saved.
+        val s = base.copy(lap = mode == Difficulty.NIGHTMARE, special = base.special && (resume != null || !prefs.plainCubes))
         if (!PuzzleCache.has(s)) { whenBuilt(s) { startRound(s, label, resume) }; return }
         stopRound()
         gameLayer?.let { root.removeView(it) }

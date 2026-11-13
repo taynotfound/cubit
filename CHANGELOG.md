@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.7.1 (2026-11-13)
+
+- **Plain cubes** (Settings → Look): just the arrows and the cube, with no bombs, locked or two-way arrows, and no wormholes. A level you saved before switching resumes as it was, and the World Cube stays the same for everyone.
+- What's new after an update now covers every version since the one you last opened, not just the newest.
+
 ## 1.7.0 (2026-11-13)
 
 ![Cubit 1.7.0: bombs, Twist mode, the World Cube and Endless](https://raw.githubusercontent.com/taynotfound/cubit/main/docs/img/whats-new-1.7.0.gif)

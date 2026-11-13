@@ -51,6 +51,13 @@ class LinksTest {
         assertEquals(emptyList<String>(), whatsNew(md, "1.7"))
     }
 
+    @Test fun whatsNewSinceCoversEveryVersionSkipped() {
+        val md = "# Changelog\n\n## 1.7.1 (x)\n\n- A.\n\n## 1.7.0 (x)\n\n- B.\n\n## 1.6.1 (x)\n\n- C.\n"
+        assertEquals(listOf("1.7.1" to listOf("A.")), whatsNewSince(md, "1.7.1", "1.7.0"))
+        assertEquals(listOf("1.7.1" to listOf("A."), "1.7.0" to listOf("B.")), whatsNewSince(md, "1.7.1", "1.6.1"))
+        assertEquals(listOf("1.7.1" to listOf("A."), "1.7.0" to listOf("B.")), whatsNewSince(md, "1.7.1", null)) // back to x.y.0
+    }
+
     @Test fun theRealChangelogHasThisVersion() {
         val md = java.io.File("../CHANGELOG.md").readText()
         assert(whatsNew(md, "1.7.0").size >= 10)

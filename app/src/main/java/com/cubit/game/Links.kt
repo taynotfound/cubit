@@ -60,3 +60,19 @@ fun whatsNew(changelog: String, version: String): List<String> {
     return lines.drop(start + 1).takeWhile { !it.startsWith("## ") }.filter { it.startsWith("- ") }
         .map { it.removePrefix("- ").replace(Regex("\\[([^\\]]+)]\\([^)]+\\)"), "$1") }
 }
+
+/**
+ * Every version's notes since [seen], newest first: what an update shows. Without a [seen] (installs from before 1.7
+ * didn't keep one) it goes back to the latest x.y.0, so a jump from 1.6 to 1.7.1 still shows all of 1.7.
+ */
+fun whatsNewSince(changelog: String, current: String, seen: String?): List<Pair<String, List<String>>> {
+    val versions = changelog.lines().filter { it.startsWith("## ") }.map { it.removePrefix("## ").substringBefore(" ") }
+    val from = versions.indexOf(current).takeIf { it >= 0 } ?: return emptyList()
+    val out = ArrayList<Pair<String, List<String>>>()
+    for (v in versions.drop(from)) {
+        if (v == seen) break
+        out.add(v to whatsNew(changelog, v))
+        if (seen == null && v.endsWith(".0")) break
+    }
+    return out.filter { it.second.isNotEmpty() }
+}

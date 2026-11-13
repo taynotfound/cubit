@@ -244,6 +244,8 @@ class Prefs(ctx: Context) {
 
     /** The version whose "What's new" was last shown (fresh installs start on theirs, so only updates show it). */
     var seenVersion: String? get() = sp.getString("seenVersion", null); set(v) = sp.edit().putString("seenVersion", v).apply()
+    /** Plain cubes: just the arrows and the cube (no bombs, locks, two-way arrows or wormholes). */
+    var plainCubes: Boolean get() = sp.getBoolean("plain", false); set(v) = sp.edit().putBoolean("plain", v).apply()
     /** The one-time invitation to the online features (1.7) has been shown. */
     var cloudAsked: Boolean get() = sp.getBoolean("cloudAsked", false); set(v) = sp.edit().putBoolean("cloudAsked", v).apply()
     /** The one-time Ko-fi line on the win sheet has been shown. */
