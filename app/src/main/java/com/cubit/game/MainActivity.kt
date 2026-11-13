@@ -905,7 +905,7 @@ class MainActivity : Activity(), GameView.Listener {
                 } else if (b == null) {
                     boardStatus = "Can't reach the board (${Net.lastError}). Showing this device."
                     action.removeAllViews(); action.addView(secondary("Retry", glyph = Glyph.REPLAY) { load() })
-                } else boardStatus = "Global board · ${b.players.size} players"
+                } else boardStatus = if (b.total > b.players.size) "Global board · top ${b.players.size} of ${b.total} players" else "Global board · ${b.total} players"
                 render()
             }
         }

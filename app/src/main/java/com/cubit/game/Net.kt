@@ -9,7 +9,8 @@ import java.net.URL
 import java.util.concurrent.Executors
 
 data class GlobalPlayer(val name: String, val xp: Int, val level: Int, val cleanRuns: Int, val code: String = "")
-data class GlobalBoard(val players: List<GlobalPlayer>, val scores: List<ScoreEntry>)
+/** [total] is every ranked player, where [players] lists only the top of the board. */
+data class GlobalBoard(val players: List<GlobalPlayer>, val scores: List<ScoreEntry>, val total: Int = players.size)
 data class RunResult(val status: String, val score: Int, val xp: Int, val rank: Int)
 
 /**
@@ -165,6 +166,6 @@ object Net {
             ScoreEntry(it.optString("name"), it.optInt("score"), it.optString("label"), it.optString("difficulty"), it.optLong("time"),
                 it.optInt("arrows"), it.optLong("ms"), it.optInt("mistakes"), it.optInt("size"), (0 until pu.length()).map { i -> pu.getString(i) }, it.optInt("level"), run = it.optString("run"))
         } }
-        return GlobalBoard(players, scores)
+        return GlobalBoard(players, scores, maxOf(o.optInt("total"), players.size))
     }
 }
