@@ -115,21 +115,24 @@ class GameView(ctx: Context) : View(ctx) {
     fun findNext() {
         val left = puzzle.paths.indices.filter { !removed[it] }
         val a = left.firstOrNull { it != puzzle.target && wayOf(it) != Puzzle.STUCK } ?: left.firstOrNull { it != puzzle.target } ?: left.firstOrNull() ?: return
-        val f = tracks[a].headFace
-        val ax = f / 2; val s = if (f % 2 == 0) 1f else -1f
-        // Base rotation with the face normal as the view axis, then the usual three-quarter tilt.
-        val n = FloatArray(3).also { it[ax] = s }
-        val u = FloatArray(3).also { it[(ax + 1) % 3] = 1f }
-        val v = floatArrayOf(n[1] * u[2] - n[2] * u[1], n[2] * u[0] - n[0] * u[2], n[0] * u[1] - n[1] * u[0])
-        val base = floatArrayOf(u[0], u[1], u[2], v[0], v[1], v[2], n[0], n[1], n[2])
-        val ta = 0.5f; val tb = -0.65f
-        val ry = floatArrayOf(cos(tb), 0f, sin(tb), 0f, 1f, 0f, -sin(tb), 0f, cos(tb))
-        val rx = floatArrayOf(1f, 0f, 0f, 0f, cos(ta), -sin(ta), 0f, sin(ta), cos(ta))
-        mul(rx, ry, m); mul(m, base, rot)
+        faceOn(tracks[a].headFace, rot)
         // Recentre too, or a zoomed/panned view could leave the face it just turned to off-screen.
         zoom = 1f; panX = 0f; panY = 0f
         spinX = 0f; spinY = 0f; hintArrow = a
         invalidate()
+    }
+
+    /** The camera rotation that shows face [f] head on, with the usual three-quarter tilt, written into [out]. */
+    private fun faceOn(f: Int, out: FloatArray, ta: Float = 0.5f, tb: Float = -0.65f) {
+        val ax = f / 2; val s = if (f % 2 == 0) 1f else -1f
+        // Base rotation with the face normal as the view axis, then the tilt.
+        val n = FloatArray(3).also { it[ax] = s }
+        val u = FloatArray(3).also { it[(ax + 1) % 3] = 1f }
+        val v = floatArrayOf(n[1] * u[2] - n[2] * u[1], n[2] * u[0] - n[0] * u[2], n[0] * u[1] - n[1] * u[0])
+        val base = floatArrayOf(u[0], u[1], u[2], v[0], v[1], v[2], n[0], n[1], n[2])
+        val ry = floatArrayOf(cos(tb), 0f, sin(tb), 0f, 1f, 0f, -sin(tb), 0f, cos(tb))
+        val rx = floatArrayOf(1f, 0f, 0f, 0f, cos(ta), -sin(ta), 0f, sin(ta), cos(ta))
+        mul(rx, ry, m); mul(m, base, out)
     }
 
     /** Skips the spin-in, for drawing a still (the share card). */
@@ -327,6 +330,7 @@ class GameView(ctx: Context) : View(ctx) {
         }
         if (!glass) drawShadow(canvas)
         stepSpin(dt)
+        stepTurn(now)
         if (autoSpin && !dragging) {
             // Turntable: spin about the cube's own vertical axis, not the screen's.
             val a = 0.005f
@@ -400,7 +404,7 @@ class GameView(ctx: Context) : View(ctx) {
         drawParticles(canvas, dt)
 
         val pulsing = inputEnabled && !removed[puzzle.target]
-        if (pulsing || preview >= 0 || showTaps && now - ringAt < 500 || particles.isNotEmpty() || shakeT < 320 || now - introStart < 700 || autoSpin || anims.isNotEmpty() || hintArrow >= 0 || scanning || spinX != 0f || spinY != 0f) postInvalidateOnAnimation()
+        if (pulsing || turning || preview >= 0 || showTaps && now - ringAt < 500 || particles.isNotEmpty() || shakeT < 320 || now - introStart < 700 || autoSpin || anims.isNotEmpty() || hintArrow >= 0 || scanning || spinX != 0f || spinY != 0f) postInvalidateOnAnimation()
     }
 
     private val targetColor get() = PINK
@@ -851,10 +855,14 @@ class GameView(ctx: Context) : View(ctx) {
     var showTaps = false
     private var ringX = 0f; private var ringY = 0f; private var ringAt = 0L
 
-    /** A good arrow for the demo to tap: free, on a face you can see, bombs first; the pink one once [pinkOk]. */
+    /** Whether arrow [a] is in plain view: its whole body on faces turned towards you, its head's face well so. */
+    fun demoSees(a: Int) = facing(tracks[a].headFace) > 2f && puzzle.paths[a].all { facing(puzzle.cube.face[it]) > 0.8f }
+
+    /** A good arrow for the demo to tap: free, in plain view, bombs first; the pink one once [pinkOk]. One that's out of
+     *  view only when the pink arrow needs it, and then the demo turns the cube to it first ([demoLookAt]). */
     fun demoPick(pinkOk: Boolean): Int {
         val free = puzzle.paths.indices.filter { !removed[it] && anims.none { an -> an.arrow == it } && wayOf(it) != Puzzle.STUCK }
-        val seen = free.filter { faceVisible(tracks[it].headFace) && facing(tracks[it].headFace) > 1.2f }
+        val seen = free.filter { demoSees(it) }
         if (pinkOk && puzzle.target in free) return puzzle.target
         if (pinkOk) {
             // Dig towards the pink arrow: the arrows in its way, the ones in theirs, and any keys they need.
@@ -869,7 +877,51 @@ class GameView(ctx: Context) : View(ctx) {
             (dig.firstOrNull { it in seen } ?: dig.firstOrNull())?.let { return it }
         }
         val pool = seen.filter { it != puzzle.target }
-        return pool.firstOrNull { puzzle.bombs[it] } ?: pool.randomOrNull() ?: -1
+        return pool.firstOrNull { puzzle.bombs[it] } ?: pool.randomOrNull() ?: free.firstOrNull { it != puzzle.target } ?: -1
+    }
+
+    // A smooth turn for the demo (quaternion slerp), so the camera never jumps on video.
+    private val turnFrom = FloatArray(4); private val turnTo = FloatArray(4)
+    private var turnStart = 0L
+    private val turnMs = 650L
+    /** The demo is turning the cube to an arrow; it waits for that before tapping. */
+    val turning get() = SystemClock.uptimeMillis() - turnStart < turnMs
+
+    /** Turns the cube smoothly until arrow [a]'s head face is towards you. */
+    fun demoLookAt(a: Int) {
+        val to = FloatArray(9); faceOn(tracks[a].headFace, to, tb = -0.65f + (rnd.nextFloat() - 0.5f) * 0.5f)
+        quat(rot, turnFrom); quat(to, turnTo)
+        turnStart = SystemClock.uptimeMillis(); spinX = 0f; spinY = 0f
+        invalidate()
+    }
+
+    private fun stepTurn(now: Long) {
+        val e = (now - turnStart).toFloat() / turnMs
+        if (e < 0f || e > 1.05f || turnStart == 0L) return
+        val t = e.coerceAtMost(1f).let { it * it * (3f - 2f * it) } // ease in and out
+        val q = FloatArray(4)
+        var d = (0 until 4).sumOf { (turnFrom[it] * turnTo[it]).toDouble() }.toFloat()
+        val to = turnTo.copyOf(); if (d < 0f) { d = -d; for (i in 0 until 4) to[i] = -to[i] } // the short way round
+        if (d > 0.9995f) for (i in 0 until 4) q[i] = lerp(turnFrom[i], to[i], t)
+        else { val th = kotlin.math.acos(d); val sn = sin(th); val a = sin((1 - t) * th) / sn; val b = sin(t * th) / sn; for (i in 0 until 4) q[i] = a * turnFrom[i] + b * to[i] }
+        val l = sqrt(q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3]); for (i in 0 until 4) q[i] /= l
+        matrix(q, rot)
+    }
+
+    /** Row-major rotation matrix to quaternion (w, x, y, z). */
+    private fun quat(r: FloatArray, q: FloatArray) {
+        val tr = r[0] + r[4] + r[8]
+        if (tr > 0f) { val s = sqrt(tr + 1f) * 2f; q[0] = 0.25f * s; q[1] = (r[7] - r[5]) / s; q[2] = (r[2] - r[6]) / s; q[3] = (r[3] - r[1]) / s }
+        else if (r[0] > r[4] && r[0] > r[8]) { val s = sqrt(1f + r[0] - r[4] - r[8]) * 2f; q[0] = (r[7] - r[5]) / s; q[1] = 0.25f * s; q[2] = (r[1] + r[3]) / s; q[3] = (r[2] + r[6]) / s }
+        else if (r[4] > r[8]) { val s = sqrt(1f + r[4] - r[0] - r[8]) * 2f; q[0] = (r[2] - r[6]) / s; q[1] = (r[1] + r[3]) / s; q[2] = 0.25f * s; q[3] = (r[5] + r[7]) / s }
+        else { val s = sqrt(1f + r[8] - r[0] - r[4]) * 2f; q[0] = (r[3] - r[1]) / s; q[1] = (r[2] + r[6]) / s; q[2] = (r[5] + r[7]) / s; q[3] = 0.25f * s }
+    }
+
+    private fun matrix(q: FloatArray, r: FloatArray) {
+        val (w, x, y, z) = q
+        r[0] = 1 - 2 * (y * y + z * z); r[1] = 2 * (x * y - z * w); r[2] = 2 * (x * z + y * w)
+        r[3] = 2 * (x * y + z * w); r[4] = 1 - 2 * (x * x + z * z); r[5] = 2 * (y * z - x * w)
+        r[6] = 2 * (x * z - y * w); r[7] = 2 * (y * z + x * w); r[8] = 1 - 2 * (x * x + y * y)
     }
 
     fun isBomb(a: Int) = puzzle.bombs[a]
@@ -882,7 +934,7 @@ class GameView(ctx: Context) : View(ctx) {
     }
 
     /** Turns the cube a little, for the demo's slow camera drift. */
-    fun demoTurn(ax: Float, ay: Float) { rotateBy(ax, ay); invalidate() }
+    fun demoTurn(ax: Float, ay: Float) { if (!turning) { rotateBy(ax, ay); invalidate() } }
 
     private fun drawRing(canvas: Canvas, now: Long) {
         val e = (now - ringAt) / 450f

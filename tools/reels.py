@@ -1,12 +1,13 @@
 """Cuts 9:16 promo reels (TikTok, Reels, Shorts) from tools/record-demo.sh recordings: the cube cropped to fill the
 frame, captions, the game's own music with a slide, chime or fanfare at each logged tap and win, and an end card.
 
-Usage: python3 tools/reels.py <recordings folder> <output folder> <repo root>
+Usage: python3 tools/reels.py <recordings folder> <output folder> <repo root> [--music]
+Without --music the reels carry only the game's sound effects, so a track can be laid on in the app you post with.
 """
 import random, subprocess, sys, os
 from PIL import Image, ImageDraw, ImageFont
 
-SP = sys.argv[1]; OUT = sys.argv[2]; REPO = sys.argv[3]
+SP = sys.argv[1]; OUT = sys.argv[2]; REPO = sys.argv[3]; MUSIC = "--music" in sys.argv[4:]
 FONT = f"{REPO}/app/src/main/assets/fonts/BarlowCondensed-Bold.ttf"
 FONT2 = f"{REPO}/app/src/main/assets/fonts/Barlow-Medium.ttf"
 RAW = f"{REPO}/app/src/main/res/raw"
@@ -71,11 +72,15 @@ def reel(name, src, t0, t1, caps, speed=1.0):
     inputs += ["-loop", "1", "-t", str(END + 0.5), "-i", ec]
     vf.append(f"[{n+1}:v]fps=30,format=yuv420p[e]")
     vf.append(f"[{last}][e]xfade=transition=fade:duration=0.5:offset={dur - 0.5}[v]")
-    # Audio: the play loop, plus each logged tap, bomb and win at its moment.
-    ai = n + 2
-    inputs += ["-stream_loop", "-1", "-i", f"{RAW}/music_play.ogg", "-i", f"{RAW}/music_menu.ogg"]
-    af = [f"[{ai}:a]atrim=0:{dur},volume=0.55,afade=out:st={dur-0.6}:d=0.6[m]", f"[{ai+1}:a]atrim=0:{END},volume=0.6,adelay={int((dur-0.3)*1000)}:all=1[mm]"]
-    mix = ["[m]", "[mm]"]; j = ai + 2; rnd = random.Random(7)
+    # Audio: each logged tap, bomb and win at its moment, over the play loop if --music. Silence underneath keeps the
+    # track as long as the video.
+    j = n + 2
+    inputs += ["-f", "lavfi", "-t", str(total), "-i", "anullsrc=r=44100:cl=stereo"]
+    af = []; mix = [f"[{j}:a]"]; j += 1; rnd = random.Random(7)
+    if MUSIC:
+        inputs += ["-stream_loop", "-1", "-i", f"{RAW}/music_play.ogg", "-i", f"{RAW}/music_menu.ogg"]
+        af += [f"[{j}:a]atrim=0:{dur},volume=0.55,afade=out:st={dur-0.6}:d=0.6[m]", f"[{j+1}:a]atrim=0:{END},volume=0.6,adelay={int((dur-0.3)*1000)}:all=1[mm]"]
+        mix += ["[m]", "[mm]"]; j += 2
     for t, kind in events(src):
         rt = (t - t0) / speed
         if rt < 0 or rt > dur - 0.2: continue
@@ -93,31 +98,38 @@ def reel(name, src, t0, t1, caps, speed=1.0):
     print(out, round(total, 1), "s")
 
 ev = lambda n: [t for t, k in events(n) if k == "win"]
-win = ev("level")[0]
-reel("hook", "level", 3.2, win + 3.6, [
+# Each reel opens as the cube spins in: the demo's first tap comes 1.6 s after that, and before it is the loading screen.
+start = lambda n: events(n)[0][0] - 1.7
+
+t0 = start("level"); win = ev("level")[0] - t0
+reel("hook", "level", t0, t0 + win + 3.6, [
     (0.0, 3.4, ["CAN YOU FREE", "THE PINK ARROW?"]),
     (3.6, 8.4, ["TAP AN ARROW.", "IT SLIDES OUT, IF", "NOTHING'S IN THE WAY"]),
     (8.6, 12.4, ["KEEP GOING FOR COMBOS"]),
-    (12.6, win - 3.2 - 0.1, ["DIG DOWN TO THE PINK ONE"]),
-    (win - 3.2 + 0.2, win + 3.6 - 3.2, ["FREED."]),
+    (12.6, win - 0.1, ["DIG DOWN TO THE PINK ONE"]),
+    (win + 0.2, win + 3.6, ["FREED."]),
 ])
-win = ev("clean")[0]
-reel("clean", "clean", 3.2, win + 3.0, [
+t0 = start("clean"); win = ev("clean")[0] - t0
+reel("clean", "clean", t0, t0 + win + 3.0, [
     (0.0, 4.0, ["NO TIMER. NO LIVES.", "JUST THE CUBE."]),
     (4.2, 9.6, ["CLEAN MODE"]),
-    (9.8, win - 3.2 - 0.1, ["WEIRDLY SATISFYING"]),
-    (win - 3.2 + 0.2, win + 3.0 - 3.2, ["AND NOT ONE AD"]),
+    (9.8, win - 0.1, ["WEIRDLY SATISFYING"]),
+    (win + 0.2, win + 3.0, ["AND NOT ONE AD"]),
 ])
-reel("bombs", "bombs", 3.0, 20.0, [
+t0 = start("bombs")
+reel("bombs", "bombs", t0, t0 + 17.0, [
     (0.0, 3.6, ["ORANGE CORE?", "THAT'S A BOMB"]),
     (3.8, 8.6, ["ONE TAP. EVERY ARROW", "TOUCHING IT. GONE."]),
     (8.8, 13.0, ["BOMBS SET OFF BOMBS"]),
     (13.2, 17.0, ["NEW: CHAIN REACTIONS"]),
 ])
-win = ev("endless")[0]
-reel("endless", "endless", 3.0, win + 13.0, [
-    (0.0, 3.6, ["HOW MANY CUBES", "CAN YOU CLEAR?"]),
-    (3.8, 8.6, ["EACH ONE A LITTLE BIGGER"]),
-    (8.8, (win - 3.0) / 1.35 - 0.2, ["YOUR LIVES CARRY OVER"]),
-    ((win - 3.0) / 1.35 + 0.2, (win + 13.0 - 3.0) / 1.35, ["NEW: ENDLESS MODE"]),
-], speed=1.35)
+t0 = start("endless"); wins = [w - t0 for w in ev("endless")]; win = wins[0]
+t1 = (wins[1] + 3.0) if len(wins) > 1 else win + 13.0
+sp = 1.35
+reel("endless", "endless", t0, t0 + t1, [
+    # Captions keep clear of the win sheets, which cover the top of the screen.
+    (0.0, 3.4, ["HOW MANY CUBES", "CAN YOU CLEAR?"]),
+    (3.6, win / sp - 0.1, ["YOUR LIVES CARRY OVER"]),
+    (win / sp + 4.0, win / sp + 8.0, ["EACH ONE A LITTLE BIGGER"]),
+    (win / sp + 8.2, (wins[1] if len(wins) > 1 else t1) / sp + 1.0, ["NEW: ENDLESS MODE"]),
+], speed=sp)

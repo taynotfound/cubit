@@ -172,8 +172,11 @@ class MainActivity : Activity(), GameView.Listener {
                 return
             }
             g.showTaps = true
+            if (g.turning) { handler.postDelayed(this, 100); return }
             val a = g.demoPick(pinkOk = demoTaps >= demoMinTaps)
-            if (a >= 0) { android.util.Log.i("CubitDemo", if (g.isBomb(a)) "bomb" else "tap"); g.demoTap(a); demoTaps++ } else if (demoTaps % 3 == 0) g.findNext()
+            // Only ever tap what the viewer can see: an arrow out of view gets the cube turned to it first.
+            if (a >= 0 && !g.demoSees(a)) { g.demoLookAt(a); handler.postDelayed(this, 800); return }
+            if (a >= 0) { android.util.Log.i("CubitDemo", if (g.isBomb(a)) "bomb" else "tap"); g.demoTap(a); demoTaps++ }
             // Between taps the camera drifts; the gaps vary like a person's.
             val gap = ((380 + Random.nextInt(420)) / demoPace).toLong()
             var t = 0L

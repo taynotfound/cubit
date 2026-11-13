@@ -15,7 +15,9 @@ No ads, no accounts, no nonsense. Native Android.</p>
 
 <p align="center"><a href="https://f-droid.org/en/packages/de.taymaerz.cubit/"><img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png" height="54" alt="Get it on F-Droid"></a> <a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium%3A%2F%2Fapp%2F%257B%2522id%2522%253A%2522de.taymaerz.cubit%2522%252C%2522url%2522%253A%2522https%253A%252F%252Fgithub.com%252Ftaynotfound%252Fcubit%2522%252C%2522author%2522%253A%2522taynotfound%2522%252C%2522name%2522%253A%2522Cubit%2522%252C%2522additionalSettings%2522%253A%2522%257B%255C%2522apkFilterRegEx%255C%2522%253A%2520%255C%2522%255ECubit%255C%255C%255C%255C.apk%2524%255C%2522%257D%2522%257D"><img src="https://raw.githubusercontent.com/ImranR98/Obtainium/main/assets/graphics/badge_obtainium.png" height="54" alt="Get it on Obtainium"></a></p>
 
-<p align="center"><img src="docs/img/trailer.gif" width="300" alt="Cubit opening, Clean mode and a level being played"></p>
+<p align="center"><img src="docs/img/trailer.gif" width="300" alt="A Cubit level being played: arrows slide off the cube, combos count up"></p>
+
+<p align="center">Watch: <a href="docs/img/reel-hook.mp4">Free the pink arrow</a> · <a href="docs/img/reel-bombs.mp4">Bombs and chain reactions</a> · <a href="docs/img/reel-clean.mp4">Clean mode</a> · <a href="docs/img/reel-endless.mp4">Endless</a></p>
 
 <p align="center">
   <img src="docs/img/home.png" width="23%" alt="Home screen">
