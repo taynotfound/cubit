@@ -20,8 +20,14 @@ The token is in `admin.token`, created with 0600 permissions on first start. Sen
 |---|---|
 | `GET /v1/admin/held` | List held runs with their reasons |
 | `POST /v1/admin/held/{run}` | `{"action":"approve"}` or `{"action":"reject"}` |
+| `GET /v1/admin/stats` | Player counts: `registered` (turned rankings on), `ranked` (has a verified run), `banned`, `newLast7Days`, `heldRuns` |
 | `GET /v1/admin/devices` | List all players |
 | `POST /v1/admin/devices/{id}` | `{"banned":true}` and/or `{"name":"New name"}` |
+
+`GET /v1/leaderboard` lists the top 50 and gives the number of ranked players as `total`.
+
+## Names
+Names with slurs or the worst abuse are refused (`names.go`): a new player registers as "Player", a rename is ignored, and names already in the database are reset to "Player" when the server starts. The list is short on purpose. For anything it misses, rename or ban the player with the endpoint above, and add the word to the list.
 
 ## Deploy
 ```

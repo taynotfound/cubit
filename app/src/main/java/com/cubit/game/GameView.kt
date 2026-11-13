@@ -717,7 +717,7 @@ class GameView(ctx: Context) : View(ctx) {
                 else if (!multi) {
                     // One finger turns the cube. The finger left over after a pinch does nothing, so lifting
                     // one finger of a pinch doesn't jerk the cube round.
-                    val k = 0.007f / sqrt(zoom)
+                    val k = TURN_GAIN / grabRadius
                     val ax = dy * k; val ay = dx * k
                     rotateBy(ax, ay)
                     // Track the drag speed (rad/s), smoothed over a few events, for the coast after release.
@@ -739,6 +739,11 @@ class GameView(ctx: Context) : View(ctx) {
         }
         return true
     }
+
+    /** On-screen radius of the cube's near surface, in pixels: a drag this long turns the cube one radian at gain 1,
+     *  which is the cube staying under the finger. Following the screen size and zoom keeps the feel the same on a
+     *  small phone, a tablet, and zoomed right in (where a fixed angle per pixel threw the cube round). */
+    private val grabRadius get() = 1.55f * min(width, height) * zoom / (camDist - 1f)
 
     private fun stepSpin(dt: Float) {
         if (spinX == 0f && spinY == 0f) return
@@ -779,6 +784,9 @@ class GameView(ctx: Context) : View(ctx) {
     }
 }
 
+/** How far the cube's surface travels for the finger's travel. A little over 1, so a swipe across the cube turns it a
+ *  bit more than a quarter turn without it running away from the finger. */
+private const val TURN_GAIN = 1.4f
 const val PINK = 0xFFFF3D7F.toInt()
 /** Move code for "undo the last removal" (Zen and Clean only); the server replays it too. */
 const val UNDO_TAP = -6

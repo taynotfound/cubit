@@ -89,10 +89,15 @@ func openStore(file string) (*Store, error) {
 	if s.db.Devices == nil {
 		s.db.Devices = map[string]*Device{}
 	}
-	for _, d := range s.db.Devices { // players from before friend codes
-		if d.Code == "" {
+	for id, d := range s.db.Devices {
+		if d.Code == "" { // players from before friend codes
 			d.Code = s.newCode()
 			s.markDirty() // save them now: a restart before the next write would hand out different codes
+		}
+		if offensive(d.Name) { // names from before the filter, or that a longer list now catches
+			log.Printf("renamed %s: %q is not allowed on the board", id, d.Name)
+			d.Name = "Player"
+			s.markDirty()
 		}
 	}
 	return s, nil
@@ -243,6 +248,7 @@ func (s *Store) board() map[string]any {
 			players = append(players, publicPlayer{d.Name, playerLevel(d.XP), d.XP, d.CleanRuns})
 		}
 	}
+	total := len(players) // everyone with a verified run, not just the 50 listed
 	sort.Slice(players, func(i, j int) bool { return players[i].XP > players[j].XP })
 	if len(players) > 50 {
 		players = players[:50]
@@ -264,7 +270,18 @@ func (s *Store) board() map[string]any {
 			break
 		}
 	}
-	return map[string]any{"players": players, "scores": scores}
+	return map[string]any{"players": players, "scores": scores, "total": total}
+}
+
+// ranked counts the players the board counts: not banned, with XP from at least one verified run. Call with mu held.
+func (s *Store) ranked() int {
+	n := 0
+	for _, d := range s.db.Devices {
+		if !d.Banned && d.XP > 0 {
+			n++
+		}
+	}
+	return n
 }
 
 // daily is one day's board: best run per player on that day's cube, banned players hidden.

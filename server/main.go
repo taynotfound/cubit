@@ -103,7 +103,7 @@ func cleanName(s string) (string, bool) {
 	if len(out) > 16 {
 		out = []rune(strings.TrimSpace(string(out[:16])))
 	}
-	return string(out), len(out) >= 2
+	return string(out), len(out) >= 2 && !offensive(string(out))
 }
 
 func isPrivate(ip net.IP) bool { return ip != nil && (ip.IsLoopback() || ip.IsPrivate()) }
@@ -186,8 +186,8 @@ func (a *App) register(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, 1024, &b) {
 		return
 	}
-	// The app allows any 1-16 character name; one that doesn't clean (one letter, emoji only) must not lock the
-	// player out of rankings forever, so it registers as "Player" and can be renamed on a later run.
+	// The app allows any 1-16 character name; one that doesn't clean (one letter, emoji only, a slur) must not lock
+	// the player out of rankings forever, so it registers as "Player" and can be renamed on a later run.
 	name, ok := cleanName(b.Name)
 	if !ok {
 		name = "Player"
@@ -435,6 +435,23 @@ func (a *App) adminDevices(w http.ResponseWriter, r *http.Request) {
 	send(w, http.StatusOK, out)
 }
 
+// adminStats is how many players there are: everyone who turned rankings on, and those with a verified run.
+func (a *App) adminStats(w http.ResponseWriter, r *http.Request) {
+	a.store.mu.Lock()
+	defer a.store.mu.Unlock()
+	banned, fresh := 0, 0
+	for _, d := range a.store.db.Devices {
+		if d.Banned {
+			banned++
+		}
+		if d.Created > a.now().Unix()-7*86400 {
+			fresh++
+		}
+	}
+	send(w, http.StatusOK, map[string]int{"registered": len(a.store.db.Devices), "ranked": a.store.ranked(), "banned": banned,
+		"newLast7Days": fresh, "heldRuns": len(a.store.db.Held)})
+}
+
 func (a *App) adminDevice(w http.ResponseWriter, r *http.Request) {
 	var b struct {
 		Banned *bool
@@ -534,6 +551,7 @@ func (a *App) routes() http.Handler {
 	m.HandleFunc("POST /v1/runs/{id}/finish", a.finishRun)
 	m.HandleFunc("GET /v1/admin/held", a.admin(a.adminHeld))
 	m.HandleFunc("POST /v1/admin/held/{run}", a.admin(a.adminDecide))
+	m.HandleFunc("GET /v1/admin/stats", a.admin(a.adminStats))
 	m.HandleFunc("GET /v1/admin/devices", a.admin(a.adminDevices))
 	m.HandleFunc("POST /v1/admin/devices/{id}", a.admin(a.adminDevice))
 	return a.wrap(m)
