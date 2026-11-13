@@ -1074,6 +1074,7 @@ class MainActivity : Activity(), GameView.Listener {
             about.add(switchRow("Check automatically", "Once a day, ask GitHub for a newer version and show a small card on the Play screen.", prefs.autoUpdate) { prefs.autoUpdate = it }, 4)
         } else updateBox.add(body("Updates come through the app store you installed Cubit from.", th.muted))
         about.add(secondary("Website", glyph = Glyph.ARROW) { open("https://taynotfound.github.io/cubit/") }, 10)
+        about.add(secondary("Cubit on F-Droid", glyph = Glyph.ARROW) { open("https://f-droid.org/en/packages/de.taymaerz.cubit/") }, 8)
         about.add(secondary("Made by Tay März", glyph = Glyph.ARROW) { open("https://taymaerz.de") }, 8)
         about.add(secondary("Source code and licences", glyph = Glyph.ARROW) { open("https://github.com/taynotfound/cubit") }, 8)
         about.add(secondary("Changelog", glyph = Glyph.ARROW) { open("https://github.com/taynotfound/cubit/blob/main/CHANGELOG.md") }, 8)

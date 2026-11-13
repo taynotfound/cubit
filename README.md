@@ -13,7 +13,7 @@ No ads, no accounts, no nonsense. Native Android.</p>
   <a href="https://github.com/taynotfound/cubit/releases">All releases</a>
 </p>
 
-<p align="center"><a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium%3A%2F%2Fapp%2F%257B%2522id%2522%253A%2522de.taymaerz.cubit%2522%252C%2522url%2522%253A%2522https%253A%252F%252Fgithub.com%252Ftaynotfound%252Fcubit%2522%252C%2522author%2522%253A%2522taynotfound%2522%252C%2522name%2522%253A%2522Cubit%2522%252C%2522additionalSettings%2522%253A%2522%257B%255C%2522apkFilterRegEx%255C%2522%253A%2520%255C%2522%255ECubit%255C%255C%255C%255C.apk%2524%255C%2522%257D%2522%257D"><img src="https://raw.githubusercontent.com/ImranR98/Obtainium/main/assets/graphics/badge_obtainium.png" height="54" alt="Get it on Obtainium"></a></p>
+<p align="center"><a href="https://f-droid.org/en/packages/de.taymaerz.cubit/"><img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png" height="54" alt="Get it on F-Droid"></a> <a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium%3A%2F%2Fapp%2F%257B%2522id%2522%253A%2522de.taymaerz.cubit%2522%252C%2522url%2522%253A%2522https%253A%252F%252Fgithub.com%252Ftaynotfound%252Fcubit%2522%252C%2522author%2522%253A%2522taynotfound%2522%252C%2522name%2522%253A%2522Cubit%2522%252C%2522additionalSettings%2522%253A%2522%257B%255C%2522apkFilterRegEx%255C%2522%253A%2520%255C%2522%255ECubit%255C%255C%255C%255C.apk%2524%255C%2522%257D%2522%257D"><img src="https://raw.githubusercontent.com/ImranR98/Obtainium/main/assets/graphics/badge_obtainium.png" height="54" alt="Get it on Obtainium"></a></p>
 
 <p align="center"><img src="docs/img/trailer.gif" width="300" alt="Cubit opening, Clean mode and a level being played"></p>
 
@@ -54,13 +54,15 @@ Levels start at 10×10 per side with about a hundred winding arrows and grow to 
 
 Download `Cubit.apk` from the [latest release](https://github.com/taynotfound/cubit/releases/latest) and open it on your phone. Android 7.0 or newer.
 
+Or get it from [F-Droid](https://f-droid.org/en/packages/de.taymaerz.cubit/), which keeps it updated for you.
+
 **Want automatic updates?** Add Cubit to [Obtainium](https://apps.obtainium.imranr.dev/redirect?r=obtainium%3A%2F%2Fapp%2F%257B%2522id%2522%253A%2522de.taymaerz.cubit%2522%252C%2522url%2522%253A%2522https%253A%252F%252Fgithub.com%252Ftaynotfound%252Fcubit%2522%252C%2522author%2522%253A%2522taynotfound%2522%252C%2522name%2522%253A%2522Cubit%2522%252C%2522additionalSettings%2522%253A%2522%257B%255C%2522apkFilterRegEx%255C%2522%253A%2520%255C%2522%255ECubit%255C%255C%255C%255C.apk%2524%255C%2522%257D%2522%257D), which installs new versions straight from these GitHub releases.
 
 > Upgrading from a build before 1.0.0? Those were signed with a development key. Uninstall the old app first; 1.0.0 and later update in place.
 
 **GrapheneOS and other privacy ROMs:** if rankings say "can't reach the internet", allow Cubit's Network permission. The app works fully offline otherwise.
 
-**F-Droid:** the `fdroid` build flavour is reproducible, and the store listing lives in `fastlane/`.
+**F-Droid:** Cubit is [on F-Droid](https://f-droid.org/en/packages/de.taymaerz.cubit/). The `fdroid` build flavour is reproducible, and the store listing lives in `fastlane/`.
 
 ## Build it yourself
 
