@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cubit player</title>
+<meta name="description" content="A Cubit player's public profile: level, badges and best runs.">
+<meta property="og:title" content="A Cubit player">
+<meta property="og:description" content="Level, badges and best runs in Cubit, the arrow cube puzzle for Android.">
+<meta property="og:image" content="https://taynotfound.github.io/cubit/img/social.png">
+<meta name="theme-color" content="#0E1B3D">
+<link rel="icon" href="img/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root { --bg: #0E1B3D; --panel: #172A57; --text: #F4F6FB; --muted: #AEB8D0; --hair: #2B3D69; --accent: #FFC72C; --on-accent: #0E1B3D; --pink: #FF3D7F; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 400 17px/1.5 Barlow, system-ui, sans-serif; padding: 32px 16px 48px; }
+  main { width: 100%; max-width: 560px; margin: 0 auto; }
+  a { color: var(--text); }
+  .label { font: 700 13px/1 "Barlow Condensed", sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  h1 { font: 700 46px/1 "Barlow Condensed", sans-serif; text-transform: uppercase; margin: 10px 0 6px; overflow-wrap: anywhere; }
+  .sub { color: var(--muted); margin: 0 0 22px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin: 0 0 26px; }
+  .stat { background: var(--panel); border: 1px solid var(--hair); border-radius: 6px; padding: 12px 14px; }
+  .stat b { display: block; font: 700 30px/1.1 "Barlow Condensed", sans-serif; }
+  h2 { font: 700 24px/1 "Barlow Condensed", sans-serif; text-transform: uppercase; margin: 28px 0 12px; }
+  ul { list-style: none; padding: 0; margin: 0; }
+  .badge { display: flex; gap: 12px; align-items: baseline; padding: 10px 0; border-top: 1px solid var(--hair); }
+  .badge b { font-weight: 500; }
+  .badge span, .run span { color: var(--muted); font-size: 15px; }
+  .run { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--hair); }
+  .run b { font: 700 24px/1 "Barlow Condensed", sans-serif; white-space: nowrap; }
+  .btn { display: flex; align-items: center; justify-content: center; min-height: 56px; border-radius: 6px; text-decoration: none; margin-top: 12px;
+         font: 700 20px/1 "Barlow Condensed"; text-transform: uppercase; letter-spacing: .02em; }
+  .primary { background: var(--accent); color: var(--on-accent); }
+  .secondary { background: var(--panel); border: 1px solid var(--hair); color: var(--text); }
+  .note { color: var(--muted); font-size: 14px; margin-top: 26px; }
+  .note a { color: var(--muted); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <span class="label">Cubit player</span>
+  <h1 id="name">Loading…</h1>
+  <p class="sub" id="sub"></p>
+  <div id="body" hidden>
+    <div class="stats" id="stats"></div>
+    <h2>Best runs</h2>
+    <ul id="runs"></ul>
+    <h2>Badges</h2>
+    <ul id="badges"></ul>
+    <a class="btn primary" id="friend" href="open.html">Add as a friend in Cubit</a>
+  </div>
+  <a class="btn secondary" href="./">Get Cubit for Android</a>
+  <p class="note">This is an opt-in page: the player switched it on in Cubit's Settings, and switching it off takes it down. There are no accounts behind it, just a friend code. Badges and streak come from the player's phone; levels and runs are checked by the server.</p>
+</main>
+<script>
+const BADGES = {"FIRST": ["First train out", "Win your first level."], "TEN": ["Regular", "Win 10 levels."], "HUNDRED": ["Season ticket", "Win 100 levels."], "PERFECT": ["Spotless", "Win without a single bump."], "PERFECT_EXPERT": ["Signal master", "A perfect run on Expert."], "NIGHTMARE": ["Night shift", "Win a level on Nightmare."], "ARROWS_100": ["Rush hour", "Clear 100 arrows in total."], "ARROWS_1000": ["Terminus", "Clear 1,000 arrows in total."], "SPEED": ["Express", "Win with 20 or more arrows cleared in under 30 seconds."], "PURIST": ["Purist", "Win 10 levels in a row without powerups."], "CLEAN_10": ["Quiet carriage", "Win 10 runs in Clean mode."], "DAILY": ["Commuter", "Solve a daily cube."], "STREAK_7": ["On fire", "Solve the daily cube 7 days in a row."], "BIG": ["Grand central", "Win on a 14×14 cube or bigger."], "LEVEL_25": ["Long haul", "Reach player level 25."], "PAR": ["On par", "Win in the fewest taps possible."], "WEEKLY": ["Weekender", "Finish a weekly challenge."], "PACK": ["Collector", "Finish every level in a puzzle pack."], "DEMOLITION": ["Demolition", "Clear 10 arrows with one bomb."], "CHAIN": ["Chain reaction", "Set off 3 bombs in one chain."], "ENDLESS_10": ["End of the line", "Clear 10 cubes in one endless run."], "FULL_MONTH": ["Every day this month", "Solve every daily cube of a month, on the day or from the archive."]};
+const code = (new URLSearchParams(location.search).get("c") || "").toUpperCase().replace(/[^0-9A-F]/g, "");
+const $ = id => document.getElementById(id);
+function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+function fail(msg) { $("name").textContent = "Not found"; $("sub").textContent = msg; }
+if (code.length !== 8) fail("This link has no player code in it.");
+else fetch("https://cubit-lb-api.taymaerz.de/v1/profile/" + code).then(r => r.ok ? r.json() : Promise.reject(r.status)).then(p => {
+  document.title = p.name + " · Cubit";
+  $("name").textContent = p.name;
+  const since = new Date(p.since * 1000);
+  $("sub").textContent = "Player LV " + p.level + " · " + p.xp.toLocaleString("en-GB") + " XP" + (isNaN(since) ? "" : " · playing since " + since.toLocaleDateString("en-GB", { month: "long", year: "numeric" }));
+  const stats = [["Ranked runs", p.runs], ["Levels won", p.solved], ["Daily cubes", p.dailySolved], ["Daily streak", p.streak], ["Endless best", p.endlessBest], ["Clean runs", p.cleanRuns]];
+  for (const [k, v] of stats) if (v > 0) { const s = el("div", "stat"); s.append(el("span", "label", k), el("b", null, v.toLocaleString("en-GB"))); $("stats").append(s); }
+  if (!p.best.length) $("runs").append(el("li", "run", "No ranked runs yet."));
+  for (const r of p.best) {
+    const li = el("li", "run"), left = el("div");
+    left.append(el("div", null, r.label), el("span", null, r.difficulty + " · " + r.size + "×" + r.size + " · " + r.arrows + " arrows"));
+    li.append(left, el("b", null, r.score.toLocaleString("en-GB")));
+    $("runs").append(li);
+  }
+  if (!p.badges.length) $("badges").append(el("li", "badge", "No badges yet."));
+  for (const b of p.badges) {
+    const [title, blurb] = BADGES[b] || [b.replace(/_/g, " ").toLowerCase(), ""];
+    const li = el("li", "badge"); li.append(el("b", null, title), el("span", null, blurb)); $("badges").append(li);
+  }
+  $("friend").href = "open.html?f=" + code;
+  $("body").hidden = false;
+}).catch(st => fail(st === 404 ? "This player hasn't made a public profile, or switched it off." : "Couldn't reach the Cubit board. Try again in a moment."));
+</script>
+</body>
+</html>

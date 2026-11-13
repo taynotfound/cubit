@@ -88,6 +88,15 @@ class MainActivity : Activity(), GameView.Listener {
     private var endless = -1
     private var endlessSeed = 0L
     private var carryLives = -1
+    /** Seconds bought in the endless shop, added to the next cube's clock. */
+    private var carryBonus = 0
+    /** Daily endless: everyone gets the same cubes today. */
+    private var endlessDay: Int? = null
+    /** The server's id for this endless run, when it's ranked. */
+    private var endlessId: String? = null
+    /** This round's biggest blast and longest bomb chain, for the badges. */
+    private var maxBlast = 0
+    private var maxChain = 0
     /** A past daily cube played from the archive: free-roam rules, no streak, marked solved in the calendar. */
     private var archiveDay: Int? = null
     /** The ghost is your own best run on this cube. */
@@ -102,7 +111,7 @@ class MainActivity : Activity(), GameView.Listener {
         prefs = Prefs(this)
         Sfx.init(this); Sfx.enabled = prefs.sound
         Haptics.init(this); Haptics.enabled = prefs.haptics
-        Music.init(this); Music.enabled = prefs.music; Music.menu()
+        Music.init(this); Music.enabled = prefs.music; Music.level = prefs.musicVolume / 100f; Music.menu()
         root = FrameLayout(this)
         setContentView(root)
         buildShell()
@@ -308,7 +317,9 @@ class MainActivity : Activity(), GameView.Listener {
     private fun column() = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
     private fun panel() = column().apply { background = rect(th.panel); setPadding(dp(16), dp(14), dp(16), dp(16)) }
 
-    private fun segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit): LinearLayout {
+    /** Tabs in a strip. More than six don't fit a phone side by side, so then the strip scrolls sideways instead. */
+    private fun segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit): View {
+        val scrolls = options.size > 6
         val r = row().apply { background = rect(th.panel); setPadding(dp(4), dp(4), dp(4), dp(4)) }
         val items = options.map { tv(it, if (options.size > 5) 13f else 15f, Fonts.label, caps = true, track = 0.04f).apply { gravity = Gravity.CENTER; minHeight = dp(44) } }
         fun paint(sel: Int) = items.forEachIndexed { i, t ->
@@ -318,10 +329,15 @@ class MainActivity : Activity(), GameView.Listener {
         items.forEachIndexed { i, t ->
             t.setOnClickListener { Sfx.click(); Haptics.tick(); paint(i); onSelect(i) }
             t.contentDescription = options[i]
-            r.addView(t, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+            if (scrolls) { t.setPadding(dp(14), 0, dp(14), 0); r.addView(t, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT)) }
+            else r.addView(t, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
         }
         paint(selected)
-        return r
+        if (!scrolls) return r
+        return android.widget.HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled = false; isFillViewport = true; addView(r)
+            post { items.getOrNull(selected)?.let { smoothScrollTo((it.left - dp(40)).coerceAtLeast(0), 0) } } // keep the open tab in view
+        }
     }
 
     private fun slider(min: Int, max: Int, value: Int, onChange: (Int) -> Unit) = SeekBar(this).apply {
@@ -404,8 +420,18 @@ class MainActivity : Activity(), GameView.Listener {
         if (motionEnabled()) { page.alpha = 0f; page.translationY = dp(10).toFloat(); page.animate().alpha(1f).translationY(0f).setDuration(220).setInterpolator(DecelerateInterpolator(2f)).start() }
     }
 
+    /** Side gap for sheets: 12dp on a phone, wider on a tablet or in landscape so they stay a readable width. */
+    private fun side() = maxOf(dp(12), (resources.displayMetrics.widthPixels - dp(620)) / 2)
+
+    /** Rotating (or resizing on a tablet) rebuilds the menus for the new width; a game in progress just re-lays itself out. */
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        if (gameLayer == null) buildShell()
+    }
+
     private fun page(): Pair<ScrollView, LinearLayout> {
-        val col = column().apply { setPadding(dp(20), dp(20), dp(20), dp(24)) }
+        val gap = maxOf(dp(20), (resources.displayMetrics.widthPixels - dp(640)) / 2)
+        val col = column().apply { setPadding(gap, dp(20), gap, dp(24)) }
         return ScrollView(this).apply { isFillViewport = true; addView(col) } to col
     }
 
@@ -593,7 +619,7 @@ class MainActivity : Activity(), GameView.Listener {
         closeSheet()
         val scrim = FrameLayout(this).apply { tag = "sheet"; setBackgroundColor(withAlpha(Color.BLACK, 150)); isClickable = true; setOnClickListener { closeSheet() } }
         val c = column().apply { background = rect(th.panel, 10); setPadding(dp(22), dp(24), dp(22), dp(22)); isClickable = true }
-        scrim.addView(ScrollView(this).apply { addView(c) }, FrameLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT, Gravity.BOTTOM).apply { setMargins(dp(12), dp(40), dp(12), dp(12)) })
+        scrim.addView(ScrollView(this).apply { addView(c) }, FrameLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT, Gravity.BOTTOM).apply { setMargins(side(), dp(40), side(), dp(12)) })
         root.addView(scrim, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
         if (motionEnabled()) { c.translationY = dp(60).toFloat(); c.alpha = 0f; c.animate().translationY(0f).alpha(1f).setDuration(260).setInterpolator(DecelerateInterpolator(2.5f)).start() }
         return c
@@ -651,6 +677,9 @@ class MainActivity : Activity(), GameView.Listener {
         c.add(body("Cube after cube, each a little bigger. Your lives carry over, so every bump counts." +
             if (prefs.endlessBest > 0) " Your best: ${prefs.endlessBest} cube${if (prefs.endlessBest == 1) "" else "s"}." else "", th.muted), 6)
         c.add(secondary("Start an endless run", th.accent, Glyph.BOLT) { closeSheet(); startEndless() }, 12)
+        val todayBest = if (prefs.dailyEndlessDay == day) prefs.dailyEndlessBest else 0
+        c.add(secondary("Today's endless" + if (todayBest > 0) " · best $todayBest" else "", glyph = Glyph.DICE) { closeSheet(); startEndless(daily = true) }, 10)
+        c.add(body("Today's is the same run of cubes for everyone, with its own board in Rankings.", th.muted), 6)
 
         val week = utcWeek()
         c.add(title("Weekly challenge"), 26)
@@ -762,7 +791,8 @@ class MainActivity : Activity(), GameView.Listener {
         }
         if (r.childCount > 0) { repeat(7 - r.childCount) { r.space(0, 1f) }; c.add(r) }
         val inMonth = (first until first + days).count { it in solved || it in late }
-        c.add(body("$inMonth solved this month · filled: on the day · ring: later", th.muted), 10)
+        val missed = (maxOf(first, FIRST_DAILY)..minOf(first + days - 1, today - 1)).count { it !in solved && it !in late }
+        c.add(body("$inMonth solved this month" + (if (missed > 0) " · $missed missed, still open" else "") + " · filled: on the day · ring: later", th.muted), 10)
     }
 
     /** Wins, losses and times per mode, and a five-week calendar of daily solves. All from this phone. */
@@ -808,7 +838,7 @@ class MainActivity : Activity(), GameView.Listener {
 
     // ---------- Rankings ----------
 
-    private var ranksMode = 0 // 0 players, 1 best runs, 2 today's daily cube, 3 weekly, 4 badges, 5 friends
+    private var ranksMode = 0 // 0 players, 1 best runs, 2 today's daily cube, 3 weekly, 4 badges, 5 friends, 6 endless
 
     private fun renderBadges(list: LinearLayout, status: TextView) {
         val got = prefs.achievements
@@ -838,6 +868,8 @@ class MainActivity : Activity(), GameView.Listener {
         var board: GlobalBoard? = null
         var dailyBoard: List<ScoreEntry>? = null
         var weekBoard: List<ScoreEntry>? = null
+        var endlessAll: List<EndlessEntry>? = null
+        var endlessToday: List<EndlessEntry>? = null
         var boardStatus = "" // the Players and Best subtitle: board size, offline note or error
         var friendRows: List<Pair<GlobalPlayer, ScoreEntry?>>? = null
         var codeError: String? = null
@@ -932,9 +964,35 @@ class MainActivity : Activity(), GameView.Listener {
             }
         }
 
+        /** Endless: today's shared run of cubes, then everyone's best endless run. */
+        fun renderEndless() {
+            if (!prefs.postOnline) {
+                status.text = "Endless boards need global rankings. Your best: ${prefs.endlessBest} cube${if (prefs.endlessBest == 1) "" else "s"}."
+                return
+            }
+            status.text = "Cubes cleared in one run · each cube checked by the server"
+            fun section(title: String, rows: List<EndlessEntry>?, empty: String) {
+                list.add(label(title), if (list.childCount == 0) 0 else 22)
+                if (rows == null) { list.add(body("Loading…", th.muted), 8); return }
+                if (rows.isEmpty()) { list.add(body(empty, th.muted), 8); return }
+                rows.take(50).forEachIndexed { i, e ->
+                    val r = row().apply { minimumHeight = dp(56) }
+                    r.add(FlapView(this, 2, 20f, if (i < 3) th.accent else th.tile, if (i < 3) th.onAccent else th.text, true).apply { haptics = false; setInstant("%02d".format((i + 1).coerceAtMost(99))) }, 0, WRAP_CONTENT)
+                    val mid = column().apply { setPadding(dp(14), 0, dp(8), 0) }
+                    mid.add(tv(e.name, 17f, Fonts.bodyMedium)); mid.add(tv("Player LV ${e.level}", 13f, Fonts.body, th.muted), 2)
+                    r.add(mid, 0, 0, WRAP_CONTENT, 1f)
+                    r.add(tv("${e.cubes}", 22f, Fonts.display), 0, WRAP_CONTENT)
+                    r.contentDescription = "${i + 1}: ${e.name}, ${e.cubes} cubes"
+                    list.add(r, 6)
+                }
+            }
+            section("Today's endless", endlessToday, "Nobody has played today's endless run yet. More → Today's endless.")
+            section("Best endless runs", endlessAll, "No endless runs yet. More → Start an endless run.")
+        }
+
         render = {
             list.removeAllViews()
-            if (ranksMode == 4) renderBadges(list, status) else if (ranksMode == 5) renderFriends() else renderBoard()
+            if (ranksMode == 4) renderBadges(list, status) else if (ranksMode == 5) renderFriends() else if (ranksMode == 6) renderEndless() else renderBoard()
         }
 
         fun load() {
@@ -947,6 +1005,8 @@ class MainActivity : Activity(), GameView.Listener {
             boardStatus = "Loading the board…"; status.text = boardStatus
             Net.daily(utcDay()) { d -> dailyBoard = d; if (tab == Tab.RANKS && ranksMode == 2) render() }
             Net.weekly(utcWeek()) { w -> weekBoard = w; if (tab == Tab.RANKS && ranksMode == 3) render() }
+            Net.endless(null) { e -> endlessAll = e ?: emptyList(); if (tab == Tab.RANKS && ranksMode == 6) render() }
+            Net.endless(utcDay()) { e -> endlessToday = e ?: emptyList(); if (tab == Tab.RANKS && ranksMode == 6) render() }
             if (prefs.friendCode == null) Net.me(prefs) { c -> codeError = if (c == null) Net.lastError else null; if (c != null) loadFriends(); if (tab == Tab.RANKS && ranksMode == 5) render() }
             loadFriends()
             Net.fetch { b ->
@@ -969,7 +1029,7 @@ class MainActivity : Activity(), GameView.Listener {
             }
         }
 
-        col.add(segmented(listOf("Players", "Best", "Daily", "Week", "Badges", "Friends"), ranksMode) { ranksMode = it; render() }, 16)
+        col.add(segmented(listOf("Players", "Best", "Daily", "Week", "Badges", "Friends", "Endless"), ranksMode) { ranksMode = it; render() }, 16)
         col.add(status, 12)
         col.add(action, 10)
         col.add(list, 12)
@@ -1015,7 +1075,20 @@ class MainActivity : Activity(), GameView.Listener {
             override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
         })
         profile.add(name, 12)
-        profile.add(switchRow("Global rankings", "Post your name, level and scores to the shared Cubit board. Off keeps everything on this phone.", prefs.postOnline) { prefs.postOnline = it }, 4)
+        profile.add(switchRow("Global rankings", "Post your name, level and scores to the shared Cubit board. Off keeps everything on this phone.", prefs.postOnline) {
+            prefs.postOnline = it
+            if (!it && prefs.publicProfile) { prefs.publicProfile = false; Net.setProfile(prefs, false); showTab(Tab.SETTINGS) } // no board, no public page
+        }, 4)
+        profile.add(switchRow("Public profile", "A page anyone with your link can see: name, level, badges, streak and best runs. There's no account or sign-in: it hangs off your friend code, and switching it off takes it down.", prefs.publicProfile) { on ->
+            prefs.publicProfile = on
+            if (on) prefs.postOnline = true
+            Net.setProfile(prefs, on) { res -> if (res == null) toast("Couldn't reach the board (${Net.lastError}). Try the switch again later.") }
+            showTab(Tab.SETTINGS)
+        }, 4)
+        if (prefs.publicProfile) profile.add(secondary("Share my profile", glyph = Glyph.SHARE) {
+            fun share(code: String) = shareText("My Cubit profile: ${Links.PROFILE}?c=$code", "Share your profile")
+            prefs.friendCode?.let { share(it) } ?: Net.me(prefs) { c -> if (c != null) share(c) else toast("Couldn't reach the board (${Net.lastError})") }
+        }, 10)
 
         val look = section(col, "Look", Glyph.CUBE)
         look.add(label("Colourway"), 14)
@@ -1075,6 +1148,10 @@ class MainActivity : Activity(), GameView.Listener {
         val feel = section(col, "Sound and touch", Glyph.HINT)
         feel.add(switchRow("Sound effects", "Swooshes, bumps, flap boards and the fanfare when the pink arrow gets out.", prefs.sound) { prefs.sound = it; Sfx.enabled = it }, 4)
         feel.add(switchRow("Music", "A quiet loop under the menus and a slightly busier one while you play.", prefs.music) { prefs.music = it; Music.enabled = it })
+        val volFlap = flap(3, 18f).apply { setInstant("%3d".format(prefs.musicVolume)) }
+        val volRow = row(); volRow.add(label("Music volume"), 0, 0, WRAP_CONTENT, 1f); volRow.add(volFlap, 0, WRAP_CONTENT)
+        feel.add(volRow, 12)
+        feel.add(slider(0, 100, prefs.musicVolume) { prefs.musicVolume = it; Music.level = it / 100f; volFlap.text = "%3d".format(it) }.apply { contentDescription = "Music volume" }, 4)
         feel.add(switchRow("Streak reminder", "One notification around 7 pm if your daily streak would end tonight. Nothing else.", prefs.streakReminder) { on ->
             prefs.streakReminder = on
             if (on && android.os.Build.VERSION.SDK_INT >= 33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED)
@@ -1090,6 +1167,12 @@ class MainActivity : Activity(), GameView.Listener {
         val progress = section(col, "Progress", Glyph.REPLAY)
         progress.add(body("No ads, ever. Rankings only talk to the Cubit board when you turn them on.", th.muted), 8)
         progress.add(secondary("Run setup again", glyph = Glyph.SETTINGS) { showSetup() }, 14)
+        progress.add(secondary("Copy a backup code", glyph = Glyph.SHARE) {
+            val code = prefs.backup()
+            (getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager).setPrimaryClip(android.content.ClipData.newPlainText("Cubit backup", code))
+            toast("Backup code copied. Keep it private: it also moves your place on the board.")
+        }, 10)
+        progress.add(secondary("Restore from a backup code", glyph = Glyph.REPLAY) { restoreSheet() }, 10)
         progress.add(secondary("Reset progress", Color.rgb(255, 107, 94)) {
             confirm("Reset progress?", "Your level, XP, hints, badges, streak and local scores will be wiped. Settings and your global board entry stay.", "Cancel", "Reset") {
                 closeSheet(); prefs.resetProgress(); toast("Progress reset"); showTab(Tab.SETTINGS)
@@ -1143,6 +1226,22 @@ class MainActivity : Activity(), GameView.Listener {
         // Always visible, even with every section folded.
         col.add(label("Cubit $appVersion · by Tay März · MIT").apply { gravity = Gravity.CENTER; contentDescription = "Cubit $appVersion by Tay März, taymaerz.de"; pressable { open("https://taymaerz.de") } }, 22)
         return scroll
+    }
+
+    /** Paste a backup code from [Prefs.backup] (another phone, or before a reinstall) and replace everything here with it. */
+    private fun restoreSheet() {
+        val c = openSheet()
+        c.add(display("Restore a backup", 30f))
+        c.add(body("Everything on this phone (progress, settings and your place on the board) is replaced by the backup.", th.muted), 8)
+        val box = field("", "Paste the code (CUBIT1:…)")
+        (getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager).primaryClip?.getItemAt(0)?.text?.toString()
+            ?.takeIf { it.startsWith("CUBIT1:") }?.let { box.setText(it) }
+        c.add(box, 16)
+        c.add(primary("Restore") {
+            if (prefs.restore(box.text.toString())) { toast("Restored"); closeSheet(); recreate() }
+            else toast("That code doesn't read. Copy it again, all of it.")
+        }, 16)
+        c.add(secondary("Cancel") { closeSheet() }, 10)
     }
 
     private fun checkAgain(box: LinearLayout, again: () -> Unit) { box.add(secondary("Check again", glyph = Glyph.REPLAY) { again() }, 10) }
@@ -1231,7 +1330,7 @@ class MainActivity : Activity(), GameView.Listener {
         }
 
         scrim.addView(ScrollView(this).apply { addView(sheet) },
-            FrameLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT, Gravity.BOTTOM).apply { setMargins(dp(12), 0, dp(12), dp(12)) })
+            FrameLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT, Gravity.BOTTOM).apply { setMargins(side(), 0, side(), dp(12)) })
         root.addView(scrim, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
         if (motionEnabled()) { sheet.translationY = dp(60).toFloat(); sheet.alpha = 0f; sheet.animate().translationY(0f).alpha(1f).setDuration(320).setInterpolator(DecelerateInterpolator(2.5f)).start() }
         sign.setInstant("       ")
@@ -1281,7 +1380,7 @@ class MainActivity : Activity(), GameView.Listener {
         }
         c.add(secondary("Close") { root.removeView(scrim) }, 10)
         scrim.setOnClickListener { root.removeView(scrim) }
-        scrim.addView(ScrollView(this).apply { addView(c) }, FrameLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT, Gravity.BOTTOM).apply { setMargins(dp(12), 0, dp(12), dp(12)) })
+        scrim.addView(ScrollView(this).apply { addView(c) }, FrameLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT, Gravity.BOTTOM).apply { setMargins(side(), 0, side(), dp(12)) })
         root.addView(scrim, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
         if (motionEnabled()) { c.translationY = dp(80).toFloat(); c.animate().translationY(0f).setDuration(320).setInterpolator(DecelerateInterpolator(2.5f)).start() }
         flaps.forEachIndexed { i, (f, txt) -> handler.postDelayed({ f.text = txt }, 200L + i * 160L) }
@@ -1413,13 +1512,38 @@ class MainActivity : Activity(), GameView.Listener {
     }
 
     /** Leaves endless and the archive behind: every way into a round but those two starts here. */
-    private fun plainRound() { endless = -1; archiveDay = null }
+    private fun plainRound() { endless = -1; archiveDay = null; endlessDay = null; endlessId = null }
 
-    private fun endlessSpec(k: Int) = LevelSpec((7 + k).coerceAtMost(14), (5 + k / 2).coerceAtMost(12), endlessSeed + k * 7_777L)
-    private fun startEndless() {
+    private fun endlessLabel(k: Int) = (if (endlessDay != null) "Daily endless " else "Endless ") + (k + 1)
+
+    /** A new endless run. Ranked ones get their seed (and id) from the server, which then counts the cubes; offline
+     *  ones pick their own. A daily one has the day's seed either way, so it's the same cubes for everyone. */
+    private fun startEndless(daily: Boolean = false) {
         freeRoam = true; dailyDay = null; weekNo = null; packRun = null; tutorial = false; challenge = null; archiveDay = null
-        endless = 0; endlessSeed = Random.nextLong(); carryLives = -1
-        startRound(endlessSpec(0), "Endless 1")
+        endless = 0; carryLives = -1; carryBonus = 0; endlessId = null
+        endlessDay = if (daily) utcDay() else null
+        endlessSeed = if (daily) dailyEndlessSeed(utcDay()) else Random.nextLong()
+        if (!prefs.postOnline) { startRound(endlessSpec(endlessSeed, 0), endlessLabel(0)); return }
+        toast("Starting your endless run…")
+        Net.endlessStart(prefs, daily) { r ->
+            if (r != null) { endlessId = r.first; endlessSeed = r.second } // the server's seed, so it can check every cube
+            if (endless == 0 && gameLayer == null) startRound(endlessSpec(endlessSeed, 0), endlessLabel(0))
+        }
+    }
+
+    /** Between endless cubes: pick one thing to take into the next. */
+    private fun endlessShop() {
+        val o = hud?.sheet ?: return
+        o.removeAllViews()
+        val c = column().apply { background = rect(th.panel, 10); setPadding(dp(22), dp(24), dp(22), dp(22)) }
+        c.add(display("Pick one for cube ${endless + 1}", 30f))
+        c.add(body("It lasts for the next cube only, except the hint, which you keep.", th.muted), 8)
+        fun next() { startRound(endlessSpec(endlessSeed, endless), endlessLabel(endless)) }
+        if (diff.lives > 0) c.add(primary("+1 life (${livesLeft + 1} in all)", Glyph.LIFE) { carryLives = livesLeft + 1; next() }, 18)
+        if (diff.secPerArrow > 0) c.add(secondary("+15 seconds on the clock", glyph = Glyph.FREEZE) { carryLives = livesLeft; carryBonus = 15; next() }, 10)
+        c.add(secondary("+1 hint (you have ${prefs.hints})", glyph = Glyph.HINT) { carryLives = livesLeft; prefs.hints = prefs.hints + 1; next() }, 10)
+        o.addView(ScrollView(this).apply { addView(c) }, FrameLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT, Gravity.BOTTOM).apply { setMargins(side(), 0, side(), dp(12)) })
+        o.visibility = View.VISIBLE
     }
     private fun startArchive(d: Int) {
         freeRoam = true; dailyDay = null; weekNo = null; packRun = null; tutorial = false; challenge = null; endless = -1; archiveDay = d
@@ -1446,7 +1570,7 @@ class MainActivity : Activity(), GameView.Listener {
     private fun saveRun() {
         val g = game ?: return
         val o = org.json.JSONObject()
-            .put("n", spec.n).put("maxLen", spec.maxLen).put("seed", spec.seed).put("bombs", spec.bombs).put("endless", endless).put("eseed", endlessSeed).put("archive", archiveDay ?: -1)
+            .put("n", spec.n).put("maxLen", spec.maxLen).put("seed", spec.seed).put("special", spec.special).put("endless", endless).put("eseed", endlessSeed).put("eday", endlessDay ?: -1).put("eid", endlessId ?: "").put("archive", archiveDay ?: -1)
             .put("label", baseLabel).put("free", freeRoam).put("daily", dailyDay ?: -1).put("week", weekNo ?: -1).put("diff", diff.ordinal).put("full", roundFull)
             .put("elapsed", elapsedMillis()).put("mistakes", mistakes).put("lives", livesLeft).put("limit", timeLimit)
             .put("shield", shield).put("used", org.json.JSONArray(usedPowerups.map { it.name })).put("run", runId ?: "")
@@ -1460,8 +1584,8 @@ class MainActivity : Activity(), GameView.Listener {
         freeRoam = o.optBoolean("free"); dailyDay = o.optInt("daily", -1).takeIf { it >= 0 }; weekNo = o.optInt("week", -1).takeIf { it >= 0 }; tutorial = false
         challenge = o.optString("challenge").takeIf { it.isNotEmpty() }?.let { Links.parseChallenge(java.net.URLDecoder.decode(it, "UTF-8")) }
         packRun = prefs.allPacks().firstOrNull { it.name == o.optString("pack") }?.let { pk -> o.optInt("packIdx", -1).takeIf { it in pk.levels.indices }?.let { pk to it } }
-        endless = o.optInt("endless", -1); endlessSeed = o.optLong("eseed"); archiveDay = o.optInt("archive", -1).takeIf { it >= 0 }
-        startRound(LevelSpec(o.getInt("n"), o.getInt("maxLen"), o.getLong("seed"), bombs = o.optBoolean("bombs")), o.optString("label"), o)
+        endless = o.optInt("endless", -1); endlessSeed = o.optLong("eseed"); endlessDay = o.optInt("eday", -1).takeIf { it >= 0 }; endlessId = o.optString("eid").ifEmpty { null }; archiveDay = o.optInt("archive", -1).takeIf { it >= 0 }
+        startRound(LevelSpec(o.getInt("n"), o.getInt("maxLen"), o.getLong("seed"), special = o.optBoolean("special")), o.optString("label"), o)
     }
     private fun dailyDate(day: Int) = java.text.SimpleDateFormat("d MMM", java.util.Locale.ENGLISH).apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }.format(java.util.Date(day * 86_400_000L))
 
@@ -1606,20 +1730,25 @@ class MainActivity : Activity(), GameView.Listener {
         handler.postDelayed({ levelFlap.text = if (freeRoam || dailyDay != null) "%02d×%02d".format(s.n, s.n) else "%04d".format(prefs.level % 10000) }, 200)
         clearedFlap.setInstant("   ")
         livesLeft = if (carryLives > 0) carryLives else diff.lives; mistakes = 0; carryLives = -1
+        val bonus = carryBonus; carryBonus = 0; maxBlast = 0; maxChain = 0
         lamps?.total = maxOf(diff.lives, livesLeft)
         moves.clear(); runId = null
         val serial = ++roundSerial
-        if (prefs.postOnline && !tutorial && resume == null) Net.startRun(prefs, s, if (freeRoam || weekNo != null) null else prefs.level, dailyDay, diff.label, roundFull, weekNo) { id -> if (serial == roundSerial) runId = id }
-        timeLimit = diff.timeLimitSec(puzzle.paths.size)
+        val eid = endlessId
+        if (prefs.postOnline && !tutorial && resume == null && (endless < 0 || eid != null))
+            Net.startRun(prefs, s, if (freeRoam || weekNo != null) null else prefs.level, dailyDay, diff.label, roundFull, weekNo,
+                eid?.let { EndlessCube(it, if (diff.lives > 0) livesLeft else 0, bonus) }) { id -> if (serial == roundSerial) runId = id }
+        timeLimit = diff.timeLimitSec(puzzle.paths.size) + (if (diff.secPerArrow > 0) bonus else 0)
         par = if (roundFull) puzzle.paths.size else mustClear(puzzle) + 1
         // Ghost race on the daily and weekly cubes: race the leader's recorded run, by the same game clock.
         ghost = emptyList(); ghostAt = 0; ghostDoneMs = -1; ghostLabel = null
         val ch = challenge
         // Your own best run on this exact cube and goal (kept with local scores), raced when nothing else is.
-        val mine = if (ch != null || tutorial || dailyDay != null || weekNo != null) null
+        val pastDay = archiveDay // a past daily from the archive races that day's leader too
+        val mine = if (ch != null || tutorial || dailyDay != null || weekNo != null || pastDay != null) null
             else prefs.scores().filter { it.spec == s && it.moves.isNotEmpty() && it.label.endsWith("full clear") == roundFull }.maxByOrNull { it.score }
         ownGhost = mine != null
-        if (ch != null || mine != null || (prefs.postOnline && !roundFull && (dailyDay != null || weekNo != null))) {
+        if (ch != null || mine != null || (prefs.postOnline && !roundFull && (dailyDay != null || weekNo != null || pastDay != null))) {
             val g = row().apply { visibility = View.GONE }
             val gl = label("", th.muted)
             g.add(gl, 0, WRAP_CONTENT)
@@ -1636,7 +1765,7 @@ class MainActivity : Activity(), GameView.Listener {
             // A shared challenge brings its own ghost; the daily and weekly ones race the board's leader.
             if (ch != null) { ghost = ch.moves; ghostName = ch.name; gv.ghostOn = true; g.visibility = View.VISIBLE }
             else if (mine != null) { ghost = mine.moves; ghostName = "Your best"; gv.ghostOn = true; g.visibility = View.VISIBLE }
-            else if (weekNo != null) Net.weekly(weekNo!!, board) else Net.daily(dailyDay!!, board)
+            else if (weekNo != null) Net.weekly(weekNo!!, board) else Net.daily(dailyDay ?: pastDay!!, board)
         }
         if (resume != null) {
             // Back where we left off: replay the taps silently and restore the counters.
@@ -1658,9 +1787,9 @@ class MainActivity : Activity(), GameView.Listener {
         updateHud()
         Sfx.start(); Music.game()
         handler.post(tick)
-        if (!prefs.bombSeen && puzzle.bombs.any { it }) {
+        if (!prefs.bombSeen && (puzzle.bombs.any { it } || puzzle.keys.any { it >= 0 } || puzzle.twoWay.any { it })) {
             prefs.bombSeen = true
-            toast("New: arrows with an orange core are bombs. Clear one and it takes the arrows touching it along. Never the pink one.")
+            toast("New arrows: an orange core is a bomb (it takes the arrows touching it along), a dashed core is locked until its key leaves, and two heads means it can leave either way.")
         }
     }
 
@@ -1743,7 +1872,11 @@ class MainActivity : Activity(), GameView.Listener {
     override fun onTwoFingerTap() { if (diff.lives == 0) undoTap() }
 
     // A heavy thud you can feel, and the chime rather than the bump sound: a blast is good news, not a mistake.
-    override fun onBomb(count: Int) { Sfx.hint(); Haptics.bump() }
+    override fun onBomb(count: Int, bombs: Int) {
+        Sfx.hint(); Haptics.bump()
+        maxBlast = maxOf(maxBlast, count); maxChain = maxOf(maxChain, bombs)
+        if (bombs > 1) toast("Chain reaction · $bombs bombs, $count arrows")
+    }
 
     /** Zen and Clean: put the last removed arrow back. Recorded so ranked replays match. */
     private fun undoTap() {
@@ -1792,7 +1925,13 @@ class MainActivity : Activity(), GameView.Listener {
             return
         }
         prefs.savedRun = null
-        if (endless >= 0) { endless++; if (endless > prefs.endlessBest) prefs.endlessBest = endless }
+        if (prefs.postOnline && prefs.publicProfile) handler.postDelayed({ Net.setProfile(prefs, true) }, 3000) // after this run's badges and streak land
+        if (endless >= 0) {
+            endless++
+            val d = endlessDay
+            if (d == null) { if (endless > prefs.endlessBest) prefs.endlessBest = endless }
+            else if (prefs.dailyEndlessDay != d || endless > prefs.dailyEndlessBest) { prefs.dailyEndlessDay = d; prefs.dailyEndlessBest = endless }
+        }
         archiveDay?.let { prefs.archiveDays = prefs.archiveDays + it }
         val cleared = g.total - g.remaining
         val perfect = mistakes == 0
@@ -1839,7 +1978,7 @@ class MainActivity : Activity(), GameView.Listener {
         prefs.noPowerupStreak = if (usedPowerups.isEmpty()) prefs.noPowerupStreak + 1 else 0
         if (diff == Difficulty.CLEAN) prefs.cleanSolved = prefs.cleanSolved + 1
         val ms = elapsedMillis()
-        val facts = RunFacts(diff, perfect, cleared, ms, spec.n, dailyDay != null, usedPowerups.isNotEmpty(), atPar, weekNo != null)
+        val facts = RunFacts(diff, perfect, cleared, ms, spec.n, dailyDay != null, usedPowerups.isNotEmpty(), atPar, weekNo != null, maxBlast, maxChain, maxOf(endless, 0))
         val got = prefs.achievements
         val unlocked = Achievement.entries.filter { it.name !in got && it.check(prefs, facts) }
         prefs.achievements = got + unlocked.map { it.name }
@@ -1860,7 +1999,7 @@ class MainActivity : Activity(), GameView.Listener {
             add(if (perfect) "Perfect run · +25% XP" else "$mistakes mistake${if (mistakes == 1) "" else "s"}")
             if (after > before) add("Level up · you're now LV $after · +${after - before} hint")
             if (bonusHints > 0) add("+$bonusHints hint for ${if (firstDaily && perfect && diff.lives > 0) "a perfect daily" else if (firstDaily) "the daily cube" else "a perfect run"}")
-            if (endless > 0) add("Endless · $endless cube${if (endless == 1) "" else "s"} cleared · your best is ${prefs.endlessBest}" +
+            if (endless > 0) add((if (endlessDay != null) "Daily endless" else "Endless") + " · $endless cube${if (endless == 1) "" else "s"} cleared · your best is ${if (endlessDay != null) prefs.dailyEndlessBest else prefs.endlessBest}" +
                 if (diff.lives > 0) " · $livesLeft ${if (livesLeft == 1) "life" else "lives"} carry over" else "")
             if (archiveDay != null) add("Marked solved in the daily archive")
             if (atPar) add("On par · nobody can do it in fewer taps")
@@ -1892,7 +2031,7 @@ class MainActivity : Activity(), GameView.Listener {
             extra = ("Save cube to $MY_PACK" to { prefs.myPack = prefs.myPack.filter { it != spec.copy(lap = false) } + spec.copy(lap = false); toast("Saved to $MY_PACK in More → Puzzle packs") })
                 .takeIf { dailyDay == null && weekNo == null && packRun?.first?.name != MY_PACK }) {
             when {
-                endless > 0 -> { carryLives = livesLeft; startRound(endlessSpec(endless), "Endless ${endless + 1}") }
+                endless > 0 -> endlessShop()
                 pk != null && pk.second + 1 < pk.first.levels.size -> startPack(pk.first, pk.second + 1)
                 pk == null && freeRoam -> startFree(LevelSpec(spec.n, spec.maxLen, Random.nextLong()))
                 else -> startCampaign()
@@ -1923,10 +2062,11 @@ class MainActivity : Activity(), GameView.Listener {
         if (!tutorial) prefs.recordRun(diff, false, mistakes, elapsedSec().toInt())
         if (endless >= 0) {
             val n = endless
-            val best = n > 0 && n >= prefs.endlessBest
+            val top = if (endlessDay != null) prefs.dailyEndlessBest else prefs.endlessBest
+            val best = n > 0 && n >= top
             showSheet("Endless over", listOf("Cubes" to (flap(3, 26f, right = true) to "%d".format(n.coerceAtMost(999)))),
-                listOf("$reason on cube ${n + 1}.", if (best) "Your best endless run yet" else "Your best: ${prefs.endlessBest} cube${if (prefs.endlessBest == 1) "" else "s"}"),
-                "New endless run") { startEndless() }
+                listOf("$reason on cube ${n + 1}.", if (best) "Your best endless run yet" else "Your best: $top cube${if (top == 1) "" else "s"}"),
+                if (endlessDay != null) "Try today's again" else "New endless run") { startEndless(daily = endlessDay != null) }
             return
         }
         showSheet(reason, rows, listOf((if (roundFull) "The cube isn't clear yet." else "The pink arrow is still stuck.") + " Easier modes give more lives and time."), "Try again") { startRound(spec, baseLabel) }
@@ -1951,7 +2091,7 @@ class MainActivity : Activity(), GameView.Listener {
         if (onShare != null) btns.add(secondary("Share", glyph = Glyph.SHARE) { onShare() }, 0, WRAP_CONTENT).let { (it.layoutParams as LinearLayout.LayoutParams).marginStart = dp(10) }
         c.add(btns, 10)
         extra?.let { (text, act) -> lateinit var b: View; b = secondary(text, glyph = Glyph.BADGE) { act(); b.alpha = 0.4f; b.isEnabled = false }; c.add(b, 10) }
-        o.addView(ScrollView(this).apply { addView(c) }, FrameLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT, Gravity.BOTTOM).apply { setMargins(dp(12), 0, dp(12), dp(12)) })
+        o.addView(ScrollView(this).apply { addView(c) }, FrameLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT, Gravity.BOTTOM).apply { setMargins(side(), 0, side(), dp(12)) })
         o.visibility = View.VISIBLE
         rows.forEach { it.second.first.setInstant("") }
         if (motionEnabled()) {

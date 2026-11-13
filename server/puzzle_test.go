@@ -41,40 +41,42 @@ func TestLapFingerprintsMatchApp(t *testing.T) {
 	}
 }
 
-// Bomb arrows and their blasts, pinned against BombTest in PuzzleTest.kt.
-func TestBombsMatchApp(t *testing.T) {
-	specs := []LevelSpec{specForLevel(4), specForLevel(30), {N: 14, MaxLen: 20, Seed: -987654321}}
-	want := []int64{3104308799670819663, -2661303133342797834, 6122402782112281754}
+// Special arrows, pinned against SpecialTest in PuzzleTest.kt: each bomb and its blast, each lock and its key, each
+// two-way arrow and its tail's way out.
+func TestSpecialsMatchApp(t *testing.T) {
+	specs := []LevelSpec{specForLevel(4), specForLevel(30), {N: 14, MaxLen: 20, Seed: -987654321}, endlessSpec(dailyEndlessSeed(20800), 6)}
+	want := []int64{7161757959314111960, -5848080600933065072, 8421851543497214288, 3947938222237347106}
 	for i, s := range specs {
-		s.Bombs = true
+		s.Special = true
 		p := generate(s)
-		occ := make([]int, p.cube.size)
-		for j := range occ {
-			occ[j] = -1
-		}
-		for a, path := range p.paths {
-			for _, c := range path {
-				occ[c] = a
-			}
-		}
+		occ := occupancy(p)
 		h := uint64(14695981039346656037)
 		mix := func(v int64) { h = (h ^ uint64(v)) * 1099511628211 }
 		for a := range p.paths {
-			if !p.bombs[a] {
-				continue
+			if p.bombs[a] {
+				mix(int64(a))
+				b := p.blast(a, occ)
+				sort.Ints(b)
+				for _, x := range b {
+					mix(10_000 + int64(x))
+				}
 			}
-			mix(int64(a))
-			b := p.blast(a, occ)
-			sort.Ints(b)
-			for _, x := range b {
-				mix(10_000 + int64(x))
+			if p.keys[a] >= 0 {
+				mix(20_000 + int64(a))
+				mix(30_000 + int64(p.keys[a]))
+			}
+			if p.twoWay[a] {
+				mix(40_000 + int64(a))
+				for _, c := range p.tailExit(a) {
+					mix(50_000 + int64(c))
+				}
 			}
 		}
 		if got := int64(h); got != want[i] {
-			t.Errorf("spec %+v: bomb print %d, app has %d", s, got, want[i])
+			t.Errorf("spec %+v: special print %d, app has %d", s, got, want[i])
 		}
 		if fingerprint(p) != fingerprint(generate(LevelSpec{N: s.N, MaxLen: s.MaxLen, Seed: s.Seed})) {
-			t.Errorf("spec %+v: bombs changed the arrows", s)
+			t.Errorf("spec %+v: special arrows changed the arrows", s)
 		}
 	}
 }

@@ -76,7 +76,11 @@ object Music {
         resume()
     }
 
-    private fun make(res: Int) = ctx?.let { android.media.MediaPlayer.create(it, res) }?.apply { setVolume(vol, vol) }
+    /** The player's music volume (Settings), 0 to 1, on top of each track's own level. */
+    var level = 1f
+        set(v) { field = v.coerceIn(0f, 1f); listOfNotNull(player, next).forEach { it.setVolume(vol * field, vol * field) } }
+
+    private fun make(res: Int) = ctx?.let { android.media.MediaPlayer.create(it, res) }?.apply { setVolume(vol * level, vol * level) }
 
     // isLooping seeks back to the start when the track ends, which leaves an audible gap on many phones. A second
     // player queued with setNextMediaPlayer starts the moment the first ends, so the (seamless) loop plays without one.

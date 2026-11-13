@@ -12,6 +12,10 @@ data class GlobalPlayer(val name: String, val xp: Int, val level: Int, val clean
 /** [total] is every ranked player, where [players] lists only the top of the board. */
 data class GlobalBoard(val players: List<GlobalPlayer>, val scores: List<ScoreEntry>, val total: Int = players.size)
 data class RunResult(val status: String, val score: Int, val xp: Int, val rank: Int)
+/** One row of an endless board: a player and the most cubes they cleared in one run. */
+data class EndlessEntry(val name: String, val level: Int, val cubes: Int)
+/** A ranked endless run's next cube: the server's run id, the lives carried in and the seconds bought. */
+class EndlessCube(val id: String, val lives: Int, val bonusSec: Int)
 
 /**
  * Client for the Cubit leaderboard (server/). Ranked runs are verified server-side: the app opens a run, records
@@ -48,16 +52,18 @@ object Net {
     }
 
     /** Opens a ranked run; registers this install first if it has no token yet. Done gets the run id. */
-    fun startRun(p: Prefs, spec: LevelSpec, campaignLevel: Int?, dailyDay: Int?, difficulty: String, fullClear: Boolean, week: Int? = null, done: (String?) -> Unit) {
+    fun startRun(p: Prefs, spec: LevelSpec, campaignLevel: Int?, dailyDay: Int?, difficulty: String, fullClear: Boolean, week: Int? = null,
+                 endless: EndlessCube? = null, done: (String?) -> Unit) {
         val name = p.name
         io.execute {
             val id = call {
                 val body = JSONObject().put("difficulty", difficulty).put("name", name).put("goal", if (fullClear) "all" else "pink")
-                if (week != null) body.put("mode", "weekly").put("week", week)
+                if (endless != null) body.put("mode", "endless").put("endless", endless.id).put("lives", endless.lives).put("bonusSec", endless.bonusSec)
+                else if (week != null) body.put("mode", "weekly").put("week", week)
                 else if (dailyDay != null) body.put("mode", "daily").put("day", dailyDay)
                 else if (campaignLevel != null) body.put("mode", "campaign").put("level", campaignLevel)
                 else body.put("mode", "free").put("n", spec.n).put("maxLen", spec.maxLen).put("seed", spec.seed)
-                if (spec.hasBombs) body.put("bombs", true) // the server only plays bombs on campaign and free cubes
+                if (spec.hasSpecial) body.put("special", true) // the server only plays special arrows where the app does
                 JSONObject(authed(p, "POST", "/v1/runs", body.toString())).getString("run")
             }
             main.post { done(id) }
@@ -74,6 +80,34 @@ object Net {
                 val o = JSONObject(authed(p, "POST", "/v1/runs/$run/finish", body))
                 RunResult(o.optString("status"), o.optInt("score"), o.optInt("xp"), o.optInt("rank"))
             }
+            main.post { done(r) }
+        }
+    }
+
+    /** Opens a ranked endless run (the day's shared one if [daily]). Done gets its id and seed. */
+    fun endlessStart(p: Prefs, daily: Boolean, done: (Pair<String, Long>?) -> Unit) = io.execute {
+        val r = call {
+            val o = JSONObject(authed(p, "POST", "/v1/endless", JSONObject().put("daily", daily).toString()))
+            o.getString("id") to o.getString("seed").toLong()
+        }
+        main.post { done(r) }
+    }
+
+    /** Endless board: everyone's best run, or one day's daily endless runs. */
+    fun endless(day: Int?, done: (List<EndlessEntry>?) -> Unit) = io.execute {
+        val r = call {
+            val a = JSONObject(request("GET", "/v1/endless" + (day?.let { "/$it" } ?: ""), null, null)).getJSONArray("players")
+            (0 until a.length()).map { a.getJSONObject(it) }.map { EndlessEntry(it.optString("name"), it.optInt("level"), it.optInt("cubes")) }
+        }
+        main.post { done(r) }
+    }
+
+    /** Turns this player's public page on (with what it shows) or off. Done gets whether it's on. */
+    fun setProfile(p: Prefs, public: Boolean, done: (Boolean?) -> Unit = {}) {
+        val body = JSONObject().put("public", public).put("badges", JSONArray(p.achievements.sorted())).put("streak", p.liveStreak(utcDay()))
+            .put("solved", p.solved).put("dailySolved", p.dailyDays.size + p.archiveDays.size).toString()
+        io.execute {
+            val r = call { JSONObject(authed(p, "POST", "/v1/me/profile", body)).getBoolean("public") }
             main.post { done(r) }
         }
     }
@@ -101,7 +135,7 @@ object Net {
         val r = call {
             val o = JSONObject(request("GET", "/v1/runs/$run/replay", null, null))
             val mv = o.getJSONArray("moves")
-            Triple(LevelSpec(o.getInt("n"), o.getInt("maxLen"), o.getLong("seed"), o.optBoolean("lap"), o.optBoolean("bombs")), (0 until mv.length()).map { val m = mv.getJSONArray(it); longArrayOf(m.getLong(0), m.getLong(1)) }, o.optBoolean("all"))
+            Triple(LevelSpec(o.getInt("n"), o.getInt("maxLen"), o.getLong("seed"), o.optBoolean("lap"), o.optBoolean("special")), (0 until mv.length()).map { val m = mv.getJSONArray(it); longArrayOf(m.getLong(0), m.getLong(1)) }, o.optBoolean("all"))
         }
         main.post { done(r) }
     }

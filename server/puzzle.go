@@ -110,14 +110,18 @@ type Puzzle struct {
 	paths [][]int
 	dirs  []int
 	lap   bool
-	bombs []bool // nil unless the spec asks for bombs
+	// Special arrows (nil unless the spec asks for them): bombs, locks (keys[a] must be gone first, -1 for none)
+	// and two-way arrows. See specialsFor.
+	bombs  []bool
+	keys   []int
+	twoWay []bool
 }
 
 type LevelSpec struct {
 	N, MaxLen int
 	Seed      int64
 	Lap       bool `json:",omitempty"` // Nightmare: arrows lap the whole cube before they leave
-	Bombs     bool `json:",omitempty"` // some arrows take their neighbours with them when they leave (see blast)
+	Special   bool `json:",omitempty"` // bombs, locked and two-way arrows (app 1.7+, see specialsFor)
 }
 
 // dailySpec mirrors dailySpec() in Puzzle.kt: one cube for everyone per UTC day (days since 1970).
@@ -173,24 +177,99 @@ func generate(spec LevelSpec) *Puzzle {
 			best, bestDepth = p, d
 		}
 	}
-	if spec.Bombs && !spec.Lap {
-		best.bombs = bombsFor(len(best.paths), spec.Seed)
+	if spec.Special && !spec.Lap {
+		best.bombs, best.keys, best.twoWay = specialsFor(len(best.paths), spec.Seed)
 	}
 	return best
 }
 
-// bombEvery: about one arrow in this many is a bomb. Mirrors BOMB_EVERY in Puzzle.kt.
-const bombEvery = 30
+// endlessSpec mirrors endlessSpec in Puzzle.kt: cube k (from 0) of an endless run.
+func endlessSpec(seed int64, k int) LevelSpec {
+	return LevelSpec{N: min(7+k, 14), MaxLen: min(5+k/2, 12), Seed: seed + int64(k)*7_777}
+}
 
-// bombsFor mirrors bombsFor in Puzzle.kt. Bombs come from their own RNG stream, after the cube is built, so a
-// spec with bombs has exactly the same arrows as one without. The pink arrow (0) is never a bomb.
-func bombsFor(n int, seed int64) []bool {
-	r := &Rng{uint64(seed ^ 0x426F6D62)}
-	b := make([]bool, n)
+// dailyEndlessSeed mirrors dailyEndlessSeed in Puzzle.kt.
+func dailyEndlessSeed(day int) int64 { return int64(day)*3_000_017 + 9 }
+
+// Mirror BOMB_EVERY, LOCK_EVERY and TWO_WAY_EVERY in Puzzle.kt.
+const (
+	bombEvery   = 30
+	lockEvery   = 40
+	twoWayEvery = 25
+)
+
+// specialsFor mirrors specialsFor in Puzzle.kt. Each kind has its own RNG stream and is laid on after the cube is
+// built, so special arrows never change the arrows themselves. The pink arrow (0) is never special. A lock's key is
+// placed later than the arrow it locks, so in the generator's reverse order the key goes first: still solvable.
+func specialsFor(n int, seed int64) (bombs []bool, keys []int, two []bool) {
+	rb := &Rng{uint64(seed ^ 0x426F6D62)}
+	bombs = make([]bool, n)
 	for i := 1; i < n; i++ {
-		b[i] = r.nextInt(bombEvery) == 0
+		bombs[i] = rb.nextInt(bombEvery) == 0
 	}
-	return b
+	rl := &Rng{uint64(seed ^ 0x4C6F636B)}
+	keys = make([]int, n)
+	for i := range keys {
+		keys[i] = -1
+	}
+	for i := 1; i < n-1; i++ {
+		if rl.nextInt(lockEvery) == 0 && !bombs[i] {
+			keys[i] = i + 1 + rl.nextInt(min(30, n-1-i))
+		}
+	}
+	rt := &Rng{uint64(seed ^ 0x54776F57)}
+	two = make([]bool, n)
+	for i := 1; i < n; i++ {
+		if rt.nextInt(twoWayEvery) == 0 && !bombs[i] && keys[i] < 0 {
+			two[i] = true
+		}
+	}
+	return
+}
+
+// tailExit mirrors Puzzle.tailExit: a two-way arrow's way out tail first, back against its body's first step.
+func (p *Puzzle) tailExit(a int) []int {
+	path := p.paths[a]
+	for _, d := range p.cube.tangents(path[0]) {
+		if p.cube.step(path[0], d)/8 == path[1] {
+			return p.cube.exit(path[0], opposite(d), p.lap)
+		}
+	}
+	return nil
+}
+
+// free mirrors Puzzle.way (as a yes/no): whether arrow a can leave the board occ, with removed arrows gone. Its
+// own cells never block it. The full-clear rule is the caller's.
+func (p *Puzzle) free(a int, occ []int, gone []bool) bool {
+	if p.keys != nil && p.keys[a] >= 0 && !gone[p.keys[a]] {
+		return false
+	}
+	clear := func(cells []int) bool {
+		for _, c := range cells {
+			if occ[c] >= 0 && occ[c] != a {
+				return false
+			}
+		}
+		return true
+	}
+	path := p.paths[a]
+	return clear(p.cube.exit(path[len(path)-1], p.dirs[a], p.lap)) || p.twoWay != nil && p.twoWay[a] && clear(p.tailExit(a))
+}
+
+// cleared mirrors Puzzle.cleared: a, then its blast, then the blasts of bombs caught in it, skipping gone arrows.
+// start is the untouched board.
+func (p *Puzzle) cleared(a int, start []int, gone []bool) []int {
+	out := []int{a}
+	seen := map[int]bool{a: true}
+	for i := 0; i < len(out); i++ {
+		for _, x := range p.blast(out[i], start) {
+			if !gone[x] && !seen[x] {
+				seen[x] = true
+				out = append(out, x)
+			}
+		}
+	}
+	return out
 }
 
 // blast mirrors Puzzle.blast in Puzzle.kt: the arrows bomb [a] takes with it when it leaves, every other arrow

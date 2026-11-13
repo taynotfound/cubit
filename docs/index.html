@@ -206,7 +206,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12M6 11l6 6 6-6M5 21h14"/></svg></a>
       </div>
       <p class="fine" style="margin-top:12px"><a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium%3A%2F%2Fapp%2F%257B%2522id%2522%253A%2522de.taymaerz.cubit%2522%252C%2522url%2522%253A%2522https%253A%252F%252Fgithub.com%252Ftaynotfound%252Fcubit%2522%252C%2522author%2522%253A%2522taynotfound%2522%252C%2522name%2522%253A%2522Cubit%2522%252C%2522additionalSettings%2522%253A%2522%257B%255C%2522apkFilterRegEx%255C%2522%253A%2520%255C%2522%255ECubit%255C%255C%255C%255C.apk%2524%255C%2522%257D%2522%257D">Get it on Obtainium</a> or <a href="https://f-droid.org/en/packages/de.taymaerz.cubit/">F-Droid</a> for automatic updates</p>
-      <p class="fine"><a class="ver" href="https://github.com/taynotfound/cubit/releases/latest">Version <span data-ver>1.6.0</span><span data-date></span></a> · free with no ads · under 1 MB · Android 7.0 or newer · <a href="#install">how to install</a></p>
+      <p class="fine"><a class="ver" href="https://github.com/taynotfound/cubit/releases/latest">Version <span data-ver>1.6.0</span><span data-date></span></a> · free with no ads · under 1 MB · Android 7.0 or newer · <a href="#install">how to install</a><span data-players hidden></span></p>
     </div>
 
     <div class="phones">
@@ -353,6 +353,7 @@
       <details><summary>Is the APK safe?</summary><p>You can read every line of the source on GitHub, each release is signed with the same key, and the release page lists the file's SHA-256 checksum so you can check what you downloaded.</p></details>
       <details><summary>Does it need the internet?</summary><p>Only for the optional global rankings. You choose on first launch, and everything else works offline. On GrapheneOS, allow Cubit's Network permission if you want rankings.</p></details>
       <details><summary>What does the leaderboard know about me?</summary><p>The name you pick, your XP, and your ranked runs, including the taps, so the server can check them. It stores no email or account, and the app runs no analytics.</p></details>
+      <details><summary>Do I need an account?</summary><p>No. There's nothing to sign up for. Rankings use a random code the app makes for itself, and the optional public profile hangs off your friend code: switch it on in Settings to get a page you can share, switch it off and it's gone. No email, no password.</p></details>
       <details><summary>How hard does it get?</summary><p>The first levels ease you in. After that the cubes grow and the pink arrow sits deeper each time. On Expert, one bump ends the level.</p></details>
     </div>
   </div>
@@ -369,7 +370,7 @@
       <a class="btn secondary" href="#clean">See Clean mode</a>
     </div>
     <p class="fine" style="margin-top:22px">Enjoying it? Cubit stays free with no ads. You can chip in on <a href="https://ko-fi.com/taygotkofi">Ko-fi</a> or <a href="https://github.com/sponsors/taynotfound">GitHub Sponsors</a>.</p>
-    <p class="fine">Version <span data-ver>1.6.0</span> · free with no ads · Android 7.0 or newer · <a href="https://github.com/taynotfound/cubit/releases/latest">what's new</a></p>
+    <p class="fine">Version <span data-ver>1.6.0</span> · free with no ads · Android 7.0 or newer<span data-players hidden></span> · <a href="https://github.com/taynotfound/cubit/releases/latest">what's new</a></p>
   </div>
 </section>
 
@@ -410,6 +411,12 @@ fetch("https://api.github.com/repos/taynotfound/cubit/releases/latest").then(r =
   document.querySelectorAll("[data-ver]").forEach(el => el.textContent = v);
   const d = new Date(rel.published_at);
   if (!isNaN(d)) document.querySelectorAll("[data-date]").forEach(el => el.textContent = " · " + d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }));
+}).catch(() => {});
+
+// How many people are on the board, from the leaderboard server; the page reads fine without it.
+fetch("https://cubit-lb-api.taymaerz.de/v1/stats").then(r => r.ok ? r.json() : null).then(st => {
+  if (!st || !(st.players > 0)) return;
+  document.querySelectorAll("[data-players]").forEach(el => { el.textContent = " · " + st.players.toLocaleString("en-GB") + " players on the board"; el.hidden = false; });
 }).catch(() => {});
 
 // "What's new" advertises the newest release that has headline features, so a bug-fix release doesn't hide them.

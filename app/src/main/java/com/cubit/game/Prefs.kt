@@ -34,7 +34,9 @@ enum class Powerup(val label: String, val glyph: Glyph, val code: Int, val blurb
 
 /** What a finished, won run looked like, for achievement checks. */
 class RunFacts(val diff: Difficulty, val perfect: Boolean, val cleared: Int, val ms: Long, val n: Int, val daily: Boolean, val usedPowerups: Boolean,
-               val atPar: Boolean = false, val weekly: Boolean = false)
+               val atPar: Boolean = false, val weekly: Boolean = false,
+               /** Most arrows one tap cleared through bombs, and most bombs in one chain. [endless]: cubes so far this endless run. */
+               val maxBlast: Int = 0, val maxChain: Int = 0, val endless: Int = 0)
 
 /** Colourways past the first six are earned: each one opens with a badge. */
 val THEME_UNLOCKS = mapOf(6 to Achievement.TEN, 7 to Achievement.PERFECT, 8 to Achievement.ARROWS_100, 9 to Achievement.DAILY, 10 to Achievement.PURIST, 11 to Achievement.PERFECT_EXPERT)
@@ -76,6 +78,11 @@ enum class Achievement(val title: String, val blurb: String, val check: (Prefs, 
     PAR("On par", "Win in the fewest taps possible.", { _, r -> r.atPar }),
     WEEKLY("Weekender", "Finish a weekly challenge.", { _, r -> r.weekly }),
     PACK("Collector", "Finish every level in a puzzle pack.", { p, _ -> PACKS.any { p.packSolved(it) >= it.levels.size } }),
+    // Badges are stored by name, so new ones go at the end and old names never change.
+    DEMOLITION("Demolition", "Clear 10 arrows with one bomb.", { _, r -> r.maxBlast >= 10 }),
+    CHAIN("Chain reaction", "Set off 3 bombs in one chain.", { _, r -> r.maxChain >= 3 }),
+    ENDLESS_10("End of the line", "Clear 10 cubes in one endless run.", { _, r -> r.endless >= 10 }),
+    FULL_MONTH("Every day this month", "Solve every daily cube of a month, on the day or from the archive.", { p, _ -> p.fullMonth() }),
 }
 
 class Theme(
@@ -172,6 +179,64 @@ class Prefs(ctx: Context) {
     var archiveDays: Set<Int>
         get() = (sp.getStringSet("archiveDays", null) ?: emptySet()).mapNotNull { it.toIntOrNull() }.toSet()
         set(v) = sp.edit().putStringSet("archiveDays", v.sortedDescending().take(400).map { "$it" }.toHashSet()).apply()
+    /** Best daily endless run, and the day it was on (only today's counts as "today's best"). */
+    var dailyEndlessBest: Int get() = sp.getInt("dEndBest", 0); set(v) = sp.edit().putInt("dEndBest", v).apply()
+    var dailyEndlessDay: Int get() = sp.getInt("dEndDay", -1); set(v) = sp.edit().putInt("dEndDay", v).apply()
+    /** Music loudness, 0 to 100. */
+    var musicVolume: Int get() = sp.getInt("musicVol", 100); set(v) = sp.edit().putInt("musicVol", v.coerceIn(0, 100)).apply()
+    /** Opt-in public profile page, tied to the friend code. */
+    var publicProfile: Boolean get() = sp.getBoolean("public", false); set(v) = sp.edit().putBoolean("public", v).apply()
+
+    /** True once every daily cube of some whole month (since the first daily) is solved, on the day or later. */
+    fun fullMonth(): Boolean {
+        val done = dailyDays + archiveDays
+        val cal = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"))
+        cal.timeInMillis = FIRST_DAILY * 86_400_000L
+        val today = utcDay()
+        while (true) {
+            cal.set(java.util.Calendar.DAY_OF_MONTH, 1)
+            val first = (cal.timeInMillis / 86_400_000L).toInt()
+            val last = first + cal.getActualMaximum(java.util.Calendar.DAY_OF_MONTH) - 1
+            if (last > today) return false
+            if ((maxOf(first, FIRST_DAILY)..last).all { it in done } && first >= FIRST_DAILY) return true
+            cal.add(java.util.Calendar.MONTH, 1)
+        }
+    }
+
+    /**
+     * Everything on this phone as one code, for moving to a new phone: every setting, all progress, and the rankings
+     * token (so the board still knows you). Gzipped JSON in URL-safe base64.
+     */
+    fun backup(): String {
+        val o = JSONObject()
+        for ((k, v) in sp.all) o.put(k, when (v) {
+            is String -> JSONArray().put("s").put(v); is Int -> JSONArray().put("i").put(v); is Long -> JSONArray().put("l").put(v)
+            is Boolean -> JSONArray().put("b").put(v); is Float -> JSONArray().put("f").put(v.toDouble())
+            is Set<*> -> JSONArray().put("set").put(JSONArray(v.map { it.toString() })); else -> continue
+        })
+        val bytes = java.io.ByteArrayOutputStream().also { b -> java.util.zip.GZIPOutputStream(b).use { it.write(o.toString().toByteArray()) } }.toByteArray()
+        return "CUBIT1:" + android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP or android.util.Base64.URL_SAFE)
+    }
+
+    /** Replaces everything with a [backup]. False (and nothing changed) if the code doesn't read. */
+    fun restore(code: String): Boolean {
+        val o = runCatching {
+            val raw = android.util.Base64.decode(code.trim().removePrefix("CUBIT1:"), android.util.Base64.NO_WRAP or android.util.Base64.URL_SAFE)
+            JSONObject(java.util.zip.GZIPInputStream(raw.inputStream()).use { String(it.readBytes()) })
+        }.getOrNull() ?: return false
+        if (!code.trim().startsWith("CUBIT1:")) return false
+        val e = sp.edit().clear()
+        for (k in o.keys()) {
+            val a = o.optJSONArray(k) ?: continue
+            when (a.optString(0)) {
+                "s" -> e.putString(k, a.getString(1)); "i" -> e.putInt(k, a.getInt(1)); "l" -> e.putLong(k, a.getLong(1))
+                "b" -> e.putBoolean(k, a.getBoolean(1)); "f" -> e.putFloat(k, a.getDouble(1).toFloat())
+                "set" -> e.putStringSet(k, a.getJSONArray(1).let { s -> (0 until s.length()).map { s.getString(it) }.toHashSet() })
+            }
+        }
+        return e.commit()
+    }
+
     /** The first bomb arrow explains itself once. */
     var bombSeen: Boolean get() = sp.getBoolean("bombSeen", false); set(v) = sp.edit().putBoolean("bombSeen", v).apply()
     var summarySeen: Int get() = sp.getInt("summarySeen", -1); set(v) = sp.edit().putInt("summarySeen", v).apply()
@@ -258,7 +323,7 @@ class Prefs(ctx: Context) {
         all.forEach {
             arr.put(JSONObject().put("n", it.name).put("s", it.score).put("l", it.label).put("d", it.difficulty).put("t", it.time)
                 .put("a", it.arrows).put("ms", it.ms).put("m", it.mistakes).put("z", it.size).put("p", JSONArray(it.powerups)).put("lv", it.playerLevel)
-                .apply { it.spec?.let { s -> put("sn", s.n).put("sl", s.maxLen).put("ss", s.seed).put("sp", s.lap).put("sb", s.bombs) } }
+                .apply { it.spec?.let { s -> put("sn", s.n).put("sl", s.maxLen).put("ss", s.seed).put("sp", s.lap).put("sb", s.special) } }
                 .put("mv", JSONArray().apply { it.moves.forEach { m -> put(JSONArray().put(m[0]).put(m[1])) } }))
         }
         sp.edit().putString("scores", arr.toString()).apply()
@@ -268,7 +333,7 @@ class Prefs(ctx: Context) {
     fun resetProgress() = sp.edit().remove("level").remove("xp").remove("hints").remove("scores").remove("solved")
         .remove("dailyDone").remove("dailyStreak").remove("totalArrows").remove("noPuStreak").remove("cleanSolved").remove("ach")
         .remove("weeklyDone").remove("parWins").remove("freezes").remove("dailyBest").remove("dailyBestDay").remove("dailyDays").remove("stats")
-        .remove("endlessBest").remove("archiveDays")
+        .remove("endlessBest").remove("archiveDays").remove("dEndBest").remove("dEndDay")
         .apply { allPacks().forEach { remove("pack_" + it.name) } }.apply()
 }
 

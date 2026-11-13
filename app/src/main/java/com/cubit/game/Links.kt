@@ -13,18 +13,20 @@ class Challenge(val spec: LevelSpec, val full: Boolean, val mode: Difficulty, va
  */
 object Links {
     const val WEB = "https://taynotfound.github.io/cubit/open.html"
+    /** Public profile pages (docs/u.html), by friend code. */
+    const val PROFILE = "https://taynotfound.github.io/cubit/u.html"
     private fun enc(s: String) = URLEncoder.encode(s, "UTF-8").replace("+", "%20")
 
     fun challengePayload(c: Challenge): String {
         var prev = 0L
         val mv = c.moves.joinToString("~") { m -> val d = m[1] - prev; prev = m[1]; "${m[0].toString(36)}.${d.toString(36)}" }
-        return listOf(if (c.spec.bombs) "2" else "1", c.spec.n, c.spec.maxLen, c.spec.seed.toString(36), if (c.full) 1 else 0, c.mode.ordinal, mv, enc(c.name)).joinToString("_")
+        return listOf(if (c.spec.special) "2" else "1", c.spec.n, c.spec.maxLen, c.spec.seed.toString(36), if (c.full) 1 else 0, c.mode.ordinal, mv, enc(c.name)).joinToString("_")
     }
 
     fun parseChallenge(p: String): Challenge? = runCatching {
         val f = p.split("_", limit = 8)
         if (f.size != 8 || f[0] !in setOf("1", "2")) return null
-        val spec = LevelSpec(f[1].toInt(), f[2].toInt(), f[3].toLong(36), bombs = f[0] == "2") // "1": from before bombs
+        val spec = LevelSpec(f[1].toInt(), f[2].toInt(), f[3].toLong(36), special = f[0] == "2") // "1": from before bombs
         val mode = Difficulty.entries[f[5].toInt()]
         if (spec.n !in 2..18 || spec.maxLen !in 2..24) return null
         var t = 0L

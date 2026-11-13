@@ -29,11 +29,11 @@ class LinksTest {
         assertNull(Links.parseChallenge("3_5_5_a_0_1_1.a_X")) // unknown version
     }
 
-    @Test fun linksFromBeforeBombsStayBombFree() {
+    @Test fun linksFromBeforeSpecialsStayPlain() {
         // A 1.6 link to a 12×12 cube: its ghost was recorded without bombs, so it must replay without them.
-        assertEquals(false, Links.parseChallenge("1_12_10_a_0_1_1.a_X")!!.spec.bombs)
+        assertEquals(false, Links.parseChallenge("1_12_10_a_0_1_1.a_X")!!.spec.special)
         val now = Challenge(LevelSpec(12, 10, 77), false, Difficulty.NORMAL, "X", listOf(longArrayOf(0, 900)))
-        assertEquals(true, Links.parseChallenge(decoded(Links.challengePayload(now)))!!.spec.bombs)
+        assertEquals(true, Links.parseChallenge(decoded(Links.challengePayload(now)))!!.spec.special)
     }
 
     @Test fun packRoundTrips() {

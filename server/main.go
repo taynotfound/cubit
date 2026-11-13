@@ -35,6 +35,10 @@ type Run struct {
 	Day                     int  // daily cube runs only
 	Week                    int  // weekly challenge runs only
 	Started                 time.Time
+	Endless                 string // endless run id, for mode "endless"
+	K                       int    // which cube of the endless run (from 0)
+	Lives                   int    // endless: lives carried in from the last cube (0: the mode's own)
+	BonusSec                int    // endless: seconds bought between cubes
 }
 
 type App struct {
@@ -155,6 +159,9 @@ func (a *App) wrap(h http.Handler) http.Handler {
 		hd.Set("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'")
 		hd.Set("Strict-Transport-Security", "max-age=31536000")
 		hd.Set("Cache-Control", "no-store")
+		if r.Method == http.MethodGet && !strings.HasPrefix(r.URL.Path, "/v1/admin") {
+			hd.Set("Access-Control-Allow-Origin", "*") // public read-only data, for the website (player count, profiles)
+		}
 		defer func() {
 			if p := recover(); p != nil {
 				log.Printf("panic on %s %s: %v", r.Method, r.URL.Path, p)
@@ -217,7 +224,9 @@ func (a *App) startRun(w http.ResponseWriter, r *http.Request) {
 		Level, N, MaxLen, Day  int
 		Week                   int
 		Seed                   int64
-		Bombs                  bool // app 1.7+: bomb arrows on campaign and free cubes; older apps never send it
+		Special                bool // app 1.7+: special arrows on campaign, free and endless cubes; older apps never send it
+		Endless                string
+		Lives, BonusSec        int
 	}
 	if !decode(w, r, 1024, &b) {
 		return
@@ -255,6 +264,26 @@ func (a *App) startRun(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		run.Spec, run.Free, run.Label = LevelSpec{N: b.N, MaxLen: b.MaxLen, Seed: b.Seed}, true, fmt.Sprintf("Free %d×%d", b.N, b.N)
+	case "endless":
+		a.store.mu.Lock()
+		e := a.store.db.Endless[b.Endless]
+		var spec LevelSpec
+		k := 0
+		if e != nil && e.Device == dev {
+			k, spec = e.Cleared, endlessSpec(e.Seed, e.Cleared)
+		}
+		a.store.mu.Unlock()
+		if e == nil || e.Device != dev {
+			fail(w, http.StatusNotFound, "endless run not found")
+			return
+		}
+		// Lives carry over and one can be bought per cleared cube, as can 15 seconds: never more than that.
+		run.Spec, run.Free, run.Endless, run.K = spec, true, b.Endless, k
+		run.Lives, run.BonusSec = max(0, min(b.Lives, difficulties[b.Difficulty].Lives+k)), max(0, min(b.BonusSec, 15*k))
+		run.Label = fmt.Sprintf("Endless cube %d", k+1)
+		if e.Day > 0 {
+			run.Label = "Daily endless · cube " + strconv.Itoa(k+1)
+		}
 	default:
 		fail(w, http.StatusBadRequest, "unknown mode")
 		return
@@ -262,7 +291,7 @@ func (a *App) startRun(w http.ResponseWriter, r *http.Request) {
 	// Nightmare is played on a lap cube: same spec, but every arrow has to clear a full lap round the cube.
 	run.Spec.Lap = difficulties[b.Difficulty].Nightmare
 	// Bombs only where the app plays them: not on the shared daily and weekly cubes, nor Nightmare's lap cubes.
-	run.Spec.Bombs = b.Bombs && !run.Spec.Lap && (b.Mode == "campaign" || b.Mode == "free")
+	run.Spec.Special = b.Special && !run.Spec.Lap && (b.Mode == "campaign" || b.Mode == "free" || b.Mode == "endless")
 	switch b.Goal {
 	case "", "pink":
 	case "all":
@@ -332,6 +361,9 @@ func (a *App) finishRun(w http.ResponseWriter, r *http.Request) {
 		moves[i] = Move{int(m[0]), m[1]}
 	}
 	diff := difficulties[run.Diff]
+	if run.Lives > 0 && diff.Lives > 0 {
+		diff.Lives = run.Lives
+	}
 	p := generate(run.Spec)
 	rep, err := replay(p, diff, moves, run.All)
 	if err != nil {
@@ -341,7 +373,7 @@ func (a *App) finishRun(w http.ResponseWriter, r *http.Request) {
 	}
 	limit := diff.timeLimitSec(len(p.paths))
 	if limit > 0 {
-		limit += rep.Freezes * freezeSec
+		limit += rep.Freezes*freezeSec + run.BonusSec
 	}
 	sc, xp := score(rep, run.Spec, diff, run.Free, limit, serverMs)
 	entry := Score{RunID: run.ID, Device: dev, Score: sc, XP: xp, Label: run.Label, Difficulty: run.Diff, Arrows: rep.Cleared, Ms: rep.LastMs, Time: a.now().UnixMilli(),
@@ -360,6 +392,9 @@ func (a *App) finishRun(w http.ResponseWriter, r *http.Request) {
 	}
 	a.store.mu.Lock()
 	d.credit(entry)
+	if run.Endless != "" {
+		a.store.endlessCleared(run.Endless, run.K, d, dev, a.now().Unix())
+	}
 	rank := a.store.addScore(entry)
 	total := d.XP
 	a.store.mu.Unlock()
@@ -531,7 +566,7 @@ func (a *App) routes() http.Handler {
 			return
 		}
 		a.store.mu.Lock()
-		out := map[string]any{"code": d.Code, "name": d.Name, "xp": d.XP, "level": playerLevel(d.XP)}
+		out := map[string]any{"code": d.Code, "name": d.Name, "xp": d.XP, "level": playerLevel(d.XP), "public": d.Profile != nil && d.Profile.Public}
 		a.store.mu.Unlock()
 		send(w, 200, out)
 	})
@@ -548,6 +583,23 @@ func (a *App) routes() http.Handler {
 		}
 		w.Header().Set("Cache-Control", "public, max-age=10")
 		send(w, 200, map[string]any{"friends": a.store.friends(codes)})
+	})
+	m.HandleFunc("GET /v1/stats", a.stats)
+	m.HandleFunc("GET /v1/profile/{code}", a.profile)
+	m.HandleFunc("POST /v1/me/profile", a.setProfile)
+	m.HandleFunc("POST /v1/endless", a.startEndless)
+	m.HandleFunc("GET /v1/endless", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "public, max-age=10")
+		send(w, 200, map[string]any{"players": a.store.endlessBoard(0)})
+	})
+	m.HandleFunc("GET /v1/endless/{day}", func(w http.ResponseWriter, r *http.Request) {
+		day, err := strconv.Atoi(r.PathValue("day"))
+		if err != nil || day < 1 || day > 1_000_000 {
+			fail(w, http.StatusBadRequest, "bad day")
+			return
+		}
+		w.Header().Set("Cache-Control", "public, max-age=10")
+		send(w, 200, map[string]any{"day": day, "players": a.store.endlessBoard(day)})
 	})
 	m.HandleFunc("POST /v1/register", a.register)
 	m.HandleFunc("POST /v1/runs", a.startRun)
@@ -586,6 +638,7 @@ func (a *App) janitor() {
 			}
 		}
 		a.mu.Unlock()
+		a.store.pruneEndless(a.now().Unix())
 	}
 }
 

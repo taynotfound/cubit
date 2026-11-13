@@ -26,6 +26,18 @@ The token is in `admin.token`, created with 0600 permissions on first start. Sen
 
 `GET /v1/leaderboard` lists the top 50 and gives the number of ranked players as `total`.
 
+Public, read-only and open to other sites (CORS), for the website:
+
+| Endpoint | |
+|---|---|
+| `GET /v1/stats` | `players` (has a verified run) and `registered` |
+| `GET /v1/profile/{code}` | An opt-in public profile by friend code; 404 unless the player switched it on |
+| `GET /v1/endless`, `GET /v1/endless/{day}` | Best endless runs, and one day's daily endless runs |
+
+Endless runs: `POST /v1/endless` (`{"daily":true}` for the day's shared seed) returns an id and seed; each cube is then a
+ranked run with `"mode":"endless"`, and the server counts a cube only once it verifies. `POST /v1/me/profile` turns the
+caller's public page on or off.
+
 ## Names
 Names with slurs or the worst abuse are refused (`names.go`): a new player registers as "Player", a rename is ignored, and names already in the database are reset to "Player" when the server starts. The list is short on purpose. For anything it misses, rename or ban the player with the endpoint above, and add the word to the list.
 

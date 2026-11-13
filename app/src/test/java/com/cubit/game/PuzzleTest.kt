@@ -92,47 +92,83 @@ class NightmareGoldenTest {
     }
 }
 
-/** Bomb arrows and what each one blasts, hashed; TestBombsMatchApp in server/puzzle_test.go pins the same values. */
-fun bombPrint(p: Puzzle): Long {
+/** Special arrows hashed: each bomb and what it blasts, each lock and its key, each two-way arrow and its tail's way
+ *  out. TestSpecialsMatchApp in server/puzzle_test.go pins the same values. */
+fun specialPrint(p: Puzzle): Long {
     var h = -3750763034362895579L
     fun mix(v: Long) { h = (h xor v) * 1099511628211L }
-    p.paths.indices.filter { p.bombs[it] }.forEach { a -> mix(a.toLong()); p.blast(a).sorted().forEach { mix(10_000L + it) } }
+    for (a in p.paths.indices) {
+        if (p.bombs[a]) { mix(a.toLong()); p.blast(a).sorted().forEach { mix(10_000L + it) } }
+        if (p.keys[a] >= 0) { mix(20_000L + a); mix(30_000L + p.keys[a]) }
+        if (p.twoWay[a]) { mix(40_000L + a); p.tailExit(a).forEach { mix(50_000L + it) } }
+    }
     return h
 }
 
-class BombTest {
-    private val specs = listOf(specForLevel(4), specForLevel(30), LevelSpec(14, 20, -987654321))
+class SpecialTest {
+    private val specs = listOf(specForLevel(4), specForLevel(30), LevelSpec(14, 20, -987654321), endlessSpec(dailyEndlessSeed(20800), 6))
 
-    @Test fun bombsMatchServer() {
-        val expected = listOf(3104308799670819663L, -2661303133342797834L, 6122402782112281754L)
-        assertEquals(expected, specs.map { bombPrint(generate(it)) })
+    @Test fun specialsMatchServer() {
+        val expected = listOf(7161757959314111960L, -5848080600933065072L, 8421851543497214288L, 3947938222237347106L)
+        assertEquals(expected, specs.map { specialPrint(generate(it)) })
     }
 
-    @Test fun bombsLeaveTheArrowsAlone() {
-        for (s in specs) {
-            val with = generate(s); val without = generate(s.copy(bombs = false))
+    @Test fun specialsLeaveTheArrowsAlone() {
+        for (s in specs.take(3)) {
+            val with = generate(s); val without = generate(s.copy(special = false))
             assertEquals(fingerprint(without), fingerprint(with))
-            assertTrue("no bombs on ${s}", with.bombs.count { it } > 0)
-            assertTrue(without.bombs.none { it })
+            assertTrue("no bombs on $s", with.bombs.count { it } > 0)
+            assertTrue("no locks on $s", with.keys.count { it >= 0 } > 0)
+            assertTrue("no two-way arrows on $s", with.twoWay.count { it } > 0)
+            assertTrue(without.bombs.none { it } && without.keys.all { it < 0 } && without.twoWay.none { it })
+            for (a in with.paths.indices) if (with.keys[a] >= 0) assertTrue(with.keys[a] > a && with.keys[a] < with.paths.size)
+            assertTrue(!with.bombs[0] && with.keys[0] < 0 && !with.twoWay[0])
         }
         assertTrue(generate(dailySpec(20394)).bombs.none { it })
-        assertTrue(generate(specForLevel(30).copy(lap = true)).bombs.none { it })
-        assertTrue(!specForLevel(1).bombs) // 10×10: the first levels have none
+        assertTrue(generate(specForLevel(30).copy(lap = true)).keys.all { it < 0 })
+        assertTrue(!specForLevel(1).special) // 10×10: the first levels have none
     }
 
-    @Test fun blastsSparePinkAndKeepTheCubeSolvable() {
-        for (s in specs) {
-            val p = generate(s)
-            val occ = IntArray(p.cube.size) { -1 }
-            p.paths.forEachIndexed { i, path -> path.forEach { occ[it] = i } }
-            for (a in p.paths.indices) assertTrue(p.target !in p.blast(a) && a !in p.blast(a))
-            // Greedy, bombs first: blasts only ever take arrows away, so the cube must still clear.
-            val left = p.paths.indices.toMutableSet()
-            while (left.isNotEmpty()) {
-                val free = left.filter { a -> p.exit(a).all { occ[it] < 0 || occ[it] == a } }.maxByOrNull { if (p.bombs[it]) 1 else 0 }
-                assertTrue("stuck with ${left.size} left", free != null)
-                (listOf(free!!) + p.blast(free).filter { it in left }).forEach { b -> p.paths[b].forEach { occ[it] = -1 }; left.remove(b) }
-            }
+    /** Plays a cube out greedily under the full rules (locks, two-way, chain reactions) and returns the taps. */
+    private fun playOut(p: Puzzle, preferBombs: Boolean): List<Int> {
+        val occ = IntArray(p.cube.size) { -1 }
+        p.paths.forEachIndexed { i, path -> path.forEach { occ[it] = i } }
+        val gone = BooleanArray(p.paths.size); val taps = ArrayList<Int>()
+        while (!gone.all { it }) {
+            val free = p.paths.indices.filter { !gone[it] && p.way(it, occ, gone) != Puzzle.STUCK }
+            assertTrue("stuck with ${gone.count { !it }} left", free.isNotEmpty())
+            val a = if (preferBombs) free.maxBy { if (p.bombs[it]) 1 else 0 } else free.first()
+            taps.add(a)
+            for (b in p.cleared(a, gone)) { p.paths[b].forEach { occ[it] = -1 }; gone[b] = true }
         }
+        return taps
+    }
+
+    @Test fun cubesWithSpecialsStaySolvable() {
+        for (s in specs) for (prefer in listOf(true, false)) {
+            val p = generate(s)
+            for (a in p.paths.indices) assertTrue(p.target !in p.blast(a) && a !in p.blast(a))
+            val taps = playOut(p, prefer)
+            if (prefer) assertTrue("bombs cleared nothing extra on $s", taps.size < p.paths.size)
+        }
+    }
+
+    @Test fun chainReactionsSpread() {
+        // Find a cube where one bomb's blast catches another: the chain must take that one's blast too.
+        val p = (1..400).asSequence().map { generate(LevelSpec(16, 8, it * 31L)) }.first { q -> q.paths.indices.any { b -> q.bombs[b] && q.blast(b).any { q.bombs[it] } } }
+        val gone = BooleanArray(p.paths.size)
+        val a = p.paths.indices.first { b -> p.bombs[b] && p.blast(b).any { p.bombs[it] } }
+        val chained = p.blast(a).first { p.bombs[it] }
+        assertTrue(p.cleared(a, gone).toSet().containsAll(p.blast(chained).toList()))
+    }
+
+    @Test fun lockedArrowsWaitForTheirKey() {
+        val p = generate(specForLevel(30))
+        val occ = IntArray(p.cube.size) { -1 }
+        val gone = BooleanArray(p.paths.size)
+        val a = p.keys.indexOfFirst { it >= 0 }
+        assertEquals(Puzzle.STUCK, p.way(a, occ, gone)) // an empty board, but the key is still there
+        gone[p.keys[a]] = true
+        assertEquals(Puzzle.HEAD, p.way(a, occ, gone))
     }
 }

@@ -141,14 +141,7 @@ func replay(p *Puzzle, d Difficulty, moves []Move, all bool) (Replay, error) {
 		if removed[m.Arrow] {
 			return r, fmt.Errorf("move %d: arrow %d already gone", i, m.Arrow)
 		}
-		path := p.paths[m.Arrow]
-		blocked := all && m.Arrow == 0 && r.Cleared < n-1 // full clear: the pink arrow leaves last, early taps bump
-		for _, c := range p.cube.exit(path[len(path)-1], p.dirs[m.Arrow], p.lap) {
-			if occ[c] >= 0 && occ[c] != m.Arrow {
-				blocked = true
-				break
-			}
-		}
+		blocked := all && m.Arrow == 0 && r.Cleared < n-1 || !p.free(m.Arrow, occ, removed) // full clear: pink leaves last
 		if blocked {
 			if shield {
 				shield = false
@@ -160,12 +153,7 @@ func replay(p *Puzzle, d Difficulty, moves []Move, all bool) (Replay, error) {
 			}
 			continue
 		}
-		group := []int{m.Arrow}
-		for _, b := range p.blast(m.Arrow, start) {
-			if !removed[b] {
-				group = append(group, b)
-			}
-		}
+		group := p.cleared(m.Arrow, start, removed)
 		for _, a := range group {
 			removed[a] = true
 			r.Cleared++

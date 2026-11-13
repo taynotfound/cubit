@@ -22,6 +22,9 @@ type Device struct {
 	Runs      int    `json:"runs"`
 	CleanRuns int    `json:"cleanRuns,omitempty"`
 	Code      string `json:"code,omitempty"` // public friend code: 8 hex digits, upper case
+	// EndlessBest is the most cubes in one (non-daily) endless run, counted by the server.
+	EndlessBest int      `json:"endlessBest,omitempty"`
+	Profile     *Profile `json:"profile,omitempty"` // opt-in public page; nil when off
 }
 
 // credit books a verified run to its player. Call with the store's mu held.
@@ -62,6 +65,9 @@ type DB struct {
 	Devices map[string]*Device `json:"devices"`
 	Scores  []Score            `json:"scores"` // sorted by score, best first
 	Held    []Held             `json:"held"`
+	// Open endless runs by id, and each player's best daily endless run per day.
+	Endless      map[string]*EndlessRun `json:"endless,omitempty"`
+	EndlessDaily []EndlessScore         `json:"endlessDaily,omitempty"`
 }
 
 const maxScores = 5000
@@ -329,7 +335,7 @@ func (s *Store) replayOf(run string) map[string]any {
 		if d := s.db.Devices[sc.Device]; d == nil || d.Banned || sc.Moves == nil {
 			return nil
 		}
-		return map[string]any{"n": sc.Spec.N, "maxLen": sc.Spec.MaxLen, "seed": sc.Spec.Seed, "lap": sc.Spec.Lap, "bombs": sc.Spec.Bombs, "moves": sc.Moves,
+		return map[string]any{"n": sc.Spec.N, "maxLen": sc.Spec.MaxLen, "seed": sc.Spec.Seed, "lap": sc.Spec.Lap, "special": sc.Spec.Special, "moves": sc.Moves,
 			"all": strings.HasSuffix(sc.Label, "· full clear")} // full clear: the pink arrow leaves last
 	}
 	return nil
