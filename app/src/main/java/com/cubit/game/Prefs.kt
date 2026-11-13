@@ -166,6 +166,14 @@ class Prefs(ctx: Context) {
     /** Evening reminder while a daily streak is alive and today's cube isn't done. Opt-in. */
     var streakReminder: Boolean get() = sp.getBoolean("remind", false); set(v) = sp.edit().putBoolean("remind", v).apply()
     /** Day whose "yesterday's cube" card was already shown or dismissed. */
+    /** Most cubes cleared in one endless run. */
+    var endlessBest: Int get() = sp.getInt("endlessBest", 0); set(v) = sp.edit().putInt("endlessBest", v).apply()
+    /** Past daily cubes solved from the archive (they don't count toward the streak). */
+    var archiveDays: Set<Int>
+        get() = (sp.getStringSet("archiveDays", null) ?: emptySet()).mapNotNull { it.toIntOrNull() }.toSet()
+        set(v) = sp.edit().putStringSet("archiveDays", v.sortedDescending().take(400).map { "$it" }.toHashSet()).apply()
+    /** The first bomb arrow explains itself once. */
+    var bombSeen: Boolean get() = sp.getBoolean("bombSeen", false); set(v) = sp.edit().putBoolean("bombSeen", v).apply()
     var summarySeen: Int get() = sp.getInt("summarySeen", -1); set(v) = sp.edit().putInt("summarySeen", v).apply()
     fun packSolved(p: Pack) = sp.getInt("pack_" + p.name, 0)
     fun setPackSolved(p: Pack, n: Int) = sp.edit().putInt("pack_" + p.name, n).apply()
@@ -238,7 +246,7 @@ class Prefs(ctx: Context) {
             val pu = o.optJSONArray("p") ?: JSONArray()
             ScoreEntry(o.optString("n"), o.optInt("s"), o.optString("l"), o.optString("d"), o.optLong("t"),
                 o.optInt("a"), o.optLong("ms"), o.optInt("m"), o.optInt("z"), (0 until pu.length()).map { pu.getString(it) }, o.optInt("lv"),
-                spec = if (o.has("sn")) LevelSpec(o.getInt("sn"), o.getInt("sl"), o.getLong("ss"), o.optBoolean("sp")) else null,
+                spec = if (o.has("sn")) LevelSpec(o.getInt("sn"), o.getInt("sl"), o.getLong("ss"), o.optBoolean("sp"), o.optBoolean("sb")) else null,
                 moves = o.optJSONArray("mv")?.let { mv -> (0 until mv.length()).map { val m = mv.getJSONArray(it); longArrayOf(m.getLong(0), m.getLong(1)) } } ?: emptyList())
         }
     }
@@ -250,7 +258,7 @@ class Prefs(ctx: Context) {
         all.forEach {
             arr.put(JSONObject().put("n", it.name).put("s", it.score).put("l", it.label).put("d", it.difficulty).put("t", it.time)
                 .put("a", it.arrows).put("ms", it.ms).put("m", it.mistakes).put("z", it.size).put("p", JSONArray(it.powerups)).put("lv", it.playerLevel)
-                .apply { it.spec?.let { s -> put("sn", s.n).put("sl", s.maxLen).put("ss", s.seed).put("sp", s.lap) } }
+                .apply { it.spec?.let { s -> put("sn", s.n).put("sl", s.maxLen).put("ss", s.seed).put("sp", s.lap).put("sb", s.bombs) } }
                 .put("mv", JSONArray().apply { it.moves.forEach { m -> put(JSONArray().put(m[0]).put(m[1])) } }))
         }
         sp.edit().putString("scores", arr.toString()).apply()
@@ -260,6 +268,7 @@ class Prefs(ctx: Context) {
     fun resetProgress() = sp.edit().remove("level").remove("xp").remove("hints").remove("scores").remove("solved")
         .remove("dailyDone").remove("dailyStreak").remove("totalArrows").remove("noPuStreak").remove("cleanSolved").remove("ach")
         .remove("weeklyDone").remove("parWins").remove("freezes").remove("dailyBest").remove("dailyBestDay").remove("dailyDays").remove("stats")
+        .remove("endlessBest").remove("archiveDays")
         .apply { allPacks().forEach { remove("pack_" + it.name) } }.apply()
 }
 

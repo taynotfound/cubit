@@ -110,12 +110,14 @@ type Puzzle struct {
 	paths [][]int
 	dirs  []int
 	lap   bool
+	bombs []bool // nil unless the spec asks for bombs
 }
 
 type LevelSpec struct {
 	N, MaxLen int
 	Seed      int64
 	Lap       bool `json:",omitempty"` // Nightmare: arrows lap the whole cube before they leave
+	Bombs     bool `json:",omitempty"` // some arrows take their neighbours with them when they leave (see blast)
 }
 
 // dailySpec mirrors dailySpec() in Puzzle.kt: one cube for everyone per UTC day (days since 1970).
@@ -166,12 +168,48 @@ func generate(spec LevelSpec) *Puzzle {
 		return len(p.paths) * (10 + max(0, spec.MaxLen-8)) / 80
 	}
 	for k := int64(1); bestDepth < need(best) && k <= 10; k++ {
-		p := build(LevelSpec{spec.N, spec.MaxLen, spec.Seed + k*1_000_003, spec.Lap})
+		p := build(LevelSpec{N: spec.N, MaxLen: spec.MaxLen, Seed: spec.Seed + k*1_000_003, Lap: spec.Lap})
 		if d := mustClear(p); d > bestDepth {
 			best, bestDepth = p, d
 		}
 	}
+	if spec.Bombs && !spec.Lap {
+		best.bombs = bombsFor(len(best.paths), spec.Seed)
+	}
 	return best
+}
+
+// bombEvery: about one arrow in this many is a bomb. Mirrors BOMB_EVERY in Puzzle.kt.
+const bombEvery = 30
+
+// bombsFor mirrors bombsFor in Puzzle.kt. Bombs come from their own RNG stream, after the cube is built, so a
+// spec with bombs has exactly the same arrows as one without. The pink arrow (0) is never a bomb.
+func bombsFor(n int, seed int64) []bool {
+	r := &Rng{uint64(seed ^ 0x426F6D62)}
+	b := make([]bool, n)
+	for i := 1; i < n; i++ {
+		b[i] = r.nextInt(bombEvery) == 0
+	}
+	return b
+}
+
+// blast mirrors Puzzle.blast in Puzzle.kt: the arrows bomb [a] takes with it when it leaves, every other arrow
+// with a cell next to one of its cells, never the pink one. occ is the starting board (no arrows removed).
+func (p *Puzzle) blast(a int, occ []int) []int {
+	if p.bombs == nil || !p.bombs[a] {
+		return nil
+	}
+	seen := map[int]bool{}
+	var out []int
+	for _, c := range p.paths[a] {
+		for _, d := range p.cube.tangents(c) {
+			if b := occ[p.cube.step(c, d)/8]; b > 0 && b != a && !seen[b] {
+				seen[b] = true
+				out = append(out, b)
+			}
+		}
+	}
+	return out
 }
 
 // mustClear counts the arrows that have to go before the pink one is free: everything on its way out, everything
@@ -319,7 +357,7 @@ func build(spec LevelSpec) *Puzzle {
 		filled += len(options[picked].p)
 		fails = 0
 	}
-	return &Puzzle{cube, paths, dirs, spec.Lap}
+	return &Puzzle{cube: cube, paths: paths, dirs: dirs, lap: spec.Lap}
 }
 
 // freeCells mirrors FreeCells in Puzzle.kt: a Fenwick tree over empty cells, so picking the k-th empty cell in index

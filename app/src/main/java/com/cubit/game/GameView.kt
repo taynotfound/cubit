@@ -32,6 +32,8 @@ class GameView(ctx: Context) : View(ctx) {
         fun onTap(arrow: Int)
         /** Two fingers tapped without moving: Clean mode's undo, since it has no buttons. */
         fun onTwoFingerTap() {}
+        /** A bomb arrow left and took [count] neighbours with it. */
+        fun onBomb(count: Int) {}
     }
 
     var listener: Listener? = null
@@ -61,13 +63,13 @@ class GameView(ctx: Context) : View(ctx) {
     private class Anim(val arrow: Int, val escape: Boolean, val start: Long, val dist: Float)
     private val anims = ArrayList<Anim>()
     private var hintArrow = -1
-    /** Removed arrows in order, for undo. */
-    private val history = ArrayList<Int>()
+    /** What each tap removed, in order, for undo: the arrow, then any a bomb took with it. */
+    private val history = ArrayList<IntArray>()
     /** Ghost race: another player's run replayed on a private copy of the board; arrows it has cleared draw faintly. */
     var ghostOn = false
     private lateinit var ghostOcc: IntArray
     private lateinit var ghostGone: BooleanArray
-    private val ghostHist = ArrayList<Int>()
+    private val ghostHist = ArrayList<IntArray>()
     var ghostLeft = 0; private set
     /** Faces each track touches (bit per face), so glass mode only builds an arrow in the passes that need it. */
     private lateinit var faceMask: IntArray
@@ -174,13 +176,18 @@ class GameView(ctx: Context) : View(ctx) {
         val k = blockedAt(a)
         val now = SystemClock.uptimeMillis()
         if (k < 0) {
-            puzzle.paths[a].forEach { occ[it] = -1 }
-            removed[a] = true; remaining--; history.add(a)
-            anims.add(Anim(a, true, now, 0f))
+            val group = take(a, occ, removed)
+            remaining -= group.size; history.add(group)
+            if (hintArrow in group) hintArrow = -1
+            group.forEach { anims.add(Anim(it, true, now, 0f)) }
             pointAt(tracks[a], tracks[a].headT, p1)
             if (a == puzzle.target) {
                 burst(p1[0], p1[1], PINK, 46, 1.6f)
                 confetti()
+            } else if (puzzle.bombs[a]) {
+                burst(p1[0], p1[1], BOMB, 40, 1.8f); burst(p1[0], p1[1], Color.WHITE, 14, 1.2f)
+                shakeStart = now - 120 // a short jolt, without the red flash of a bump
+                listener?.onBomb(group.size - 1)
             } else burst(p1[0], p1[1], theme.accent, 12, 1f)
             listener?.onArrowRemoved(remaining, total)
             if (a == puzzle.target) listener?.onTargetFreed()
@@ -201,14 +208,21 @@ class GameView(ctx: Context) : View(ctx) {
         return true
     }
 
-    /** Puts the most recently removed arrow back. Returns it, or -1 if there's nothing to undo. */
+    /** Puts the most recently removed arrow back (and what a bomb took with it). Returns it, or -1 if there's nothing to undo. */
     fun undoLast(): Int {
-        val a = history.removeLastOrNull() ?: return -1
-        puzzle.paths[a].forEach { occ[it] = a }
-        removed[a] = false; remaining++
-        anims.removeAll { it.arrow == a }
+        val group = history.removeLastOrNull() ?: return -1
+        for (b in group) { puzzle.paths[b].forEach { occ[it] = b }; removed[b] = false }
+        remaining += group.size
+        anims.removeAll { it.arrow in group }
         invalidate()
-        return a
+        return group[0]
+    }
+
+    /** Removes arrow [a] from a board, with whatever it blasts if it's a bomb. Returns every arrow it removed, [a] first. */
+    private fun take(a: Int, board: IntArray, gone: BooleanArray): IntArray {
+        val group = intArrayOf(a) + puzzle.blast(a).filter { !gone[it] }
+        for (b in group) { puzzle.paths[b].forEach { board[it] = -1 }; gone[b] = true }
+        return group
     }
 
     /** Restores a saved level: applies its recorded taps instantly, without animation, sound or callbacks. */
@@ -217,8 +231,8 @@ class GameView(ctx: Context) : View(ctx) {
             val a = m[0].toInt()
             if (a == UNDO_TAP) { undoLast(); continue }
             if (a !in tracks.indices || removed[a] || blockedAt(a) >= 0) continue
-            puzzle.paths[a].forEach { occ[it] = -1 }
-            removed[a] = true; remaining--; history.add(a)
+            val group = take(a, occ, removed)
+            remaining -= group.size; history.add(group)
         }
         introStart = 0L
         invalidate()
@@ -227,14 +241,15 @@ class GameView(ctx: Context) : View(ctx) {
     /** Plays one of the ghost's moves on its own board. Returns true when that move freed the pink arrow. */
     fun ghostTap(a: Int): Boolean {
         if (a == UNDO_TAP) {
-            val b = ghostHist.removeLastOrNull() ?: return false
-            puzzle.paths[b].forEach { ghostOcc[it] = b }; ghostGone[b] = false; ghostLeft++
+            val group = ghostHist.removeLastOrNull() ?: return false
+            for (b in group) { puzzle.paths[b].forEach { ghostOcc[it] = b }; ghostGone[b] = false }
+            ghostLeft += group.size
             invalidate(); return false
         }
         if (a !in tracks.indices || ghostGone[a]) return false
         if (pinkLast && a == puzzle.target && ghostLeft > 1) return false
         if (tracks[a].rayCells.any { ghostOcc[it] >= 0 && ghostOcc[it] != a }) return false
-        puzzle.paths[a].forEach { ghostOcc[it] = -1 }; ghostGone[a] = true; ghostHist.add(a); ghostLeft--
+        val group = take(a, ghostOcc, ghostGone); ghostHist.add(group); ghostLeft -= group.size
         invalidate()
         return a == puzzle.target
     }
@@ -330,6 +345,8 @@ class GameView(ctx: Context) : View(ctx) {
                 drawSnake(canvas, tr, 0f, tr.headT, w, theme.accent)
             } else if (ghosted(a)) drawSnake(canvas, tr, 0f, tr.headT, w, withAlpha(ink, 80), shadow = false)
             else drawSnake(canvas, tr, 0f, tr.headT, w, ink)
+            // A bomb: an orange core down the body, so it reads by shape as well as colour.
+            if (puzzle.bombs[a] && !ghosted(a)) drawSnake(canvas, tr, 0f, tr.headT - 0.6f, w * 0.45f, BOMB, lift = baseLift * 1.1f, shadow = false)
         }
         val tg = puzzle.target
         if (!removed[tg] && tg !in busy) {
@@ -400,6 +417,7 @@ class GameView(ctx: Context) : View(ctx) {
                 val c = if (ghosted(a)) mix(ground, c0, 0.35f) else c0
                 drawSnake(canvas, tr, 0f, tr.headT, w, c, lift = 0f, shadow = false)
                 if (markTarget && a == puzzle.target && fc > 0) drawSnake(canvas, tr, 0f, tr.headT - 0.6f, w * 0.35f, ground, lift = 0f, shadow = false)
+                if (puzzle.bombs[a]) drawSnake(canvas, tr, 0f, tr.headT - 0.6f, w * 0.4f, mix(ground, BOMB, depth), lift = 0f, shadow = false)
             }
         }
         onlyFace = -1
@@ -788,6 +806,8 @@ class GameView(ctx: Context) : View(ctx) {
  *  bit more than a quarter turn without it running away from the finger. */
 private const val TURN_GAIN = 1.4f
 const val PINK = 0xFFFF3D7F.toInt()
+/** Bomb arrows' core and blast. */
+const val BOMB = 0xFFFF8A1F.toInt()
 /** Move code for "undo the last removal" (Zen and Clean only); the server replays it too. */
 const val UNDO_TAP = -6
 private val PIP_COUNT = intArrayOf(3, 4, 2, 5, 1, 6) // opposite faces sum to 7, like a die

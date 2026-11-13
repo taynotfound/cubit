@@ -80,10 +80,28 @@ class Cube(val n: Int) {
  * paths[i] runs tail → head; dirs[i] is the head's travel direction. paths[target] is the pink arrow to free.
  * [lap]: Nightmare's rule, an arrow only leaves if its whole lap round the cube is clear.
  */
-class Puzzle(val cube: Cube, val paths: List<IntArray>, val dirs: IntArray, val target: Int = 0, val lap: Boolean = false) {
+class Puzzle(val cube: Cube, val paths: List<IntArray>, val dirs: IntArray, val target: Int = 0, val lap: Boolean = false,
+             val bombs: BooleanArray = BooleanArray(paths.size)) {
     /** The cells arrow [a] must find empty to leave. */
     fun exit(a: Int) = cube.exit(paths[a].last(), dirs[a], lap)
+
+    private val owner by lazy { IntArray(cube.size) { -1 }.also { o -> paths.forEachIndexed { i, p -> p.forEach { o[it] = i } } } }
+
+    /** The arrows bomb [a] takes with it when it leaves: every other arrow with a cell next to one of its cells, never
+     *  the pink one. Empty for an ordinary arrow. Mirrors blast in puzzle.go. */
+    fun blast(a: Int): IntArray {
+        if (!bombs[a]) return IntArray(0)
+        val out = LinkedHashSet<Int>()
+        for (c in paths[a]) for (d in cube.tangents(c)) { val b = owner[cube.step(c, d) / 8]; if (b > 0 && b != a) out.add(b) }
+        return out.toIntArray()
+    }
 }
+
+/** About one arrow in this many is a bomb. Mirrors bombEvery in puzzle.go. */
+const val BOMB_EVERY = 30
+
+/** Mirrors bombsFor in puzzle.go: its own RNG stream, after the cube is built, so bombs never change the arrows. */
+fun bombsFor(n: Int, seed: Long) = Rng(seed xor 0x426F6D62L).let { r -> BooleanArray(n) { i -> i > 0 && r.nextInt(BOMB_EVERY) == 0 } }
 
 /**
  * SplitMix64. Puzzles must come out bit-identical on the phone and on the leaderboard server (server/puzzle.go),
@@ -104,15 +122,24 @@ class Rng(private var s: Long) {
     }
 }
 
-/** [lap] makes it a Nightmare cube: built so every arrow can clear a full lap of the cube, in some order. */
-data class LevelSpec(val n: Int, val maxLen: Int, val seed: Long, val lap: Boolean = false)
+/**
+ * [lap] makes it a Nightmare cube: built so every arrow can clear a full lap of the cube, in some order.
+ * [bombs]: some arrows take their neighbours with them (1.7+). On by default from 11×11 up; the shared daily and
+ * weekly cubes, Nightmare, and specs saved or shared by older versions have none. The server only adds them when
+ * the app asks (Net.startRun), so older apps' runs still verify.
+ */
+data class LevelSpec(val n: Int, val maxLen: Int, val seed: Long, val lap: Boolean = false, val bombs: Boolean = n >= 11) {
+    val hasBombs get() = bombs && !lap
+}
 
 /** One cube for everyone per UTC day (days since 1970). The server builds the same one (dailySpec in puzzle.go). */
-fun dailySpec(day: Int) = LevelSpec(12, 10, day * 1_000_003L + 77)
+fun dailySpec(day: Int) = LevelSpec(12, 10, day * 1_000_003L + 77, bombs = false)
+/** The first daily cube (2 Nov 2026, Cubit 1.0.0); the archive starts here. */
+const val FIRST_DAILY = 20759
 fun utcDay() = (System.currentTimeMillis() / 86_400_000L).toInt()
 
 /** The weekly challenge: one big cube for everyone, Monday to Sunday (UTC). Mirrors weekSpec in puzzle.go. */
-fun weekSpec(week: Int) = LevelSpec(16, 12, week * 7_000_003L + 5)
+fun weekSpec(week: Int) = LevelSpec(16, 12, week * 7_000_003L + 5, bombs = false)
 /** Weeks since 1970, starting on Mondays (day 0 was a Thursday). */
 fun utcWeek(day: Int = utcDay()) = (day + 3) / 7
 /** First day (Monday) of a week, for labels. */
@@ -142,7 +169,7 @@ fun generate(spec: LevelSpec): Puzzle {
         if (d > bestDepth) { best = p; bestDepth = d }
         k++
     }
-    return best
+    return if (spec.hasBombs) Puzzle(best.cube, best.paths, best.dirs, best.target, best.lap, bombsFor(best.paths.size, spec.seed)) else best
 }
 
 /** Arrows that must be removed before the pink one is free: those on its way out, those on theirs, and so on. */

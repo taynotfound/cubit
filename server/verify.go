@@ -82,8 +82,9 @@ func replay(p *Puzzle, d Difficulty, moves []Move, all bool) (Replay, error) {
 			occ[c] = i
 		}
 	}
+	start := append([]int(nil), occ...) // the untouched board, for working out a bomb's neighbours
 	removed := make([]bool, n)
-	var stack []int // removed arrows, newest last, for undoTap
+	var stack [][]int // arrows removed by each tap (a bomb takes its neighbours too), newest last, for undoTap
 	prev, prevTap := int64(0), int64(-1)
 	lives, shield := d.Lives, false
 	used := map[int]bool{}
@@ -96,13 +97,14 @@ func replay(p *Puzzle, d Difficulty, moves []Move, all bool) (Replay, error) {
 			if d.Lives != 0 || len(stack) == 0 {
 				return r, fmt.Errorf("move %d: nothing to take back here", i)
 			}
-			a := stack[len(stack)-1]
-			stack = stack[:len(stack)-1]
-			removed[a] = false
-			r.Cleared--
-			for _, c := range p.paths[a] {
-				occ[c] = a
+			for _, a := range stack[len(stack)-1] {
+				removed[a] = false
+				r.Cleared--
+				for _, c := range p.paths[a] {
+					occ[c] = a
+				}
 			}
+			stack = stack[:len(stack)-1]
 			continue
 		}
 		if m.Arrow < 0 {
@@ -158,12 +160,20 @@ func replay(p *Puzzle, d Difficulty, moves []Move, all bool) (Replay, error) {
 			}
 			continue
 		}
-		removed[m.Arrow] = true
-		stack = append(stack, m.Arrow)
-		r.Cleared++
-		for _, c := range path {
-			occ[c] = -1
+		group := []int{m.Arrow}
+		for _, b := range p.blast(m.Arrow, start) {
+			if !removed[b] {
+				group = append(group, b)
+			}
 		}
+		for _, a := range group {
+			removed[a] = true
+			r.Cleared++
+			for _, c := range p.paths[a] {
+				occ[c] = -1
+			}
+		}
+		stack = append(stack, group)
 		if m.Arrow == 0 { // the pink target
 			if i != len(moves)-1 {
 				return r, errors.New("moves after the pink arrow was freed")

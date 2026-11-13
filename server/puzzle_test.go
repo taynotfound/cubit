@@ -1,6 +1,9 @@
 package main
 
-import "testing"
+import (
+	"sort"
+	"testing"
+)
 
 func fingerprint(p *Puzzle) int64 {
 	h := uint64(14695981039346656037)
@@ -34,6 +37,44 @@ func TestLapFingerprintsMatchApp(t *testing.T) {
 		s.Lap = true
 		if got := fingerprint(generate(s)); got != want[i] {
 			t.Errorf("spec %+v: fingerprint %d, app has %d", s, got, want[i])
+		}
+	}
+}
+
+// Bomb arrows and their blasts, pinned against BombTest in PuzzleTest.kt.
+func TestBombsMatchApp(t *testing.T) {
+	specs := []LevelSpec{specForLevel(4), specForLevel(30), {N: 14, MaxLen: 20, Seed: -987654321}}
+	want := []int64{3104308799670819663, -2661303133342797834, 6122402782112281754}
+	for i, s := range specs {
+		s.Bombs = true
+		p := generate(s)
+		occ := make([]int, p.cube.size)
+		for j := range occ {
+			occ[j] = -1
+		}
+		for a, path := range p.paths {
+			for _, c := range path {
+				occ[c] = a
+			}
+		}
+		h := uint64(14695981039346656037)
+		mix := func(v int64) { h = (h ^ uint64(v)) * 1099511628211 }
+		for a := range p.paths {
+			if !p.bombs[a] {
+				continue
+			}
+			mix(int64(a))
+			b := p.blast(a, occ)
+			sort.Ints(b)
+			for _, x := range b {
+				mix(10_000 + int64(x))
+			}
+		}
+		if got := int64(h); got != want[i] {
+			t.Errorf("spec %+v: bomb print %d, app has %d", s, got, want[i])
+		}
+		if fingerprint(p) != fingerprint(generate(LevelSpec{N: s.N, MaxLen: s.MaxLen, Seed: s.Seed})) {
+			t.Errorf("spec %+v: bombs changed the arrows", s)
 		}
 	}
 }

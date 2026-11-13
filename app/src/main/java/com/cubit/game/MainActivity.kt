@@ -84,6 +84,12 @@ class MainActivity : Activity(), GameView.Listener {
     private var coach: TextView? = null
     /** A friend's shared run: this round is played on its cube, rules and goal, against its ghost. */
     private var challenge: Challenge? = null
+    /** Endless run: cubes cleared so far, or -1 when not in one. Lives carry from cube to cube via [carryLives]. */
+    private var endless = -1
+    private var endlessSeed = 0L
+    private var carryLives = -1
+    /** A past daily cube played from the archive: free-roam rules, no streak, marked solved in the calendar. */
+    private var archiveDay: Int? = null
     /** The ghost is your own best run on this cube. */
     private var ownGhost = false
     private val bg = java.util.concurrent.Executors.newSingleThreadExecutor()
@@ -132,6 +138,7 @@ class MainActivity : Activity(), GameView.Listener {
     }
 
     private fun startChallenge(c: Challenge) {
+        plainRound()
         freeRoam = true; dailyDay = null; weekNo = null; packRun = null; tutorial = false; challenge = c
         startRound(c.spec, "${c.name}'s challenge")
     }
@@ -638,6 +645,12 @@ class MainActivity : Activity(), GameView.Listener {
         } + (if (prefs.dailyBest > 0) " Your best: ${prefs.dailyBest} on ${dailyDate(prefs.dailyBestDay)}." else "") +
             (if (prefs.streakFreezes > 0) " ${prefs.streakFreezes} streak freeze${if (prefs.streakFreezes == 1) "" else "s"} in hand." else ""), th.muted), 6)
         c.add(primary("Daily cube ${dailyDate(day)}", if (streak > 0) Glyph.FLAME else Glyph.DICE) { closeSheet(); startDaily() }, 12)
+        c.add(secondary("Past daily cubes", glyph = Glyph.REPLAY) { closeSheet(); archiveSheet(0) }, 10)
+
+        c.add(title("Endless"), 26)
+        c.add(body("Cube after cube, each a little bigger. Your lives carry over, so every bump counts." +
+            if (prefs.endlessBest > 0) " Your best: ${prefs.endlessBest} cube${if (prefs.endlessBest == 1) "" else "s"}." else "", th.muted), 6)
+        c.add(secondary("Start an endless run", th.accent, Glyph.BOLT) { closeSheet(); startEndless() }, 12)
 
         val week = utcWeek()
         c.add(title("Weekly challenge"), 26)
@@ -710,6 +723,47 @@ class MainActivity : Activity(), GameView.Listener {
         c.add(secondary("Edit name and settings", glyph = Glyph.SETTINGS) { closeSheet(); showTab(Tab.SETTINGS) }, 8)
     }
 
+
+    /**
+     * Every daily cube since the first one, a month at a time. Past ones play with free-roam rules (60% XP, no streak)
+     * and get a ring once solved; days solved on the day are filled in, as in Stats.
+     */
+    private fun archiveSheet(monthsBack: Int) {
+        val c = openSheet()
+        val today = utcDay()
+        val cal = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC")).apply {
+            timeInMillis = today * 86_400_000L; add(java.util.Calendar.MONTH, -monthsBack); set(java.util.Calendar.DAY_OF_MONTH, 1)
+        }
+        val first = (cal.timeInMillis / 86_400_000L).toInt()
+        val days = cal.getActualMaximum(java.util.Calendar.DAY_OF_MONTH)
+        val head = row()
+        head.add(display(java.text.SimpleDateFormat("MMMM yyyy", java.util.Locale.ENGLISH).apply { timeZone = cal.timeZone }.format(cal.time), 30f), 0, 0, WRAP_CONTENT, 1f)
+        if (first > FIRST_DAILY) head.add(plainIcon(Glyph.ARROW, "Earlier month") { closeSheet(); archiveSheet(monthsBack + 1) }.apply { rotation = 180f }, 0, dp(48), dp(48))
+        if (monthsBack > 0) head.add(plainIcon(Glyph.ARROW, "Later month") { closeSheet(); archiveSheet(monthsBack - 1) }, 0, dp(48), dp(48))
+        c.add(head)
+        c.add(body("Tap a day to play its cube. Past ones don't touch your streak.", th.muted), 6)
+        val solved = prefs.dailyDays; val late = prefs.archiveDays
+        val names = row()
+        listOf("M", "T", "W", "T", "F", "S", "S").forEach { names.add(label(it).apply { gravity = Gravity.CENTER }, 0, 0, WRAP_CONTENT, 1f) }
+        c.add(names, 14)
+        val lead = (first + 3) % 7 // day 0 was a Thursday; Monday is column 0
+        var r = row()
+        repeat(lead) { r.space(0, 1f) }
+        for (d in first until first + days) {
+            val open = d in FIRST_DAILY..today
+            val cell = tv("${d - first + 1}", 16f, Fonts.bodyMedium, if (d in solved) th.bg else if (open) th.text else th.muted).apply {
+                gravity = Gravity.CENTER
+                background = when { d in solved -> rect(th.accent, 3); d in late -> rect(th.tile, 3, stroke = th.accent); open -> rect(th.tile, 3, stroke = if (d == today) th.text else 0); else -> null }
+                contentDescription = "${dailyDate(d)}: " + when { d in solved -> "solved on the day"; d in late -> "solved later"; open -> "not solved, tap to play"; else -> "not available" }
+                if (open) pressable { closeSheet(); if (d == today) startDaily() else startArchive(d) }
+            }
+            r.addView(cell, LinearLayout.LayoutParams(0, dp(44), 1f).apply { setMargins(dp(3), dp(3), dp(3), dp(3)) })
+            if ((lead + d - first + 1) % 7 == 0) { c.add(r); r = row() }
+        }
+        if (r.childCount > 0) { repeat(7 - r.childCount) { r.space(0, 1f) }; c.add(r) }
+        val inMonth = (first until first + days).count { it in solved || it in late }
+        c.add(body("$inMonth solved this month · filled: on the day · ring: later", th.muted), 10)
+    }
 
     /** Wins, losses and times per mode, and a five-week calendar of daily solves. All from this phone. */
     private fun statsSheet() {
@@ -1358,14 +1412,28 @@ class MainActivity : Activity(), GameView.Listener {
         g.arrowColor = prefs.arrowColor; g.thickness = prefs.thickness
     }
 
-    private fun startCampaign() { freeRoam = false; dailyDay = null; weekNo = null; packRun = null; tutorial = false; challenge = null; startRound(specForLevel(prefs.level), "Level ${prefs.level}") }
-    private fun startFree(s: LevelSpec, label: String = "Free ${s.n}×${s.n}") { freeRoam = true; dailyDay = null; weekNo = null; packRun = null; tutorial = false; challenge = null; startRound(s, label) }
-    private fun startDaily() { val d = utcDay(); freeRoam = false; dailyDay = d; weekNo = null; packRun = null; tutorial = false; challenge = null; startRound(dailySpec(d), "Daily " + dailyDate(d)) }
-    private fun startWeekly() { val w = utcWeek(); freeRoam = false; dailyDay = null; weekNo = w; packRun = null; tutorial = false; challenge = null; startRound(weekSpec(w), "Week of " + dailyDate(weekStart(w))) }
-    private fun startPack(p: Pack, i: Int) { freeRoam = true; dailyDay = null; weekNo = null; packRun = p to i; tutorial = false; challenge = null; startRound(p.levels[i], "${p.name} ${i + 1}/${p.levels.size}") }
+    /** Leaves endless and the archive behind: every way into a round but those two starts here. */
+    private fun plainRound() { endless = -1; archiveDay = null }
+
+    private fun endlessSpec(k: Int) = LevelSpec((7 + k).coerceAtMost(14), (5 + k / 2).coerceAtMost(12), endlessSeed + k * 7_777L)
+    private fun startEndless() {
+        freeRoam = true; dailyDay = null; weekNo = null; packRun = null; tutorial = false; challenge = null; archiveDay = null
+        endless = 0; endlessSeed = Random.nextLong(); carryLives = -1
+        startRound(endlessSpec(0), "Endless 1")
+    }
+    private fun startArchive(d: Int) {
+        freeRoam = true; dailyDay = null; weekNo = null; packRun = null; tutorial = false; challenge = null; endless = -1; archiveDay = d
+        startRound(dailySpec(d), "Daily ${dailyDate(d)}")
+    }
+
+    private fun startCampaign() { plainRound(); freeRoam = false; dailyDay = null; weekNo = null; packRun = null; tutorial = false; challenge = null; startRound(specForLevel(prefs.level), "Level ${prefs.level}") }
+    private fun startFree(s: LevelSpec, label: String = "Free ${s.n}×${s.n}") { plainRound(); freeRoam = true; dailyDay = null; weekNo = null; packRun = null; tutorial = false; challenge = null; startRound(s, label) }
+    private fun startDaily() { plainRound(); val d = utcDay(); freeRoam = false; dailyDay = d; weekNo = null; packRun = null; tutorial = false; challenge = null; startRound(dailySpec(d), "Daily " + dailyDate(d)) }
+    private fun startWeekly() { plainRound(); val w = utcWeek(); freeRoam = false; dailyDay = null; weekNo = w; packRun = null; tutorial = false; challenge = null; startRound(weekSpec(w), "Week of " + dailyDate(weekStart(w))) }
+    private fun startPack(p: Pack, i: Int) { plainRound(); freeRoam = true; dailyDay = null; weekNo = null; packRun = p to i; tutorial = false; challenge = null; startRound(p.levels[i], "${p.name} ${i + 1}/${p.levels.size}") }
 
     /** A tiny 3×3 cube with a coach line that reacts to what you do. Zen rules, nothing ranked or saved. */
-    private fun startTutorial() { freeRoam = true; dailyDay = null; weekNo = null; packRun = null; tutorial = true; challenge = null; startRound(LevelSpec(3, 3, 4242), "How to play") }
+    private fun startTutorial() { plainRound(); freeRoam = true; dailyDay = null; weekNo = null; packRun = null; tutorial = true; challenge = null; startRound(LevelSpec(3, 3, 4242), "How to play") }
 
     private fun coachSay(text: String) {
         val c = coach ?: return
@@ -1378,7 +1446,7 @@ class MainActivity : Activity(), GameView.Listener {
     private fun saveRun() {
         val g = game ?: return
         val o = org.json.JSONObject()
-            .put("n", spec.n).put("maxLen", spec.maxLen).put("seed", spec.seed)
+            .put("n", spec.n).put("maxLen", spec.maxLen).put("seed", spec.seed).put("bombs", spec.bombs).put("endless", endless).put("eseed", endlessSeed).put("archive", archiveDay ?: -1)
             .put("label", baseLabel).put("free", freeRoam).put("daily", dailyDay ?: -1).put("week", weekNo ?: -1).put("diff", diff.ordinal).put("full", roundFull)
             .put("elapsed", elapsedMillis()).put("mistakes", mistakes).put("lives", livesLeft).put("limit", timeLimit)
             .put("shield", shield).put("used", org.json.JSONArray(usedPowerups.map { it.name })).put("run", runId ?: "")
@@ -1392,7 +1460,8 @@ class MainActivity : Activity(), GameView.Listener {
         freeRoam = o.optBoolean("free"); dailyDay = o.optInt("daily", -1).takeIf { it >= 0 }; weekNo = o.optInt("week", -1).takeIf { it >= 0 }; tutorial = false
         challenge = o.optString("challenge").takeIf { it.isNotEmpty() }?.let { Links.parseChallenge(java.net.URLDecoder.decode(it, "UTF-8")) }
         packRun = prefs.allPacks().firstOrNull { it.name == o.optString("pack") }?.let { pk -> o.optInt("packIdx", -1).takeIf { it in pk.levels.indices }?.let { pk to it } }
-        startRound(LevelSpec(o.getInt("n"), o.getInt("maxLen"), o.getLong("seed")), o.optString("label"), o)
+        endless = o.optInt("endless", -1); endlessSeed = o.optLong("eseed"); archiveDay = o.optInt("archive", -1).takeIf { it >= 0 }
+        startRound(LevelSpec(o.getInt("n"), o.getInt("maxLen"), o.getLong("seed"), bombs = o.optBoolean("bombs")), o.optString("label"), o)
     }
     private fun dailyDate(day: Int) = java.text.SimpleDateFormat("d MMM", java.util.Locale.ENGLISH).apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }.format(java.util.Date(day * 86_400_000L))
 
@@ -1443,7 +1512,7 @@ class MainActivity : Activity(), GameView.Listener {
         strip.add(iconButton(Glyph.CLOSE, "Leave level") { askLeave() }, 0, dp(48), dp(48))
         val levelFlap = flap(if (freeRoam || dailyDay != null) 5 else 4, 24f)
         val lvlBox = column().apply { setPadding(dp(14), 0, 0, 0) }
-        lvlBox.add(label(if (tutorial) "How to play" else if (challenge != null) "Challenge" else if (dailyDay != null) "Daily" else if (freeRoam) "Free roam" else "Level")); lvlBox.add(levelFlap, 4, WRAP_CONTENT)
+        lvlBox.add(label(if (endless >= 0) "Endless" else if (tutorial) "How to play" else if (challenge != null) "Challenge" else if (dailyDay != null) "Daily" else if (freeRoam) "Free roam" else "Level")); lvlBox.add(levelFlap, 4, WRAP_CONTENT)
         strip.add(lvlBox, 0, WRAP_CONTENT)
         strip.space(0, 1f)
         val timerFlap = flap(5, 24f, right = true).apply { haptics = false; sound = false; maxFlips = 1 }
@@ -1536,7 +1605,8 @@ class MainActivity : Activity(), GameView.Listener {
         levelFlap.setInstant("     ")
         handler.postDelayed({ levelFlap.text = if (freeRoam || dailyDay != null) "%02d×%02d".format(s.n, s.n) else "%04d".format(prefs.level % 10000) }, 200)
         clearedFlap.setInstant("   ")
-        livesLeft = diff.lives; mistakes = 0
+        livesLeft = if (carryLives > 0) carryLives else diff.lives; mistakes = 0; carryLives = -1
+        lamps?.total = maxOf(diff.lives, livesLeft)
         moves.clear(); runId = null
         val serial = ++roundSerial
         if (prefs.postOnline && !tutorial && resume == null) Net.startRun(prefs, s, if (freeRoam || weekNo != null) null else prefs.level, dailyDay, diff.label, roundFull, weekNo) { id -> if (serial == roundSerial) runId = id }
@@ -1588,6 +1658,10 @@ class MainActivity : Activity(), GameView.Listener {
         updateHud()
         Sfx.start(); Music.game()
         handler.post(tick)
+        if (!prefs.bombSeen && puzzle.bombs.any { it }) {
+            prefs.bombSeen = true
+            toast("New: arrows with an orange core are bombs. Clear one and it takes the arrows touching it along. Never the pink one.")
+        }
     }
 
     private val tick = object : Runnable {
@@ -1668,6 +1742,9 @@ class MainActivity : Activity(), GameView.Listener {
 
     override fun onTwoFingerTap() { if (diff.lives == 0) undoTap() }
 
+    // A heavy thud you can feel, and the chime rather than the bump sound: a blast is good news, not a mistake.
+    override fun onBomb(count: Int) { Sfx.hint(); Haptics.bump() }
+
     /** Zen and Clean: put the last removed arrow back. Recorded so ranked replays match. */
     private fun undoTap() {
         val g = game ?: return
@@ -1715,6 +1792,8 @@ class MainActivity : Activity(), GameView.Listener {
             return
         }
         prefs.savedRun = null
+        if (endless >= 0) { endless++; if (endless > prefs.endlessBest) prefs.endlessBest = endless }
+        archiveDay?.let { prefs.archiveDays = prefs.archiveDays + it }
         val cleared = g.total - g.remaining
         val perfect = mistakes == 0
         val secsLeft = if (timeLimit > 0) (timeLimit - elapsedSec()).toInt().coerceAtLeast(0) else 0
@@ -1781,6 +1860,9 @@ class MainActivity : Activity(), GameView.Listener {
             add(if (perfect) "Perfect run · +25% XP" else "$mistakes mistake${if (mistakes == 1) "" else "s"}")
             if (after > before) add("Level up · you're now LV $after · +${after - before} hint")
             if (bonusHints > 0) add("+$bonusHints hint for ${if (firstDaily && perfect && diff.lives > 0) "a perfect daily" else if (firstDaily) "the daily cube" else "a perfect run"}")
+            if (endless > 0) add("Endless · $endless cube${if (endless == 1) "" else "s"} cleared · your best is ${prefs.endlessBest}" +
+                if (diff.lives > 0) " · $livesLeft ${if (livesLeft == 1) "life" else "lives"} carry over" else "")
+            if (archiveDay != null) add("Marked solved in the daily archive")
             if (atPar) add("On par · nobody can do it in fewer taps")
             if (dailyBest) add("Your best daily score yet")
             if (freezesUsed > 0) add("A streak freeze covered $freezesUsed missed day${if (freezesUsed == 1) "" else "s"} · ${prefs.dailyStreak}-day streak")
@@ -1799,16 +1881,18 @@ class MainActivity : Activity(), GameView.Listener {
         val shareLine = "${roundLabel} · ${modeName(diff.label)}"
         val pk = packRun
         val nextText = when {
+            endless > 0 -> "Next cube"
             pk != null -> if (pk.second + 1 < pk.first.levels.size) "Next in ${pk.first.name}" else "Play level ${prefs.level}"
             freeRoam -> "Another cube"
             dailyDay != null || weekNo != null -> "Play level ${prefs.level}"
             else -> "Next level"
         }
-        showSheet(if (roundFull) "Cube cleared" else "Pink arrow freed", rows, extra, nextText,
+        showSheet(if (endless > 0) "Cube $endless cleared" else if (roundFull) "Cube cleared" else "Pink arrow freed", rows, extra, nextText,
             onShare = { shareCard(shareLine, score, t, cleared, perfect) },
             extra = ("Save cube to $MY_PACK" to { prefs.myPack = prefs.myPack.filter { it != spec.copy(lap = false) } + spec.copy(lap = false); toast("Saved to $MY_PACK in More → Puzzle packs") })
                 .takeIf { dailyDay == null && weekNo == null && packRun?.first?.name != MY_PACK }) {
             when {
+                endless > 0 -> { carryLives = livesLeft; startRound(endlessSpec(endless), "Endless ${endless + 1}") }
                 pk != null && pk.second + 1 < pk.first.levels.size -> startPack(pk.first, pk.second + 1)
                 pk == null && freeRoam -> startFree(LevelSpec(spec.n, spec.maxLen, Random.nextLong()))
                 else -> startCampaign()
@@ -1837,6 +1921,14 @@ class MainActivity : Activity(), GameView.Listener {
         val rows = listOf("Cleared" to (flap(3, 26f, right = true) to "%d".format(g?.let { it.total - it.remaining } ?: 0)))
         prefs.savedRun = null
         if (!tutorial) prefs.recordRun(diff, false, mistakes, elapsedSec().toInt())
+        if (endless >= 0) {
+            val n = endless
+            val best = n > 0 && n >= prefs.endlessBest
+            showSheet("Endless over", listOf("Cubes" to (flap(3, 26f, right = true) to "%d".format(n.coerceAtMost(999)))),
+                listOf("$reason on cube ${n + 1}.", if (best) "Your best endless run yet" else "Your best: ${prefs.endlessBest} cube${if (prefs.endlessBest == 1) "" else "s"}"),
+                "New endless run") { startEndless() }
+            return
+        }
         showSheet(reason, rows, listOf((if (roundFull) "The cube isn't clear yet." else "The pink arrow is still stuck.") + " Easier modes give more lives and time."), "Try again") { startRound(spec, baseLabel) }
     }
 

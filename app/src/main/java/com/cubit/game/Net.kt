@@ -57,6 +57,7 @@ object Net {
                 else if (dailyDay != null) body.put("mode", "daily").put("day", dailyDay)
                 else if (campaignLevel != null) body.put("mode", "campaign").put("level", campaignLevel)
                 else body.put("mode", "free").put("n", spec.n).put("maxLen", spec.maxLen).put("seed", spec.seed)
+                if (spec.hasBombs) body.put("bombs", true) // the server only plays bombs on campaign and free cubes
                 JSONObject(authed(p, "POST", "/v1/runs", body.toString())).getString("run")
             }
             main.post { done(id) }
@@ -100,7 +101,7 @@ object Net {
         val r = call {
             val o = JSONObject(request("GET", "/v1/runs/$run/replay", null, null))
             val mv = o.getJSONArray("moves")
-            Triple(LevelSpec(o.getInt("n"), o.getInt("maxLen"), o.getLong("seed"), o.optBoolean("lap")), (0 until mv.length()).map { val m = mv.getJSONArray(it); longArrayOf(m.getLong(0), m.getLong(1)) }, o.optBoolean("all"))
+            Triple(LevelSpec(o.getInt("n"), o.getInt("maxLen"), o.getLong("seed"), o.optBoolean("lap"), o.optBoolean("bombs")), (0 until mv.length()).map { val m = mv.getJSONArray(it); longArrayOf(m.getLong(0), m.getLong(1)) }, o.optBoolean("all"))
         }
         main.post { done(r) }
     }

@@ -217,6 +217,7 @@ func (a *App) startRun(w http.ResponseWriter, r *http.Request) {
 		Level, N, MaxLen, Day  int
 		Week                   int
 		Seed                   int64
+		Bombs                  bool // app 1.7+: bomb arrows on campaign and free cubes; older apps never send it
 	}
 	if !decode(w, r, 1024, &b) {
 		return
@@ -260,6 +261,8 @@ func (a *App) startRun(w http.ResponseWriter, r *http.Request) {
 	}
 	// Nightmare is played on a lap cube: same spec, but every arrow has to clear a full lap round the cube.
 	run.Spec.Lap = difficulties[b.Difficulty].Nightmare
+	// Bombs only where the app plays them: not on the shared daily and weekly cubes, nor Nightmare's lap cubes.
+	run.Spec.Bombs = b.Bombs && !run.Spec.Lap && (b.Mode == "campaign" || b.Mode == "free")
 	switch b.Goal {
 	case "", "pink":
 	case "all":
