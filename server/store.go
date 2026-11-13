@@ -27,6 +27,15 @@ type Device struct {
 	Profile     *Profile `json:"profile,omitempty"` // opt-in public page; nil when off
 }
 
+// publicCode is the friend code to show next to the player on public boards: only when they made their profile
+// public. Otherwise "", so codes don't leak to people who could then follow them.
+func (d *Device) publicCode() string {
+	if d.Profile != nil && d.Profile.Public {
+		return d.Code
+	}
+	return ""
+}
+
 // credit books a verified run to its player. Call with the store's mu held.
 func (d *Device) credit(sc Score) {
 	d.XP += sc.XP
@@ -228,6 +237,7 @@ type publicPlayer struct {
 	Level     int    `json:"level"`
 	XP        int    `json:"xp"`
 	CleanRuns int    `json:"cleanRuns"`
+	Code      string `json:"code,omitempty"` // only for players with a public profile, so the app can open it
 }
 
 type publicScore struct {
@@ -243,6 +253,7 @@ type publicScore struct {
 	Mistakes   int      `json:"mistakes"`
 	Size       int      `json:"size"`
 	Powerups   []string `json:"powerups"`
+	Code       string   `json:"code,omitempty"` // the player's, only when their profile is public
 }
 
 // board is the public view: no device ids, banned players hidden, one best run per player.
@@ -252,7 +263,7 @@ func (s *Store) board() map[string]any {
 	players := []publicPlayer{}
 	for _, d := range s.db.Devices {
 		if !d.Banned && d.XP > 0 {
-			players = append(players, publicPlayer{d.Name, playerLevel(d.XP), d.XP, d.CleanRuns})
+			players = append(players, publicPlayer{d.Name, playerLevel(d.XP), d.XP, d.CleanRuns, d.publicCode()})
 		}
 	}
 	total := len(players) // everyone with a verified run, not just the 50 listed
@@ -272,7 +283,7 @@ func (s *Store) board() map[string]any {
 		if pu == nil {
 			pu = []string{}
 		}
-		scores = append(scores, publicScore{sc.RunID, d.Name, playerLevel(d.XP), sc.Score, sc.Label, sc.Difficulty, sc.Time, sc.Arrows, sc.Ms, sc.Mistakes, sc.Size, pu})
+		scores = append(scores, publicScore{sc.RunID, d.Name, playerLevel(d.XP), sc.Score, sc.Label, sc.Difficulty, sc.Time, sc.Arrows, sc.Ms, sc.Mistakes, sc.Size, pu, d.publicCode()})
 		if len(scores) == 50 {
 			break
 		}
@@ -317,7 +328,7 @@ func (s *Store) boardWhere(match func(Score) bool) []publicScore {
 		if pu == nil {
 			pu = []string{}
 		}
-		out = append(out, publicScore{sc.RunID, d.Name, playerLevel(d.XP), sc.Score, sc.Label, sc.Difficulty, sc.Time, sc.Arrows, sc.Ms, sc.Mistakes, sc.Size, pu})
+		out = append(out, publicScore{sc.RunID, d.Name, playerLevel(d.XP), sc.Score, sc.Label, sc.Difficulty, sc.Time, sc.Arrows, sc.Ms, sc.Mistakes, sc.Size, pu, d.publicCode()})
 		if len(out) == 50 {
 			break
 		}
@@ -370,6 +381,7 @@ type friendView struct {
 	XP        int          `json:"xp"`
 	CleanRuns int          `json:"cleanRuns"`
 	Best      *publicScore `json:"best"`
+	Public    bool         `json:"public,omitempty"` // has a public profile to open
 }
 
 // friends is the public view of the players behind these codes (unknown and banned ones left out), each with their
@@ -384,14 +396,14 @@ func (s *Store) friends(codes []string) []friendView {
 		if d == nil || d.Banned {
 			continue
 		}
-		f := friendView{Code: c, Name: d.Name, Level: playerLevel(d.XP), XP: d.XP, CleanRuns: d.CleanRuns}
+		f := friendView{Code: c, Name: d.Name, Level: playerLevel(d.XP), XP: d.XP, CleanRuns: d.CleanRuns, Public: d.publicCode() != ""}
 		for _, sc := range s.db.Scores {
 			if sc.Device == id {
 				pu := sc.Powerups
 				if pu == nil {
 					pu = []string{}
 				}
-				f.Best = &publicScore{sc.RunID, d.Name, f.Level, sc.Score, sc.Label, sc.Difficulty, sc.Time, sc.Arrows, sc.Ms, sc.Mistakes, sc.Size, pu}
+				f.Best = &publicScore{sc.RunID, d.Name, f.Level, sc.Score, sc.Label, sc.Difficulty, sc.Time, sc.Arrows, sc.Ms, sc.Mistakes, sc.Size, pu, d.publicCode()}
 				break
 			}
 		}

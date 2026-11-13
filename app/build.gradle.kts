@@ -16,8 +16,8 @@ android {
         applicationId = "de.taymaerz.cubit"
         minSdk = 24
         targetSdk = 34
-        versionCode = 13
-        versionName = "1.6.1"
+        versionCode = 14
+        versionName = "1.7.0"
     }
     buildFeatures { buildConfig = true }
     // Two stores, one app: the GitHub build checks GitHub for new releases; the F-Droid build leaves updates to F-Droid.
@@ -54,3 +54,9 @@ android {
 dependencies {
     testImplementation("junit:junit:4.13.2")
 }
+
+// The in-app "What's new" reads CHANGELOG.md itself, copied in at build time, so there's only one copy to keep.
+val changelogDir = layout.buildDirectory.dir("generated/changelog")
+val copyChangelog = tasks.register<Copy>("copyChangelog") { from(rootProject.file("CHANGELOG.md")); into(changelogDir) }
+android.sourceSets["main"].assets.srcDir(changelogDir)
+tasks.named("preBuild") { dependsOn(copyChangelog) }

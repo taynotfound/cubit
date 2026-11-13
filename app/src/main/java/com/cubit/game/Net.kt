@@ -8,7 +8,11 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.Executors
 
-data class GlobalPlayer(val name: String, val xp: Int, val level: Int, val cleanRuns: Int, val code: String = "")
+/** [public]: the player has a public profile, which [code] opens. On the board the code comes only with one. */
+data class GlobalPlayer(val name: String, val xp: Int, val level: Int, val cleanRuns: Int, val code: String = "", val public: Boolean = false)
+/** A player's public profile page (GET /v1/profile/{code}). Badges and the daily numbers come from their phone. */
+class PublicProfile(val code: String, val name: String, val level: Int, val xp: Int, val runs: Int, val cleanRuns: Int, val endlessBest: Int,
+                    val since: Long, val badges: List<String>, val streak: Int, val solved: Int, val dailySolved: Int, val best: List<ScoreEntry>)
 /** [total] is every ranked player, where [players] lists only the top of the board. */
 data class GlobalBoard(val players: List<GlobalPlayer>, val scores: List<ScoreEntry>, val total: Int = players.size)
 data class RunResult(val status: String, val score: Int, val xp: Int, val rank: Int)
@@ -16,7 +20,7 @@ data class RunResult(val status: String, val score: Int, val xp: Int, val rank: 
 class WorldState(val id: Int, val spec: LevelSpec, val v: Int, val removed: List<Int>, val left: Int, val arrows: Int, val players: Int,
                  val top: List<Pair<String, Int>>, val lastId: Int, val lastWinner: String?)
 /** One row of an endless board: a player and the most cubes they cleared in one run. */
-data class EndlessEntry(val name: String, val level: Int, val cubes: Int)
+data class EndlessEntry(val name: String, val level: Int, val cubes: Int, val code: String = "")
 /** A ranked endless run's next cube: the server's run id, the lives carried in and the seconds bought. */
 class EndlessCube(val id: String, val lives: Int, val bonusSec: Int)
 
@@ -119,7 +123,7 @@ object Net {
     fun endless(day: Int?, done: (List<EndlessEntry>?) -> Unit) = io.execute {
         val r = call {
             val a = JSONObject(request("GET", "/v1/endless" + (day?.let { "/$it" } ?: ""), null, null)).getJSONArray("players")
-            (0 until a.length()).map { a.getJSONObject(it) }.map { EndlessEntry(it.optString("name"), it.optInt("level"), it.optInt("cubes")) }
+            (0 until a.length()).map { a.getJSONObject(it) }.map { EndlessEntry(it.optString("name"), it.optInt("level"), it.optInt("cubes"), it.optString("code")) }
         }
         main.post { done(r) }
     }
@@ -134,6 +138,18 @@ object Net {
         }
     }
 
+    /** A public profile by friend code; null if there's none (or it was switched off). */
+    fun profile(code: String, done: (PublicProfile?) -> Unit) = io.execute {
+        val r = call {
+            val o = JSONObject(request("GET", "/v1/profile/$code", null, null))
+            val b = o.optJSONArray("badges") ?: JSONArray()
+            PublicProfile(o.getString("code"), o.optString("name"), o.optInt("level"), o.optInt("xp"), o.optInt("runs"), o.optInt("cleanRuns"),
+                o.optInt("endlessBest"), o.optLong("since"), (0 until b.length()).map { b.getString(it) }, o.optInt("streak"), o.optInt("solved"),
+                o.optInt("dailySolved"), parseBoard(JSONObject().put("scores", o.optJSONArray("best") ?: JSONArray())).scores)
+        }
+        main.post { done(r) }
+    }
+
     /** This install's friend code (registering first if needed); stored in [Prefs.friendCode]. */
     fun me(p: Prefs, done: (String?) -> Unit) = io.execute {
         val code = call { JSONObject(authed(p, "GET", "/v1/me", null)).getString("code").also { p.friendCode = it } }
@@ -146,7 +162,7 @@ object Net {
             val a = JSONObject(request("GET", "/v1/friends?codes=" + codes.joinToString(","), null, null)).getJSONArray("friends")
             (0 until a.length()).map { a.getJSONObject(it) }.map { f ->
                 val best = f.optJSONObject("best")?.let { parseBoard(JSONObject().put("scores", JSONArray().put(it))).scores.first() }
-                GlobalPlayer(f.optString("name"), f.optInt("xp"), f.optInt("level"), f.optInt("cleanRuns"), f.optString("code")) to best
+                GlobalPlayer(f.optString("name"), f.optInt("xp"), f.optInt("level"), f.optInt("cleanRuns"), f.optString("code"), f.optBoolean("public")) to best
             }
         }
         main.post { done(r) }
@@ -217,11 +233,11 @@ object Net {
 
     private fun parseBoard(o: JSONObject): GlobalBoard {
         fun arr(k: String) = o.optJSONArray(k) ?: JSONArray()
-        val players = arr("players").let { a -> (0 until a.length()).map { a.getJSONObject(it) }.map { GlobalPlayer(it.optString("name"), it.optInt("xp"), it.optInt("level"), it.optInt("cleanRuns")) } }
+        val players = arr("players").let { a -> (0 until a.length()).map { a.getJSONObject(it) }.map { GlobalPlayer(it.optString("name"), it.optInt("xp"), it.optInt("level"), it.optInt("cleanRuns"), it.optString("code"), it.optString("code").isNotEmpty()) } }
         val scores = arr("scores").let { a -> (0 until a.length()).map { a.getJSONObject(it) }.map {
             val pu = it.optJSONArray("powerups") ?: JSONArray()
             ScoreEntry(it.optString("name"), it.optInt("score"), it.optString("label"), it.optString("difficulty"), it.optLong("time"),
-                it.optInt("arrows"), it.optLong("ms"), it.optInt("mistakes"), it.optInt("size"), (0 until pu.length()).map { i -> pu.getString(i) }, it.optInt("level"), run = it.optString("run"))
+                it.optInt("arrows"), it.optLong("ms"), it.optInt("mistakes"), it.optInt("size"), (0 until pu.length()).map { i -> pu.getString(i) }, it.optInt("level"), run = it.optString("run"), code = it.optString("code"))
         } }
         return GlobalBoard(players, scores, maxOf(o.optInt("total"), players.size))
     }

@@ -1,0 +1,5 @@
+- World Cube: one giant cube every player clears together, live.
+- Twist mode: twist a face to turn its arrowheads.
+- Bombs with chain reactions, locked and two-way arrows, and wormholes.
+- Endless runs with a shop between cubes, and Today's endless.
+- Play past daily cubes, name cubes, an opt-in public profile, combos, arrow preview, a backup code, music volume, and rotation on tablets.

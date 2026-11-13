@@ -1,5 +1,30 @@
 # Changelog
 
+## 1.7.0 (2026-11-13)
+
+![Cubit 1.7.0: bombs, Twist mode, the World Cube and Endless](https://raw.githubusercontent.com/taynotfound/cubit/main/docs/img/whats-new-1.7.0.gif)
+
+- **World Cube** (More): one giant cube every Cubit player clears together, live. Each arrow you clear is gone for everyone, and other players' clears fly off your screen as they happen. Whoever frees the pink arrow wins the cube, puts their name on it and starts the next one.
+- **Twist mode** (Mode): twist a face and every arrowhead on it turns a quarter turn. Twists are unlimited, so a cube can never get stuck, but each one counts against par.
+- **Special arrows** on cubes from 11×11 up: **bombs** (orange core) take every arrow touching them along and set off the bombs they catch in a chain reaction; **locked arrows** (dashed core) wait until their key arrow has gone, and tapping one early points out its key; **two-way arrows** (a head at each end) leave tail first when the head's way is blocked. Daily, weekly and Nightmare cubes stay as they were.
+- **Wormholes**: pairs of portals straight through the cube from each other. A way out that reaches one carries on from the other side.
+- **Endless** (More): cube after cube, each a little bigger, with your lives carrying over. Between cubes, pick a life, 15 seconds or a hint. **Today's endless** is the same run of cubes for everyone, and Rankings has an Endless tab for today's and all-time best runs, each cube checked by the server.
+- **Past daily cubes** (More): a calendar of every daily cube since the first. Play any you missed (it doesn't touch your streak) and race that day's leader as a ghost.
+- **Name cubes** (More): any name makes a cube, the same for everyone who types it. Share it to dare a friend.
+- **Public profile** (Settings, off by default): a page you can share with your level, badges, streak and best runs. There's no account behind it: it hangs off your friend code, and switching it off takes it down.
+- **Combos and arrow preview**: quick clears with no bump count up a combo over the cube, and holding an arrow shows its way out, green when clear and red when blocked. The pink arrow glows once its way out is clear.
+- **Backup code** (Settings → Progress): copy one code to move your progress, settings and place on the board to a new phone.
+- **A new More and Rankings**: More is three tabs of cards (Today, Together, Your way) that fit without scrolling. Rankings has five tabs, a podium for the top three, roomier rows with your own lit up, and anyone with a public profile opens it with a tap.
+- New badges: Demolition, Chain reaction, End of the line and Every day this month.
+- A music volume slider, and the music now loops without a gap.
+- The screen turns with your phone, and menus keep a readable width on tablets.
+- The screen stays on during a level.
+- Rankings shows how many players are on the board.
+- Turning the cube follows your finger the same on every screen size and when zoomed in.
+- Names with slurs are kept off the board.
+- After an update, Cubit shows what's new (this list), once. Settings → About → What's new brings it back. Players from before 1.7 are asked once whether to switch on the online features; "Not now" is final.
+- Fixed: settings that redraw the page (colourway, arrow colour, high contrast) jumped back to the top.
+
 ## 1.6.1 (2026-11-05)
 
 - Cubit is by Tay März ([taymaerz.de](https://taymaerz.de)): the credit in Settings now says so and opens the site, and About has a "Made by Tay März" link.

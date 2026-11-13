@@ -111,7 +111,7 @@ func (s *Store) endlessBoard(day int) []endlessView {
 	out := []endlessView{}
 	add := func(dev string, cubes int) {
 		if d := s.db.Devices[dev]; d != nil && !d.Banned && cubes > 0 {
-			out = append(out, endlessView{d.Name, playerLevel(d.XP), cubes, d.Code})
+			out = append(out, endlessView{d.Name, playerLevel(d.XP), cubes, d.publicCode()})
 		}
 	}
 	if day == 0 {

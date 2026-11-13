@@ -74,7 +74,7 @@ func (a *App) profile(w http.ResponseWriter, r *http.Request) {
 			if pu == nil {
 				pu = []string{}
 			}
-			best = append(best, publicScore{sc.RunID, d.Name, playerLevel(d.XP), sc.Score, sc.Label, sc.Difficulty, sc.Time, sc.Arrows, sc.Ms, sc.Mistakes, sc.Size, pu})
+			best = append(best, publicScore{sc.RunID, d.Name, playerLevel(d.XP), sc.Score, sc.Label, sc.Difficulty, sc.Time, sc.Arrows, sc.Ms, sc.Mistakes, sc.Size, pu, d.publicCode()})
 		}
 	}
 	p := d.Profile

@@ -44,7 +44,19 @@ class LinksTest {
         assertNull(Links.parsePack("1__x"))
     }
 
-    @Test fun friendCodes() {
+    @Test fun whatsNewReadsOneVersion() {
+        val md = "# Changelog\n\n## 1.7.0 (2026-11-13)\n\n![gif](x.gif)\n\n- **World Cube**: big.\n- See [Ko-fi](https://ko-fi.com/x) now.\n\n## 1.6.1 (2026-11-05)\n\n- Old."
+        assertEquals(listOf("**World Cube**: big.", "See Ko-fi now."), whatsNew(md, "1.7.0"))
+        assertEquals(listOf("Old."), whatsNew(md, "1.6.1"))
+        assertEquals(emptyList<String>(), whatsNew(md, "1.7"))
+    }
+
+    @Test fun theRealChangelogHasThisVersion() {
+        val md = java.io.File("../CHANGELOG.md").readText()
+        assert(whatsNew(md, "1.7.0").size >= 10)
+    }
+
+        @Test fun friendCodes() {
         assertEquals("AB12CD34", Links.cleanCode("ab12-cd34"))
         assertNull(Links.cleanCode("ab12"))
     }

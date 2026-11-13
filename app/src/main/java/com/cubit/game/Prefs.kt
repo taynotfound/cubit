@@ -138,6 +138,8 @@ data class ScoreEntry(
     val run: String = "",
     /** Local runs keep their cube and taps so they can be watched back. */
     val spec: LevelSpec? = null, val moves: List<LongArray> = emptyList(),
+    /** The player's friend code, sent only when they have a public profile to open. */
+    val code: String = "",
 )
 
 class Prefs(ctx: Context) {
@@ -240,6 +242,12 @@ class Prefs(ctx: Context) {
         return e.commit()
     }
 
+    /** The version whose "What's new" was last shown (fresh installs start on theirs, so only updates show it). */
+    var seenVersion: String? get() = sp.getString("seenVersion", null); set(v) = sp.edit().putString("seenVersion", v).apply()
+    /** The one-time invitation to the online features (1.7) has been shown. */
+    var cloudAsked: Boolean get() = sp.getBoolean("cloudAsked", false); set(v) = sp.edit().putBoolean("cloudAsked", v).apply()
+    /** The one-time Ko-fi line on the win sheet has been shown. */
+    var koFiNudged: Boolean get() = sp.getBoolean("kofi", false); set(v) = sp.edit().putBoolean("kofi", v).apply()
     /** The first bomb arrow explains itself once. */
     var bombSeen: Boolean get() = sp.getBoolean("bombSeen", false); set(v) = sp.edit().putBoolean("bombSeen", v).apply()
     var summarySeen: Int get() = sp.getInt("summarySeen", -1); set(v) = sp.edit().putInt("summarySeen", v).apply()

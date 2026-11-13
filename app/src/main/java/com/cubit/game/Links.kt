@@ -48,3 +48,15 @@ object Links {
     /** Friend codes are 8 hex digits; shown upper case, accepted with or without a dash. */
     fun cleanCode(s: String) = s.uppercase().filter { it in "0123456789ABCDEF" }.takeIf { it.length == 8 }
 }
+
+/**
+ * One version's notes from CHANGELOG.md (bundled as an asset): its "- " lines, markdown links reduced to their text.
+ * Empty if the version isn't there. **Bold** is kept for the sheet to style.
+ */
+fun whatsNew(changelog: String, version: String): List<String> {
+    val lines = changelog.lines()
+    val start = lines.indexOfFirst { it.startsWith("## $version ") || it == "## $version" }
+    if (start < 0) return emptyList()
+    return lines.drop(start + 1).takeWhile { !it.startsWith("## ") }.filter { it.startsWith("- ") }
+        .map { it.removePrefix("- ").replace(Regex("\\[([^\\]]+)]\\([^)]+\\)"), "$1") }
+}
