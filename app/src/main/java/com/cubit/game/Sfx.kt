@@ -65,12 +65,29 @@ object Music {
     fun menu() = play(R.raw.music_menu, 0.22f)
     fun game() = play(R.raw.music_play, 0.18f)
 
+    private var next: android.media.MediaPlayer? = null
+    private var vol = 1f
+
     private fun play(res: Int, vol: Float) {
         if (res == current && player != null) { resume(); return }
-        player?.release(); player = null; current = res
-        val c = ctx ?: return
-        player = android.media.MediaPlayer.create(c, res)?.apply { isLooping = true; setVolume(vol, vol) }
+        player?.release(); next?.release(); player = null; next = null; current = res; this.vol = vol
+        player = make(res) ?: return
+        queueNext()
         resume()
+    }
+
+    private fun make(res: Int) = ctx?.let { android.media.MediaPlayer.create(it, res) }?.apply { setVolume(vol, vol) }
+
+    // isLooping seeks back to the start when the track ends, which leaves an audible gap on many phones. A second
+    // player queued with setNextMediaPlayer starts the moment the first ends, so the (seamless) loop plays without one.
+    private fun queueNext() {
+        val p = player ?: return
+        val res = current
+        next = make(res)?.also { p.setNextMediaPlayer(it) } ?: run { p.isLooping = true; return } // no second player: loop with the gap
+        p.setOnCompletionListener { done ->
+            if (res != current) return@setOnCompletionListener
+            done.release(); player = next; next = null; queueNext()
+        }
     }
 
     fun resume() { if (enabled) player?.takeIf { !it.isPlaying }?.start() }
