@@ -80,9 +80,26 @@ func TestWorldCubeIsShared(t *testing.T) {
 	if won == nil {
 		t.Fatal("the pink arrow never went")
 	}
+	h.app.store.mu.Lock()
+	cubes, wins := 0, 0
+	for _, d := range h.app.store.db.Devices {
+		cubes += d.WorldCubes
+		wins += d.WorldWins
+	}
+	h.app.store.mu.Unlock()
+	if cubes != 2 || wins != 1 {
+		t.Fatalf("after the win: %d players credited with the cube, %d wins; want 2 and 1", cubes, wins)
+	}
 	_, st = h.call("GET", "/v1/world", "", nil)
 	if int(st["id"].(float64)) != id+1 || st["last"].(map[string]any)["players"] != float64(2) {
 		t.Fatalf("after the win: %v", st)
+	}
+	// A new store counts World Cubes as they're freed, so the startup backfill must not count them again.
+	h.app.store.mu.Lock()
+	counted := h.app.store.db.WorldCounted
+	h.app.store.mu.Unlock()
+	if !counted {
+		t.Fatal("a fresh store would credit past winners twice")
 	}
 	// Taps on the old cube are turned away with the new id.
 	if _, out := h.call("POST", "/v1/world/tap", ann, map[string]any{"id": id, "arrow": 1}); out["ok"] != false || out["id"] != float64(id+1) {

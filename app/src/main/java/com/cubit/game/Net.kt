@@ -12,7 +12,9 @@ import java.util.concurrent.Executors
 data class GlobalPlayer(val name: String, val xp: Int, val level: Int, val cleanRuns: Int, val code: String = "", val public: Boolean = false)
 /** A player's public profile page (GET /v1/profile/{code}). Badges and the daily numbers come from their phone. */
 class PublicProfile(val code: String, val name: String, val level: Int, val xp: Int, val runs: Int, val cleanRuns: Int, val endlessBest: Int,
-                    val since: Long, val badges: List<String>, val streak: Int, val solved: Int, val dailySolved: Int, val best: List<ScoreEntry>)
+                    val since: Long, val badges: List<String>, val streak: Int, val solved: Int, val dailySolved: Int, val best: List<ScoreEntry>,
+                    /** World Cubes they helped clear, and ones they freed themselves. */
+                    val worldCubes: Int = 0, val worldWins: Int = 0)
 /** [total] is every ranked player, where [players] lists only the top of the board. */
 data class GlobalBoard(val players: List<GlobalPlayer>, val scores: List<ScoreEntry>, val total: Int = players.size)
 data class RunResult(val status: String, val score: Int, val xp: Int, val rank: Int)
@@ -145,7 +147,8 @@ object Net {
             val b = o.optJSONArray("badges") ?: JSONArray()
             PublicProfile(o.getString("code"), o.optString("name"), o.optInt("level"), o.optInt("xp"), o.optInt("runs"), o.optInt("cleanRuns"),
                 o.optInt("endlessBest"), o.optLong("since"), (0 until b.length()).map { b.getString(it) }, o.optInt("streak"), o.optInt("solved"),
-                o.optInt("dailySolved"), parseBoard(JSONObject().put("scores", o.optJSONArray("best") ?: JSONArray())).scores)
+                o.optInt("dailySolved"), parseBoard(JSONObject().put("scores", o.optJSONArray("best") ?: JSONArray())).scores,
+                o.optInt("worldCubes"), o.optInt("worldWins"))
         }
         main.post { done(r) }
     }

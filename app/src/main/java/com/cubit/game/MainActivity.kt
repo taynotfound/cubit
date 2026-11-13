@@ -1152,7 +1152,7 @@ class MainActivity : Activity(), GameView.Listener {
             head.add(t, 0, 0, WRAP_CONTENT, 1f)
             c.add(head)
             val stats = listOf("Ranked runs" to pp.runs, "Levels won" to pp.solved, "Daily cubes" to pp.dailySolved, "Daily streak" to pp.streak,
-                "Endless best" to pp.endlessBest, "Clean runs" to pp.cleanRuns).filter { it.second > 0 }
+                "Endless best" to pp.endlessBest, "World Cubes cleared" to pp.worldCubes, "World Cubes won" to pp.worldWins, "Clean runs" to pp.cleanRuns).filter { it.second > 0 }
             stats.chunked(3).forEach { line ->
                 val r = row()
                 line.forEachIndexed { i, (k, v) ->

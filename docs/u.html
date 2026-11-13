@@ -69,7 +69,7 @@ else fetch("https://cubit-lb-api.taymaerz.de/v1/profile/" + code).then(r => r.ok
   $("name").textContent = p.name;
   const since = new Date(p.since * 1000);
   $("sub").textContent = "Player LV " + p.level + " · " + p.xp.toLocaleString("en-GB") + " XP" + (isNaN(since) ? "" : " · playing since " + since.toLocaleDateString("en-GB", { month: "long", year: "numeric" }));
-  const stats = [["Ranked runs", p.runs], ["Levels won", p.solved], ["Daily cubes", p.dailySolved], ["Daily streak", p.streak], ["Endless best", p.endlessBest], ["Clean runs", p.cleanRuns]];
+  const stats = [["Ranked runs", p.runs], ["Levels won", p.solved], ["Daily cubes", p.dailySolved], ["Daily streak", p.streak], ["Endless best", p.endlessBest], ["World Cubes cleared", p.worldCubes], ["World Cubes won", p.worldWins], ["Clean runs", p.cleanRuns]];
   for (const [k, v] of stats) if (v > 0) { const s = el("div", "stat"); s.append(el("span", "label", k), el("b", null, v.toLocaleString("en-GB"))); $("stats").append(s); }
   if (!p.best.length) $("runs").append(el("li", "run", "No ranked runs yet."));
   for (const r of p.best) {

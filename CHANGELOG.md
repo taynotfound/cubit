@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.7.2 (2026-11-13)
+
+- **World Cubes on profiles**: public profiles now show how many World Cubes a player helped clear and how many they won by freeing the pink arrow themselves. Winners of World Cubes freed before this update are counted too.
+
 ## 1.7.1 (2026-11-13)
 
 - **Plain cubes** (Settings → Look): just the arrows and the cube, with no bombs, locked or two-way arrows, and no wormholes. A level you saved before switching resumes as it was, and the World Cube stays the same for everyone.

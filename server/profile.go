@@ -84,7 +84,7 @@ func (a *App) profile(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Cache-Control", "public, max-age=30")
 	send(w, http.StatusOK, map[string]any{"code": c, "name": d.Name, "level": playerLevel(d.XP), "xp": d.XP, "runs": d.Runs, "cleanRuns": d.CleanRuns,
-		"endlessBest": d.EndlessBest, "since": d.Created, "badges": badges, "streak": p.Streak, "solved": p.Solved, "dailySolved": p.DailySolved, "best": best})
+		"endlessBest": d.EndlessBest, "worldCubes": d.WorldCubes, "worldWins": d.WorldWins, "since": d.Created, "badges": badges, "streak": p.Streak, "solved": p.Solved, "dailySolved": p.DailySolved, "best": best})
 }
 
 // stats is the public player count for the website: everyone with a verified run, and everyone who turned rankings on.

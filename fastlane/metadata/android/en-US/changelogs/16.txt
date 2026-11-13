@@ -1,0 +1,1 @@
+- Public profiles show how many World Cubes a player helped clear and how many they won.

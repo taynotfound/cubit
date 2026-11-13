@@ -25,6 +25,9 @@ type Device struct {
 	// EndlessBest is the most cubes in one (non-daily) endless run, counted by the server.
 	EndlessBest int      `json:"endlessBest,omitempty"`
 	Profile     *Profile `json:"profile,omitempty"` // opt-in public page; nil when off
+	// World Cubes this player helped clear (cleared at least one arrow on a cube someone then freed), and ones they freed.
+	WorldCubes int `json:"worldCubes,omitempty"`
+	WorldWins  int `json:"worldWins,omitempty"`
 }
 
 // publicCode is the friend code to show next to the player on public boards: only when they made their profile
@@ -78,6 +81,8 @@ type DB struct {
 	Endless      map[string]*EndlessRun `json:"endless,omitempty"`
 	EndlessDaily []EndlessScore         `json:"endlessDaily,omitempty"`
 	World        *World                 `json:"world,omitempty"` // the shared World Cube
+	// WorldCounted: World Cubes won before players' counts existed (1.7.2) have been credited to their winners.
+	WorldCounted bool `json:"worldCounted,omitempty"`
 }
 
 const maxScores = 5000
@@ -93,6 +98,7 @@ func openStore(file string) (*Store, error) {
 	s := &Store{file: file, dirty: make(chan struct{}, 1), db: DB{Devices: map[string]*Device{}}}
 	raw, err := os.ReadFile(file)
 	if errors.Is(err, fs.ErrNotExist) {
+		s.db.WorldCounted = true // a new board counts World Cubes from the start: nothing to credit later
 		return s, nil
 	}
 	if err != nil {
@@ -104,6 +110,19 @@ func openStore(file string) (*Store, error) {
 	}
 	if s.db.Devices == nil {
 		s.db.Devices = map[string]*Device{}
+	}
+	if !s.db.WorldCounted {
+		// Cubes freed before 1.7.2 counted nobody. Their winners are known (who else helped isn't), so credit them once.
+		if s.db.World != nil {
+			for _, w := range s.db.World.History {
+				if d := s.db.Devices[s.byCode(w.Code)]; d != nil {
+					d.WorldWins++
+					d.WorldCubes++
+				}
+			}
+		}
+		s.db.WorldCounted = true
+		s.markDirty()
 	}
 	for id, d := range s.db.Devices {
 		if d.Code == "" { // players from before friend codes

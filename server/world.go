@@ -188,6 +188,12 @@ func (a *App) worldTap(w http.ResponseWriter, r *http.Request) {
 	out := map[string]any{"ok": true, "removed": group, "v": len(wd.Removed), "left": bd.left}
 	if bd.gone[0] { // the pink arrow: this player wins the cube, and a new one starts
 		now := a.now().Unix()
+		for id := range wd.Clears { // everyone who cleared an arrow on it helped clear it
+			if pd := a.store.db.Devices[id]; pd != nil {
+				pd.WorldCubes++
+			}
+		}
+		d.WorldWins++
 		win := WorldWin{wd.ID, d.Name, d.Code, len(wd.Clears), len(bd.p.paths) - bd.left, now - wd.Started, now}
 		hist := append(wd.History, win)
 		if len(hist) > 50 {
