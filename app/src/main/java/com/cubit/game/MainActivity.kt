@@ -97,6 +97,10 @@ class MainActivity : Activity(), GameView.Listener {
     /** This round's biggest blast and longest bomb chain, for the badges. */
     private var maxBlast = 0
     private var maxChain = 0
+    /** Clears in quick succession with no bump between: the combo shown over the cube, and this round's best. */
+    private var combo = 0
+    private var bestCombo = 0
+    private var lastClearAt = 0L
     /** A past daily cube played from the archive: free-roam rules, no streak, marked solved in the calendar. */
     private var archiveDay: Int? = null
     /** The ghost is your own best run on this cube. */
@@ -117,10 +121,66 @@ class MainActivity : Activity(), GameView.Listener {
         buildShell()
         // Opening screen on a cold start (not on rotation or when Android brings the activity back).
         ReminderReceiver.schedule(this, prefs.streakReminder)
+        if (startDemo(intent)) return
         if (savedInstanceState == null) showIntro { if (!prefs.onboarded) showSetup() else handleLink(intent) } else if (!prefs.onboarded) showSetup()
     }
 
-    override fun onNewIntent(intent: android.content.Intent) { super.onNewIntent(intent); setIntent(intent); handleLink(intent) }
+    override fun onNewIntent(intent: android.content.Intent) { super.onNewIntent(intent); setIntent(intent); if (!startDemo(intent)) handleLink(intent) }
+
+    // ---------- demo autoplay (debug builds only) ----------
+
+    private var demoTaps = 0
+    private var demoMinTaps = 0
+    private var demoPace = 1f
+    /** Set by [startDemo]: every round that starts plays itself. */
+    private var demoOn = false
+
+    /**
+     * Records promo footage: `adb shell am start -n de.taymaerz.cubit/com.cubit.game.MainActivity --es demo <scene>`
+     * with scene "level:12", "free:<n>:<maxLen>:<seed>", "endless" or "home", and optional --es mode NORMAL|CLEAN|…,
+     * --ez full true, --ei taps <before pink>, --ef pace <tap speed>. The app plays itself with a slow camera drift and
+     * a ring on each tap. Rankings are switched off so demo runs never reach the board. Release builds ignore it.
+     */
+    private fun startDemo(i: android.content.Intent?): Boolean {
+        val scene = i?.getStringExtra("demo") ?: return false
+        if (!BuildConfig.DEBUG) return false
+        i.removeExtra("demo")
+        prefs.onboarded = true; prefs.tutorialDone = true; prefs.postOnline = false; prefs.bombSeen = true
+        if (prefs.name == "Player") prefs.name = "Cubit"
+        i.getStringExtra("mode")?.let { m -> Difficulty.entries.firstOrNull { it.name == m }?.let { prefs.difficulty = it } }
+        prefs.fullClear = i.getBooleanExtra("full", false)
+        demoMinTaps = i.getIntExtra("taps", 30); demoPace = i.getFloatExtra("pace", 1f); demoTaps = 0; demoOn = true
+        closeSheet(); root.findViewWithTag<View>("welcome")?.let { root.removeView(it) }
+        if (gameLayer != null) leaveGame()
+        val f = scene.split(":")
+        when (f[0]) {
+            "level" -> { prefs.level = f.getOrNull(1)?.toIntOrNull() ?: prefs.level; startCampaign() }
+            "free" -> startFree(LevelSpec(f[1].toInt(), f[2].toInt(), f[3].toLong()))
+            "endless" -> startEndless()
+            else -> { showTab(Tab.PLAY); return true }
+        }
+        return true
+    }
+
+    private val demoStep: Runnable = object : Runnable {
+        override fun run() {
+            val g = game ?: return
+            if (!running) {
+                // Endless: take the next cube after the win sheet has been seen.
+                // The win is counted 1.7 s after the pink arrow leaves, so look again once the sheet is up.
+                if (endless >= 0) handler.postDelayed({ if (endless > 0 && !running) { carryLives = livesLeft; demoTaps = 0; startRound(endlessSpec(endlessSeed, endless), endlessLabel(endless)) } }, 4300)
+                return
+            }
+            g.showTaps = true
+            val a = g.demoPick(pinkOk = demoTaps >= demoMinTaps)
+            if (a >= 0) { android.util.Log.i("CubitDemo", if (g.isBomb(a)) "bomb" else "tap"); g.demoTap(a); demoTaps++ } else if (demoTaps % 3 == 0) g.findNext()
+            // Between taps the camera drifts; the gaps vary like a person's.
+            val gap = ((380 + Random.nextInt(420)) / demoPace).toLong()
+            var t = 0L
+            while (t < gap) { handler.postDelayed({ if (running) g.demoTurn(0f, 0.003f) }, t); t += 16 }
+            handler.postDelayed(this, gap)
+        }
+    }
 
     /** cubit://daily/<day>, week/<week>, challenge/<run>, pack/<pack> and friend/<code>, from shared links and the streak reminder. */
     private fun handleLink(i: android.content.Intent?) {
@@ -1730,7 +1790,8 @@ class MainActivity : Activity(), GameView.Listener {
         handler.postDelayed({ levelFlap.text = if (freeRoam || dailyDay != null) "%02d×%02d".format(s.n, s.n) else "%04d".format(prefs.level % 10000) }, 200)
         clearedFlap.setInstant("   ")
         livesLeft = if (carryLives > 0) carryLives else diff.lives; mistakes = 0; carryLives = -1
-        val bonus = carryBonus; carryBonus = 0; maxBlast = 0; maxChain = 0
+        val bonus = carryBonus; carryBonus = 0; maxBlast = 0; maxChain = 0; combo = 0; bestCombo = 0
+        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) // no dimming mid-level
         lamps?.total = maxOf(diff.lives, livesLeft)
         moves.clear(); runId = null
         val serial = ++roundSerial
@@ -1787,6 +1848,7 @@ class MainActivity : Activity(), GameView.Listener {
         updateHud()
         Sfx.start(); Music.game()
         handler.post(tick)
+        if (demoOn) handler.postDelayed(demoStep, 1600) // the demo starts tapping once the cube has spun in
         if (!prefs.bombSeen && (puzzle.bombs.any { it } || puzzle.keys.any { it >= 0 } || puzzle.twoWay.any { it })) {
             prefs.bombSeen = true
             toast("New arrows: an orange core is a bomb (it takes the arrows touching it along), a dashed core is locked until its key leaves, and two heads means it can leave either way.")
@@ -1819,7 +1881,10 @@ class MainActivity : Activity(), GameView.Listener {
     private fun elapsedMillis() = elapsedMs + (if (running) SystemClock.uptimeMillis() - resumedAt else 0)
     private fun elapsedSec() = elapsedMillis() / 1000f
     private fun pauseClock() { if (running) { elapsedMs += SystemClock.uptimeMillis() - resumedAt; resumedAt = SystemClock.uptimeMillis() } }
-    private fun stopRound() { pauseClock(); running = false; handler.removeCallbacks(tick); game = null; hud = null }
+    private fun stopRound() {
+        pauseClock(); running = false; handler.removeCallbacks(tick); handler.removeCallbacks(demoStep); game = null; hud = null
+        window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+    }
 
     private fun updateHud() {
         val h = hud ?: return; val g = game ?: return
@@ -1864,7 +1929,27 @@ class MainActivity : Activity(), GameView.Listener {
 
     override fun onArrowRemoved(left: Int, total: Int) {
         Sfx.slide(); Haptics.click(); updateHud()
+        val now = SystemClock.uptimeMillis()
+        combo = if (now - lastClearAt < 2500) combo + 1 else 1
+        lastClearAt = now; bestCombo = maxOf(bestCombo, combo)
+        if (combo >= 3 && diff != Difficulty.CLEAN && !tutorial && running) showCombo(combo)
         if (tutorial) coachSay(if (total - left >= 3) "Now find the pink arrow. Clear its way out and tap it to win." else "That's it. Keep clearing. Drag to turn the cube, pinch to zoom.")
+    }
+
+    /** "×5" floating up over the cube; every fifth one is bigger and gets a tick you can feel. */
+    private fun showCombo(n: Int) {
+        val layer = gameLayer ?: return
+        val big = n % 5 == 0
+        val t = display("×$n", if (big) 64f else 44f, if (big) PINK else th.accent).apply {
+            gravity = Gravity.CENTER; contentDescription = "Combo $n"; setShadowLayer(dp(6).toFloat(), 0f, dp(2).toFloat(), withAlpha(Color.BLACK, 140))
+        }
+        layer.addView(t, FrameLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT, Gravity.CENTER_HORIZONTAL or Gravity.TOP).apply { topMargin = (layer.height * 0.22f).toInt() })
+        if (big) Haptics.double()
+        if (!motionEnabled()) { handler.postDelayed({ layer.removeView(t) }, 700); return }
+        t.scaleX = 0.6f; t.scaleY = 0.6f
+        t.animate().scaleX(1f).scaleY(1f).translationY(-dp(40).toFloat()).setDuration(260).setInterpolator(DecelerateInterpolator(2f)).withEndAction {
+            t.animate().alpha(0f).translationY(-dp(70).toFloat()).setDuration(420).withEndAction { layer.removeView(t) }.start()
+        }.start()
     }
 
     override fun onTap(arrow: Int) { if (running) moves.add(longArrayOf(arrow.toLong(), elapsedMillis())) }
@@ -1889,6 +1974,7 @@ class MainActivity : Activity(), GameView.Listener {
 
     override fun onTargetFreed() {
         if (!running) return
+        if (demoOn) android.util.Log.i("CubitDemo", "win") // promo audio is laid on from these
         pauseClock(); running = false
         game?.inputEnabled = false
         Sfx.win(); Haptics.win()
@@ -1906,6 +1992,7 @@ class MainActivity : Activity(), GameView.Listener {
             return
         }
         mistakes++
+        combo = 0
         if (diff.lives > 0) {
             livesLeft--
             updateHud()
@@ -2003,6 +2090,7 @@ class MainActivity : Activity(), GameView.Listener {
                 if (diff.lives > 0) " · $livesLeft ${if (livesLeft == 1) "life" else "lives"} carry over" else "")
             if (archiveDay != null) add("Marked solved in the daily archive")
             if (atPar) add("On par · nobody can do it in fewer taps")
+            if (bestCombo >= 5) add("Best combo ×$bestCombo")
             if (dailyBest) add("Your best daily score yet")
             if (freezesUsed > 0) add("A streak freeze covered $freezesUsed missed day${if (freezesUsed == 1) "" else "s"} · ${prefs.dailyStreak}-day streak")
             if (freezeEarned) add("Streak freeze earned · it covers one missed daily cube (you hold ${prefs.streakFreezes})")

@@ -356,13 +356,17 @@ class GameView(ctx: Context) : View(ctx) {
         }
         val tg = puzzle.target
         if (!removed[tg] && tg !in busy) {
-            val beat = 0.5f + 0.5f * sin(now / 260f)
+            // Once its way out is clear the pink arrow beats faster and brighter: "now!".
+            val ready = inputEnabled && wayOf(tg) != Puzzle.STUCK
+            val beat = 0.5f + 0.5f * sin(now / (if (ready) 110f else 260f))
+            if (ready) drawSnake(canvas, tracks[tg], 0f, tracks[tg].headT, w * (4.6f + 1.6f * beat), withAlpha(PINK, (40 + 50 * beat).toInt()), lift = 0f, shadow = false)
             drawSnake(canvas, tracks[tg], 0f, tracks[tg].headT, w * (3.2f + 1.2f * beat), withAlpha(PINK, (30 + 40 * beat).toInt()), lift = 0f, shadow = false)
             drawSnake(canvas, tracks[tg], 0f, tracks[tg].headT, w * 2.3f, theme.bg)
             drawSnake(canvas, tracks[tg], 0f, tracks[tg].headT, w * 1.45f, PINK, lift = baseLift * 1.05f, shadow = false)
             if (markTarget) drawSnake(canvas, tracks[tg], 0f, tracks[tg].headT - 0.6f, w * 0.4f, Color.WHITE, lift = baseLift * 1.1f, shadow = false)
         }
 
+        drawPreview(canvas, w)
         drawAnims(canvas, now, w)
         finishFrame(canvas, now, dt, shakeT, scanning)
     }
@@ -391,11 +395,12 @@ class GameView(ctx: Context) : View(ctx) {
 
     private fun finishFrame(canvas: Canvas, now: Long, dt: Float, shakeT: Long, scanning: Boolean) {
         canvas.restore()
+        drawRing(canvas, now)
         if (shakeT < 260) canvas.drawColor(withAlpha(Color.rgb(255, 40, 60), (70 * (1f - shakeT / 260f)).toInt()))
         drawParticles(canvas, dt)
 
         val pulsing = inputEnabled && !removed[puzzle.target]
-        if (pulsing || particles.isNotEmpty() || shakeT < 320 || now - introStart < 700 || autoSpin || anims.isNotEmpty() || hintArrow >= 0 || scanning || spinX != 0f || spinY != 0f) postInvalidateOnAnimation()
+        if (pulsing || preview >= 0 || showTaps && now - ringAt < 500 || particles.isNotEmpty() || shakeT < 320 || now - introStart < 700 || autoSpin || anims.isNotEmpty() || hintArrow >= 0 || scanning || spinX != 0f || spinY != 0f) postInvalidateOnAnimation()
     }
 
     private val targetColor get() = PINK
@@ -739,6 +744,7 @@ class GameView(ctx: Context) : View(ctx) {
                 downX = e.x; downY = e.y; lastX = cx; lastY = cy
                 caught = abs(spinX) + abs(spinY) > 0.6f
                 downTime = e.eventTime; lastMoveTime = e.eventTime; moved = false; multi = false; dragging = true; spinX = 0f; spinY = 0f
+                removeCallbacks(longPress); postDelayed(longPress, 450)
             }
             MotionEvent.ACTION_POINTER_DOWN, MotionEvent.ACTION_POINTER_UP -> {
                 multi = true; lastX = cx; lastY = cy; spinX = 0f; spinY = 0f
@@ -752,7 +758,7 @@ class GameView(ctx: Context) : View(ctx) {
             MotionEvent.ACTION_MOVE -> {
                 val dx = cx - lastX; val dy = cy - lastY
                 lastX = cx; lastY = cy
-                if (!moved && hypot(e.x - downX, e.y - downY) > slop) moved = true
+                if (!moved && hypot(e.x - downX, e.y - downY) > slop) { moved = true; removeCallbacks(longPress); preview = -1 }
                 if (!moved && !multi) return true
                 if (e.pointerCount >= 2) { panX += dx; panY += dy; clampPan() }
                 else if (!multi) {
@@ -770,13 +776,14 @@ class GameView(ctx: Context) : View(ctx) {
             }
             MotionEvent.ACTION_UP -> {
                 dragging = false
+                removeCallbacks(longPress); if (preview >= 0) { preview = -1; invalidate() }
                 if (!moved && !multi && e.eventTime - downTime < 450) { spinX = 0f; spinY = 0f; if (!caught) tap(e.x, e.y) }
                 else if (multi && !moved && e.eventTime - downTime < 350 && inputEnabled) { spinX = 0f; spinY = 0f; listener?.onTwoFingerTap() }
                 // No coast after a pinch, or when the finger paused before lifting.
                 else if (multi || e.eventTime - lastMoveTime > 60 || abs(spinX) + abs(spinY) < 0.15f) { spinX = 0f; spinY = 0f }
                 invalidate()
             }
-            MotionEvent.ACTION_CANCEL -> { dragging = false; spinX = 0f; spinY = 0f }
+            MotionEvent.ACTION_CANCEL -> { dragging = false; spinX = 0f; spinY = 0f; removeCallbacks(longPress); preview = -1 }
         }
         return true
     }
@@ -800,6 +807,11 @@ class GameView(ctx: Context) : View(ctx) {
 
     private fun tap(x: Float, y: Float) {
         if (!inputEnabled || !::puzzle.isInitialized) return
+        arrowAt(x, y).takeIf { it >= 0 }?.let { tapArrow(it) }
+    }
+
+    /** The arrow under screen point (x, y), or -1: the nearest visible arrow cell within a finger's reach. */
+    private fun arrowAt(x: Float, y: Float): Int {
         val cube = puzzle.cube; val n = cube.n.toFloat()
         var best = -1; var bestD = Float.MAX_VALUE
         for (c in 0 until cube.size) {
@@ -809,8 +821,76 @@ class GameView(ctx: Context) : View(ctx) {
             if (d < bestD) { bestD = d; best = c }
         }
         val cellPx = focal / camDist * 2f / cube.n
-        if (best >= 0 && bestD < cellPx * 0.9f + 12f) tapArrow(occ[best])
+        return if (best >= 0 && bestD < cellPx * 0.9f + 12f) occ[best] else -1
     }
+
+    // ---- long-press preview ----
+
+    /** Holding an arrow shows its way out (green when clear, red when not) without tapping it. */
+    private var preview = -1
+    private val longPress = Runnable {
+        if (dragging && !moved && !multi && inputEnabled && ::puzzle.isInitialized) {
+            preview = arrowAt(downX, downY)
+            if (preview >= 0) { performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS); invalidate() }
+        }
+    }
+
+    private fun drawPreview(canvas: Canvas, w: Float) {
+        val a = preview
+        if (a < 0 || removed[a]) return
+        val tr = tracks[a]; val free = wayOf(a) != Puzzle.STUCK
+        val c = if (free) Color.rgb(80, 220, 140) else Color.rgb(235, 40, 60)
+        drawSnake(canvas, tr, 0f, tr.headT, w * 2.6f, withAlpha(c, 70), lift = 0f, shadow = false)
+        // The way out: from the head to the face edge (on Nightmare, round the cube first).
+        drawSnake(canvas, tr, tr.headT, tr.headT + tr.rayCells.size + 0.5f, w * 0.7f, withAlpha(c, 170), lift = baseLift, shadow = false)
+    }
+
+    // ---- demo autoplay (debug builds only, for recording footage) ----
+
+    /** Draws a fading ring where the demo "taps", so viewers can follow along. */
+    var showTaps = false
+    private var ringX = 0f; private var ringY = 0f; private var ringAt = 0L
+
+    /** A good arrow for the demo to tap: free, on a face you can see, bombs first; the pink one once [pinkOk]. */
+    fun demoPick(pinkOk: Boolean): Int {
+        val free = puzzle.paths.indices.filter { !removed[it] && anims.none { an -> an.arrow == it } && wayOf(it) != Puzzle.STUCK }
+        val seen = free.filter { faceVisible(tracks[it].headFace) && facing(tracks[it].headFace) > 1.2f }
+        if (pinkOk && puzzle.target in free) return puzzle.target
+        if (pinkOk) {
+            // Dig towards the pink arrow: the arrows in its way, the ones in theirs, and any keys they need.
+            val need = HashSet<Int>(); val queue = ArrayDeque(listOf(puzzle.target))
+            while (queue.isNotEmpty()) {
+                val b = queue.removeFirst()
+                val cells = tracks[b].rayCells.toList() + (revTracks[b]?.rayCells?.toList() ?: emptyList())
+                val next = cells.map { occ[it] }.filter { it >= 0 && it != b } + listOfNotNull(puzzle.keys[b].takeIf { it >= 0 && !removed[it] })
+                for (x in next) if (need.add(x)) queue.add(x)
+            }
+            val dig = free.filter { it in need }
+            (dig.firstOrNull { it in seen } ?: dig.firstOrNull())?.let { return it }
+        }
+        val pool = seen.filter { it != puzzle.target }
+        return pool.firstOrNull { puzzle.bombs[it] } ?: pool.randomOrNull() ?: -1
+    }
+
+    fun isBomb(a: Int) = puzzle.bombs[a]
+
+    /** The demo's tap: the ring, then the real tap. */
+    fun demoTap(a: Int) {
+        pointAt(tracks[a], tracks[a].headT - 0.5f, p1)
+        ringX = p1[0]; ringY = p1[1]; ringAt = SystemClock.uptimeMillis()
+        playTap(a)
+    }
+
+    /** Turns the cube a little, for the demo's slow camera drift. */
+    fun demoTurn(ax: Float, ay: Float) { rotateBy(ax, ay); invalidate() }
+
+    private fun drawRing(canvas: Canvas, now: Long) {
+        val e = (now - ringAt) / 450f
+        if (!showTaps || e > 1f) return
+        ringPaint.color = withAlpha(Color.WHITE, (200 * (1f - e)).toInt())
+        canvas.drawCircle(ringX, ringY, dp * (14f + 26f * e), ringPaint)
+    }
+    private val ringPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = 3f * ctx.resources.displayMetrics.density }
 
     private val m = FloatArray(9)
     private val r2 = FloatArray(9)
