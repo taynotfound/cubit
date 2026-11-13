@@ -366,6 +366,7 @@ class MainActivity : Activity(), GameView.Listener {
     // ---------- shell ----------
 
     private fun buildShell() {
+        val y = if (::content.isInitialized) scrollOf(content) else 0
         root.removeAllViews()
         root.setBackgroundColor(th.bg)
         systemBars(th.bg, th.bg, th.isLight)
@@ -374,7 +375,7 @@ class MainActivity : Activity(), GameView.Listener {
         content = FrameLayout(this)
         shell.add(content, 0, MATCH_PARENT, 0, 1f)
         root.addView(shell, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
-        showTab(tab)
+        showTab(tab, y)
     }
 
     private fun systemBars(status: Int, nav: Int, light: Boolean) {
@@ -384,11 +385,15 @@ class MainActivity : Activity(), GameView.Listener {
         window.decorView.systemUiVisibility = if (light) View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR else 0
     }
 
-    private fun showTab(t: Tab) {
+    private fun scrollOf(box: FrameLayout) = (box.getChildAt(0) as? ScrollView)?.scrollY ?: 0
+
+    /** Redrawing the same tab (a setting that rebuilds the page) keeps its scroll place; a new tab starts at the top. */
+    private fun showTab(t: Tab, y: Int = if (t == tab) scrollOf(content) else 0) {
         tab = t
         content.removeAllViews()
         val page = when (t) { Tab.PLAY -> playTab(); Tab.RANKS -> ranksTab(); Tab.SETTINGS -> settingsTab() }
         content.addView(page, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
+        if (y > 0) { page.post { page.scrollTo(0, y) }; return }
         if (motionEnabled()) { page.alpha = 0f; page.translationY = dp(10).toFloat(); page.animate().alpha(1f).translationY(0f).setDuration(220).setInterpolator(DecelerateInterpolator(2f)).start() }
     }
 
