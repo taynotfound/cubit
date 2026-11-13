@@ -173,6 +173,13 @@
   .news li b { color: var(--text); font-weight: 500; }
   .final { text-align: center; }
   .final .cta { justify-content: center; }
+  .support { max-width: 620px; margin: 40px auto 18px; padding: 26px 22px; border: 1px solid var(--hair); border-radius: 10px; background: var(--panel); }
+  .support h3 { margin: 0; font: 700 28px/1 "Barlow Condensed", sans-serif; text-transform: uppercase; }
+  .support p { color: var(--muted); margin: 10px auto 0; max-width: 52ch; }
+  .support .cta { margin-top: 20px; }
+  .btn.kofi { background: #FF5E5B; color: #fff; font-size: 18px; letter-spacing: .04em; }
+  .btn.sponsor { background: transparent; color: var(--text); border: 1px solid #DB61A2; font-size: 18px; letter-spacing: .04em; }
+  .btn.sponsor svg { color: #DB61A2; }
   .final .lede { margin: 16px auto 0; }
   footer { border-top: 1px solid var(--hair); padding: 30px 0 40px; color: var(--muted); font-size: 14px; display: flex; flex-wrap: wrap; gap: 8px 24px; }
   footer a { color: var(--muted); }
@@ -201,6 +208,7 @@
       <a class="opt" href="#modes">Modes</a>
       <a class="opt" href="#faq">FAQ</a>
       <a class="opt" href="https://github.com/taynotfound/cubit">GitHub</a>
+      <a class="opt" href="#support">Support</a>
       <a class="get" href="#get">Get it</a>
     </div>
   </nav>
@@ -394,7 +402,16 @@
       <a class="btn secondary" href="https://f-droid.org/en/packages/de.taymaerz.cubit/">Get it on F-Droid</a>
       <a class="btn secondary" href="#clean">See Clean mode</a>
     </div>
-    <p class="fine" style="margin-top:22px">Enjoying it? Cubit stays free with no ads. You can chip in on <a href="https://ko-fi.com/taygotkofi">Ko-fi</a> or <a href="https://github.com/sponsors/taynotfound">GitHub Sponsors</a>.</p>
+    <div class="support" id="support">
+      <h3>Keep Cubit free</h3>
+      <p>Cubit is made by one person, with no ads and nothing to buy. If you enjoy it, a coffee or a sponsorship keeps the board and the World Cube running.</p>
+      <div class="cta">
+        <a class="btn kofi" href="https://ko-fi.com/taygotkofi">Buy a coffee on Ko-fi
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13v5a6 6 0 0 1-6 6h-1a6 6 0 0 1-6-6z"/><path d="M17 9h1.5a2.5 2.5 0 0 1 0 5H17M8 3v2M12 3v2"/></svg></a>
+        <a class="btn sponsor" href="https://github.com/sponsors/taynotfound">Sponsor on GitHub
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7.5-4.6-9.3-9.2C1.5 8.5 3.6 5 7 5c2 0 3.4 1.1 5 3 1.6-1.9 3-3 5-3 3.4 0 5.5 3.5 4.3 6.8C19.5 16.4 12 21 12 21z"/></svg></a>
+      </div>
+    </div>
     <p class="fine">Version <span data-ver>1.6.0</span> · free with no ads · Android 7.0 or newer<span data-players hidden></span> · <a href="https://github.com/taynotfound/cubit/releases/latest">what's new</a></p>
   </div>
 </section>
