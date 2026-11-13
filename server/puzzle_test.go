@@ -45,7 +45,7 @@ func TestLapFingerprintsMatchApp(t *testing.T) {
 // two-way arrow and its tail's way out.
 func TestSpecialsMatchApp(t *testing.T) {
 	specs := []LevelSpec{specForLevel(4), specForLevel(30), {N: 14, MaxLen: 20, Seed: -987654321}, endlessSpec(dailyEndlessSeed(20800), 6)}
-	want := []int64{7161757959314111960, -5848080600933065072, 8421851543497214288, 3947938222237347106}
+	want := []int64{-2168532955706612572, 893908734425870072, 8367443714046685816, 776641724789738145}
 	for i, s := range specs {
 		s.Special = true
 		p := generate(s)
@@ -70,6 +70,12 @@ func TestSpecialsMatchApp(t *testing.T) {
 				for _, c := range p.tailExit(a) {
 					mix(50_000 + int64(c))
 				}
+			}
+		}
+		for c := range p.warp {
+			if p.warp[c] > c {
+				mix(60_000 + int64(c))
+				mix(70_000 + int64(p.warp[c]))
 			}
 		}
 		if got := int64(h); got != want[i] {

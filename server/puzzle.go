@@ -115,6 +115,132 @@ type Puzzle struct {
 	bombs  []bool
 	keys   []int
 	twoWay []bool
+	warp   []int // wormholes: warp[cell] is the portal opposite, -1 for none; nil when the cube has none
+}
+
+// exitOf mirrors Puzzle.exit: arrow a's way out, through a wormhole if it crosses one.
+func (p *Puzzle) exitOf(a int) []int {
+	path := p.paths[a]
+	return p.warped(p.cube.exit(path[len(path)-1], p.dirs[a], p.lap), p.dirs[a])
+}
+
+// warped mirrors Puzzle.warped: a way out that reaches a portal carries on, the same way, from the portal opposite.
+func (p *Puzzle) warped(cells []int, d int) []int {
+	if p.lap || p.warp == nil {
+		return cells
+	}
+	for i, c := range cells {
+		if q := p.warp[c]; q >= 0 {
+			return append(append(append([]int(nil), cells[:i+1]...), q), p.cube.ray(q, d)...)
+		}
+	}
+	return cells
+}
+
+// turnDir mirrors turnDir in Puzzle.kt: direction d a quarter turn about face f's normal (n × d).
+func turnDir(d, f int) int {
+	cx, cy, cz := dy[f]*dz[d]-dz[f]*dy[d], dz[f]*dx[d]-dx[f]*dz[d], dx[f]*dy[d]-dy[f]*dx[d]
+	for i := 0; i < 6; i++ {
+		if dx[i] == cx && dy[i] == cy && dz[i] == cz {
+			return i
+		}
+	}
+	panic("turnDir")
+}
+
+// turn mirrors Puzzle.turn: Twist mode turns every arrowhead on face f. Only on a puzzle generated for one replay.
+func (p *Puzzle) turn(f int) {
+	for a, path := range p.paths {
+		if p.cube.fc[path[len(path)-1]] == f {
+			p.dirs[a] = turnDir(p.dirs[a], f)
+		}
+	}
+}
+
+func (c *Cube) antipode(cell int) int {
+	v := [3]int{c.px[cell], c.py[cell], c.pz[cell]}
+	v[c.fc[cell]/2] = -v[c.fc[cell]/2]
+	return c.cellAt(v[0], v[1], v[2])
+}
+
+// solvable mirrors solvable in Puzzle.kt: clear any free arrow until none is left (bombs aside, which only help).
+func solvable(p *Puzzle) bool {
+	occ := make([]int, p.cube.size)
+	for i := range occ {
+		occ[i] = -1
+	}
+	for i, path := range p.paths {
+		for _, c := range path {
+			occ[c] = i
+		}
+	}
+	gone := make([]bool, len(p.paths))
+	left := len(p.paths)
+	for left > 0 {
+		moved := false
+		for a := range p.paths {
+			if !gone[a] && p.free(a, occ, gone) {
+				gone[a], moved = true, true
+				left--
+				for _, c := range p.paths[a] {
+					occ[c] = -1
+				}
+			}
+		}
+		if !moved {
+			return false
+		}
+	}
+	return true
+}
+
+const maxWormholes = 3 // mirrors MAX_WORMHOLES
+
+// wormholesFor mirrors wormholesFor in Puzzle.kt.
+func wormholesFor(p *Puzzle, seed int64) []int {
+	owner := make([]int, p.cube.size)
+	for i := range owner {
+		owner[i] = -1
+	}
+	for i, path := range p.paths {
+		for _, c := range path {
+			owner[c] = i
+		}
+	}
+	var free []int
+	for c := range owner {
+		if owner[c] < 0 {
+			free = append(free, c)
+		}
+	}
+	warp := make([]int, p.cube.size)
+	for i := range warp {
+		warp[i] = -1
+	}
+	if len(free) == 0 {
+		return warp
+	}
+	r := &Rng{uint64(seed ^ 0x576F726D)}
+	var pairs []int
+	for t := 0; t < 40 && len(pairs) < maxWormholes; t++ {
+		c := free[r.nextInt(len(free))]
+		q := p.cube.antipode(c)
+		if q >= 0 && q != c && owner[q] < 0 && warp[c] < 0 && warp[q] < 0 {
+			warp[c], warp[q] = q, c
+			pairs = append(pairs, c)
+		}
+	}
+	for len(pairs) > 0 {
+		trial := *p
+		trial.warp = warp
+		if solvable(&trial) {
+			break
+		}
+		c := pairs[len(pairs)-1]
+		pairs = pairs[:len(pairs)-1]
+		warp[warp[c]], warp[c] = -1, -1
+	}
+	return warp
 }
 
 type LevelSpec struct {
@@ -179,6 +305,7 @@ func generate(spec LevelSpec) *Puzzle {
 	}
 	if spec.Special && !spec.Lap {
 		best.bombs, best.keys, best.twoWay = specialsFor(len(best.paths), spec.Seed)
+		best.warp = wormholesFor(best, spec.Seed)
 	}
 	return best
 }
@@ -232,7 +359,7 @@ func (p *Puzzle) tailExit(a int) []int {
 	path := p.paths[a]
 	for _, d := range p.cube.tangents(path[0]) {
 		if p.cube.step(path[0], d)/8 == path[1] {
-			return p.cube.exit(path[0], opposite(d), p.lap)
+			return p.warped(p.cube.exit(path[0], opposite(d), p.lap), opposite(d))
 		}
 	}
 	return nil
@@ -252,8 +379,7 @@ func (p *Puzzle) free(a int, occ []int, gone []bool) bool {
 		}
 		return true
 	}
-	path := p.paths[a]
-	return clear(p.cube.exit(path[len(path)-1], p.dirs[a], p.lap)) || p.twoWay != nil && p.twoWay[a] && clear(p.tailExit(a))
+	return clear(p.exitOf(a)) || p.twoWay != nil && p.twoWay[a] && clear(p.tailExit(a))
 }
 
 // cleared mirrors Puzzle.cleared: a, then its blast, then the blasts of bombs caught in it, skipping gone arrows.

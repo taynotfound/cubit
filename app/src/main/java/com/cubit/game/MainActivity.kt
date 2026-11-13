@@ -94,6 +94,8 @@ class MainActivity : Activity(), GameView.Listener {
     private var endlessDay: Int? = null
     /** The server's id for this endless run, when it's ranked. */
     private var endlessId: String? = null
+    /** Twist mode's button, lit while a twist is armed. */
+    private var twistButton: FrameLayout? = null
     /** This round's biggest blast and longest bomb chain, for the badges. */
     private var maxBlast = 0
     private var maxChain = 0
@@ -126,6 +128,102 @@ class MainActivity : Activity(), GameView.Listener {
     }
 
     override fun onNewIntent(intent: android.content.Intent) { super.onNewIntent(intent); setIntent(intent); if (!startDemo(intent)) handleLink(intent) }
+
+    // ---------- World Cube ----------
+
+    private var worldLayer: FrameLayout? = null
+    private var worldSerial = 0
+
+    /** Opens the shared World Cube (it needs the board, so rankings get switched on). */
+    private fun openWorld() {
+        if (!prefs.postOnline) {
+            // Joining is the point here, so it's the big button (confirm() would make it look risky).
+            val c = openSheet()
+            c.add(display("Join the World Cube?", 30f))
+            c.add(body("It's played on the Cubit board, so this turns on global rankings: your name and level go on the board too.", th.muted), 8)
+            c.add(primary("Turn on and join", Glyph.CUBE) { closeSheet(); prefs.postOnline = true; openWorld() }, 20)
+            c.add(secondary("Not now") { closeSheet() }, 10)
+            return
+        }
+        val serial = ++worldSerial
+        toast("Fetching the World Cube…")
+        Net.world(null, 0) { st -> if (serial == worldSerial) { if (st == null) toast("Couldn't reach the World Cube (${Net.lastError})") else showWorld(st) } }
+    }
+
+    private fun closeWorld() {
+        worldSerial++
+        worldLayer?.let { root.removeView(it) }; worldLayer = null
+        shell.visibility = View.VISIBLE; systemBars(th.bg, th.bg, th.isLight); Music.menu(); showTab(tab)
+    }
+
+    /** The World Cube screen: the cube, how many arrows are left, who's clearing it, polled every couple of seconds. */
+    private fun showWorld(first: WorldState) {
+        if (!PuzzleCache.has(first.spec)) { whenBuilt(first.spec) { showWorld(first) }; return }
+        worldLayer?.let { root.removeView(it) }
+        val serial = ++worldSerial
+        var id = first.id; var v = first.v
+        val layer = FrameLayout(this); worldLayer = layer
+        shell.visibility = View.GONE
+        val gv = GameView(this).apply { applyStyle(this); markTarget = prefs.markTarget; load(PuzzleCache.get(first.spec)); removeExternal(first.removed, animate = false) }
+        layer.addView(gv, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
+        val ui = column()
+        val strip = row().apply { setBackgroundColor(th.panel); setPadding(dp(10), dp(10), dp(10), dp(10)) }
+        strip.add(iconButton(Glyph.CLOSE, "Leave the World Cube") { closeWorld() }, 0, dp(48), dp(48))
+        val tBox = column().apply { setPadding(dp(14), 0, 0, 0) }
+        tBox.add(label("World Cube")); tBox.add(flap(5, 24f).apply { setInstant("#%04d".format(id % 10000)) }, 4, WRAP_CONTENT)
+        strip.add(tBox, 0, WRAP_CONTENT); strip.space(0, 1f)
+        val leftFlap = flap(5, 24f, right = true).apply { haptics = false; sound = false; setInstant("%5d".format(first.left)) }
+        val lBox = column().apply { gravity = Gravity.END; setPadding(0, 0, dp(6), 0) }
+        lBox.add(label("Arrows left"), 0, WRAP_CONTENT); lBox.add(leftFlap, 4, WRAP_CONTENT)
+        strip.add(lBox, 0, WRAP_CONTENT)
+        ui.add(strip)
+        val who = tv("", 14f, Fonts.body, th.muted).apply { setPadding(dp(16), dp(10), dp(16), 0) }
+        ui.add(who)
+        ui.space(0, 1f)
+        val foot = row().apply { setPadding(dp(16), dp(10), dp(12), dp(16)) }
+        foot.add(tv("Every arrow you clear is gone for everyone. Free the pink one to win the cube.", 14f, Fonts.body, th.muted), 0, 0, WRAP_CONTENT, 1f)
+        foot.add(iconButton(Glyph.RECENTER, "Reset camera, or find the last arrows") { if (gv.remaining <= 6) gv.findNext() else gv.resetView() }, 0, dp(48), dp(48))
+        ui.add(foot)
+        layer.addView(ui, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
+        root.addView(layer, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
+        systemBars(th.bg, th.panel, th.isLight); Music.game()
+        fun describe(st: WorldState) {
+            who.text = (if (st.players == 0) "Nobody has cleared an arrow on this cube yet. Be first." else "${st.players} player${if (st.players == 1) "" else "s"} on this cube") +
+                (st.top.takeIf { it.isNotEmpty() }?.joinToString(", ", " · most: ") { (n, k) -> "$n $k" } ?: "") +
+                (st.lastWinner?.let { " · #${st.lastId} was freed by $it" } ?: "")
+            leftFlap.text = "%5d".format(st.left)
+        }
+        describe(first)
+        gv.listener = object : GameView.Listener {
+            override fun onArrowRemoved(left: Int, total: Int) { Sfx.slide(); Haptics.click() }
+            override fun onMistake() { Sfx.bump(); Haptics.bump() }
+            override fun onTargetFreed() { Sfx.win(); Haptics.win() }
+            override fun onBomb(count: Int, bombs: Int) { Sfx.hint(); Haptics.bump() }
+            override fun onTap(arrow: Int) {
+                Net.worldTap(prefs, id, arrow) { res ->
+                    if (serial != worldSerial || res == null) return@worldTap
+                    if (res.optBoolean("won")) {
+                        gv.celebrate(); gv.inputEnabled = false
+                        toast("You freed World Cube #$id! Your name is on it for good.")
+                        handler.postDelayed({ if (serial == worldSerial) openWorld() }, 3000) // then the next one
+                    } else if (res.optString("why") == "new cube") { toast("Someone just freed that one. Here's the new World Cube."); openWorld() }
+                }
+            }
+        }
+        // Live: what everyone else clears flies off your screen too.
+        val poll = object : Runnable {
+            override fun run() {
+                if (serial != worldSerial) return
+                Net.world(id, v) { st ->
+                    if (serial != worldSerial) return@world
+                    if (st != null && st.id != id) { toast("World Cube #$id was freed${st.lastWinner?.let { " by $it" } ?: ""}. On to #${st.id}."); showWorld(st); return@world }
+                    if (st != null) { gv.removeExternal(st.removed, animate = true); v = st.v; describe(st) }
+                    handler.postDelayed(this, 2500)
+                }
+            }
+        }
+        handler.postDelayed(poll, 2500)
+    }
 
     // ---------- demo autoplay (debug builds only) ----------
 
@@ -206,6 +304,8 @@ class MainActivity : Activity(), GameView.Listener {
                 toast("${pk.name} is in More → Puzzle packs"); moreSheet()
             }
             "friend" -> Links.cleanCode(arg)?.let { addFriend(it) }
+            "name" -> arg.trim().take(32).takeIf { it.isNotEmpty() }?.let { startFree(nameSpec(it), "Cube of $it") }
+            "world" -> openWorld()
         }
     }
 
@@ -304,6 +404,7 @@ class MainActivity : Activity(), GameView.Listener {
             root.findViewWithTag<View>("replay") != null -> closeReplay()
             root.findViewWithTag<View>("details") != null -> root.removeView(root.findViewWithTag("details"))
             root.findViewWithTag<View>("sheet") != null -> closeSheet()
+            worldLayer != null -> closeWorld()
             gameLayer != null -> askLeave()
             tab != Tab.PLAY -> showTab(Tab.PLAY)
             else -> super.onBackPressed()
@@ -726,6 +827,9 @@ class MainActivity : Activity(), GameView.Listener {
         c.add(display("More ways to play", 30f))
         val day = utcDay(); val streak = prefs.liveStreak(day)
         c.add(secondary("How to play", glyph = Glyph.HINT) { closeSheet(); startTutorial() }, 16)
+        c.add(title("World Cube"), 22)
+        c.add(body("One giant cube every Cubit player clears together, live. Every arrow you clear is gone for everyone; whoever frees the pink one wins it, and a new cube starts.", th.muted), 6)
+        c.add(primary("Open the World Cube", Glyph.CUBE) { closeSheet(); openWorld() }, 12)
         c.add(title("Daily cube"), 22)
         c.add(body("One 12×12 cube a day, the same for everyone." + when {
             prefs.dailyDone == day -> " Done today · $streak-day streak."
@@ -743,6 +847,18 @@ class MainActivity : Activity(), GameView.Listener {
         val todayBest = if (prefs.dailyEndlessDay == day) prefs.dailyEndlessBest else 0
         c.add(secondary("Today's endless" + if (todayBest > 0) " · best $todayBest" else "", glyph = Glyph.DICE) { closeSheet(); startEndless(daily = true) }, 10)
         c.add(body("Today's is the same run of cubes for everyone, with its own board in Rankings.", th.muted), 6)
+
+        c.add(title("Name cube"), 26)
+        c.add(body("Any name makes a cube: the same one for everyone who types it. Try yours, then dare a friend to beat you on it.", th.muted), 6)
+        val nameBox = field("", "A name, like ${prefs.name}")
+        c.add(nameBox, 10)
+        val nr = row()
+        fun typed() = nameBox.text.toString().trim().take(32).ifEmpty { null }
+        nr.add(secondary("Play it", glyph = Glyph.DICE) { typed()?.let { closeSheet(); startFree(nameSpec(it), "Cube of $it") } ?: toast("Type a name first") }, 0, 0, WRAP_CONTENT, 1f)
+        nr.add(secondary("Share", glyph = Glyph.SHARE) {
+            typed()?.let { shareText("Can you clear the Cubit cube made from \"$it\"? ${Links.WEB}?n=${java.net.URLEncoder.encode(it, "UTF-8").replace("+", "%20")}", "Share this name cube") } ?: toast("Type a name first")
+        }, 0, WRAP_CONTENT).let { (it.layoutParams as LinearLayout.LayoutParams).marginStart = dp(10) }
+        c.add(nr, 10)
 
         val week = utcWeek()
         c.add(title("Weekly challenge"), 26)
@@ -1357,7 +1473,7 @@ class MainActivity : Activity(), GameView.Listener {
                     pageCol.add(display("How do you want to play?", 30f))
                     val blurb = tv(prefs.difficulty.blurb, 14f, Fonts.body, th.muted)
                     // Nightmare isn't offered to newcomers: it's in Mode on the Play tab once they know the game.
-                    val modes = Difficulty.entries.filter { it != Difficulty.NIGHTMARE }
+                    val modes = Difficulty.entries.filter { it != Difficulty.NIGHTMARE && it != Difficulty.TWIST }
                     pageCol.add(segmented(modes.map { it.label }, modes.indexOf(prefs.difficulty).coerceAtLeast(0)) {
                         prefs.difficulty = modes[it]; blurb.text = prefs.difficulty.blurb
                     }, 16)
@@ -1686,7 +1802,8 @@ class MainActivity : Activity(), GameView.Listener {
         diff = mode
         roundFull = if (tutorial) false else resume?.optBoolean("full") ?: challenge?.full ?: prefs.fullClear
         spec = s; baseLabel = label; roundLabel = if (roundFull) "$label · full clear" else label
-        val puzzle = PuzzleCache.get(s)
+        // Twist turns arrowheads, so it plays on its own copy and never on the cube the cache shares.
+        val puzzle = PuzzleCache.get(s).let { if (mode == Difficulty.TWIST) it.forPlay() else it }
         val layer = FrameLayout(this)
         gameLayer = layer
         val gv = GameView(this).apply { applyStyle(this); listener = this@MainActivity; load(puzzle); pinkLast = roundFull; markTarget = prefs.markTarget }
@@ -1756,6 +1873,18 @@ class MainActivity : Activity(), GameView.Listener {
         val cBox = column().apply { gravity = Gravity.END; setPadding(0, 0, dp(12), 0) }
         cBox.add(label("Left"), 0, WRAP_CONTENT); cBox.add(clearedFlap, 4, WRAP_CONTENT)
         bottom.add(cBox, 0, WRAP_CONTENT)
+        if (diff == Difficulty.TWIST) {
+            // Arm a twist: the next tap on the cube twists that face instead of tapping an arrow.
+            lateinit var tb: FrameLayout
+            tb = iconButton(Glyph.CUBE, "Twist a face: then tap the face to turn its arrowheads") {
+                gv.twistArmed = !gv.twistArmed
+                tb.background = if (gv.twistArmed) rect(withAlpha(th.accent, 70), stroke = th.accent) else rect(th.panel, stroke = th.hairline)
+                if (gv.twistArmed) toast("Tap a face to twist its arrowheads")
+            }
+            (tb.getChildAt(0) as IconView).color = th.accent
+            twistButton = tb
+            bottom.add(tb, 0, dp(48), dp(48)).let { (it.layoutParams as LinearLayout.LayoutParams).marginEnd = dp(8) }
+        } else twistButton = null
         // Few arrows left: the button turns the cube to them instead of just resetting the view.
         bottom.add(iconButton(Glyph.RECENTER, "Reset camera, or find the last arrows") { game?.let { if (it.remaining <= 6 && diff != Difficulty.NIGHTMARE) it.findNext() else it.resetView() } }, 0, dp(48), dp(48))
         ui.add(bottom)
@@ -1809,10 +1938,11 @@ class MainActivity : Activity(), GameView.Listener {
         val ch = challenge
         // Your own best run on this exact cube and goal (kept with local scores), raced when nothing else is.
         val pastDay = archiveDay // a past daily from the archive races that day's leader too
-        val mine = if (ch != null || tutorial || dailyDay != null || weekNo != null || pastDay != null) null
+        val mine = if (ch != null || tutorial || dailyDay != null || weekNo != null || pastDay != null || diff == Difficulty.TWIST) null
             else prefs.scores().filter { it.spec == s && it.moves.isNotEmpty() && it.label.endsWith("full clear") == roundFull }.maxByOrNull { it.score }
         ownGhost = mine != null
-        if (ch != null || mine != null || (prefs.postOnline && !roundFull && (dailyDay != null || weekNo != null || pastDay != null))) {
+        // No ghosts in Twist: a ghost on the same cube would see arrowheads you've turned.
+        if (diff != Difficulty.TWIST && (ch != null || mine != null || (prefs.postOnline && !roundFull && (dailyDay != null || weekNo != null || pastDay != null)))) {
             val g = row().apply { visibility = View.GONE }
             val gl = label("", th.muted)
             g.add(gl, 0, WRAP_CONTENT)
@@ -1959,6 +2089,15 @@ class MainActivity : Activity(), GameView.Listener {
 
     override fun onTwoFingerTap() { if (diff.lives == 0) undoTap() }
 
+    /** Twist mode: recorded like a tap (the server replays it), then the face turns. */
+    override fun onTwist(f: Int) {
+        if (!running) return
+        moves.add(longArrayOf((TWIST_TAP - f).toLong(), elapsedMillis()))
+        game?.twist(f)
+        twistButton?.background = rect(th.panel, stroke = th.hairline)
+        Sfx.toggle(); Haptics.double()
+    }
+
     // A heavy thud you can feel, and the chime rather than the bump sound: a blast is good news, not a mistake.
     override fun onBomb(count: Int, bombs: Int) {
         Sfx.hint(); Haptics.bump()
@@ -2061,7 +2200,7 @@ class MainActivity : Activity(), GameView.Listener {
         weekNo?.let { prefs.weeklyDone = it }
         prefs.recordRun(diff, true, mistakes, elapsedSec().toInt())
         packRun?.let { (pk, i) -> if (prefs.packSolved(pk) <= i) prefs.setPackSolved(pk, i + 1) }
-        val taps = moves.count { it[0] >= 0 }
+        val taps = moves.count { it[0] >= 0 || it[0] <= TWIST_TAP } // twists count against par too
         val atPar = taps <= par
         if (atPar) prefs.parWins = prefs.parWins + 1
         prefs.totalArrows = prefs.totalArrows + cleared

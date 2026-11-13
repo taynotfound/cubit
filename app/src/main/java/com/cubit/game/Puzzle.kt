@@ -86,16 +86,37 @@ class Puzzle(val cube: Cube, val paths: List<IntArray>, val dirs: IntArray, val 
              /** keys[a]: the arrow that has to be gone before [a] can leave, or -1. */
              val keys: IntArray = IntArray(paths.size) { -1 },
              /** Two-way arrows leave tail first when their head's way is blocked. */
-             val twoWay: BooleanArray = BooleanArray(paths.size)) {
-    /** The cells arrow [a] must find empty to leave. */
-    fun exit(a: Int) = cube.exit(paths[a].last(), dirs[a], lap)
+             val twoWay: BooleanArray = BooleanArray(paths.size),
+             /** Wormholes: warp[cell] is the portal on the opposite face it leads to, or -1. Portals sit on empty cells. */
+             val warp: IntArray = IntArray(cube.size) { -1 }) {
+    /** The cells arrow [a] must find empty to leave: through a wormhole if its way out crosses one. */
+    fun exit(a: Int) = warped(cube.exit(paths[a].last(), dirs[a], lap), dirs[a])
 
     /** The direction a two-way arrow's tail leaves in: back against the body's first step. */
     fun tailDir(a: Int): Int { val p = paths[a]; return opposite(cube.tangents(p[0]).first { cube.step(p[0], it) / 8 == p[1] }) }
-    fun tailExit(a: Int) = cube.exit(paths[a][0], tailDir(a), lap)
+    fun tailExit(a: Int) = warped(cube.exit(paths[a][0], tailDir(a), lap), tailDir(a))
 
-    private val heads by lazy { Array(paths.size) { exit(it) } }
+    /** A way out that reaches a portal dives through the cube and carries on, the same way, from the portal opposite.
+     *  One jump at most. Mirrors warped in puzzle.go. */
+    private fun warped(cells: IntArray, d: Int): IntArray {
+        if (lap) return cells
+        for (i in cells.indices) { val q = warp[cells[i]]; if (q >= 0) return cells.copyOf(i + 1) + q + cube.ray(q, d) }
+        return cells
+    }
+
+    private var headCache: Array<IntArray>? = null
+    private val heads get() = headCache ?: Array(paths.size) { exit(it) }.also { headCache = it }
     private val tails by lazy { Array(paths.size) { if (twoWay[it]) tailExit(it) else IntArray(0) } }
+
+    /** Twist mode: every arrowhead on face [f] turns a quarter turn about the face (the bodies stay put). Only on a
+     *  [forPlay] copy, never a cached cube. Mirrors turn in puzzle.go. */
+    fun turn(f: Int) {
+        for (a in paths.indices) if (cube.face[paths[a].last()] == f) dirs[a] = turnDir(dirs[a], f)
+        headCache = null
+    }
+
+    /** A copy whose arrowheads can be turned without touching the cube everyone else (and the cache) shares. */
+    fun forPlay() = Puzzle(cube, paths, dirs.copyOf(), target, lap, bombs, keys, twoWay, warp)
 
     /** How [a] can leave the board [occ] (owners per cell, -1 empty) with arrows [gone] removed: [HEAD], [TAIL] or
      *  [STUCK]. Its own cells never block it. The full-clear rule (pink last) is the caller's. Mirrors way in puzzle.go. */
@@ -127,6 +148,63 @@ class Puzzle(val cube: Cube, val paths: List<IntArray>, val dirs: IntArray, val 
 
     companion object { const val STUCK = 0; const val HEAD = 1; const val TAIL = 2 }
 }
+
+/** Direction [d] turned a quarter turn about face [f]'s normal (n × d). */
+fun turnDir(d: Int, f: Int): Int {
+    val cx = DY[f] * DZ[d] - DZ[f] * DY[d]; val cy = DZ[f] * DX[d] - DX[f] * DZ[d]; val cz = DX[f] * DY[d] - DY[f] * DX[d]
+    return (0 until 6).first { DX[it] == cx && DY[it] == cy && DZ[it] == cz }
+}
+
+/** The cell straight through the cube from [c]: same place on the opposite face. */
+fun Cube.antipode(c: Int): Int {
+    val v = intArrayOf(px[c], py[c], pz[c]); v[face[c] / 2] = -v[face[c] / 2]
+    return cellAt(v[0], v[1], v[2])
+}
+
+/** Whether every arrow can still get out (bombs aside, which only help). Taking an arrow away never blocks another,
+ *  so clearing any free arrow until none is left answers it, in any order. */
+fun solvable(p: Puzzle): Boolean {
+    val occ = IntArray(p.cube.size) { -1 }; p.paths.forEachIndexed { i, path -> path.forEach { occ[it] = i } }
+    val gone = BooleanArray(p.paths.size); var left = p.paths.size
+    while (left > 0) {
+        var moved = false
+        for (a in p.paths.indices) if (!gone[a] && p.way(a, occ, gone) != Puzzle.STUCK) { gone[a] = true; left--; moved = true; p.paths[a].forEach { occ[it] = -1 } }
+        if (!moved) return false
+    }
+    return true
+}
+
+/** Up to this many wormhole pairs per cube. Mirrors maxWormholes in puzzle.go. */
+const val MAX_WORMHOLES = 3
+
+/**
+ * Mirrors wormholesFor in puzzle.go: portal pairs on empty cells straight through the cube from each other, from their
+ * own RNG stream. A wormhole changes ways out, so pairs come off again (last first) until the cube is solvable.
+ */
+fun wormholesFor(p: Puzzle, seed: Long): IntArray {
+    val owner = IntArray(p.cube.size) { -1 }; p.paths.forEachIndexed { i, path -> path.forEach { owner[it] = i } }
+    val free = (0 until p.cube.size).filter { owner[it] < 0 }
+    val warp = IntArray(p.cube.size) { -1 }
+    if (free.isEmpty()) return warp
+    val r = Rng(seed xor 0x576F726DL); val pairs = ArrayList<Int>()
+    for (t in 0 until 40) {
+        if (pairs.size == MAX_WORMHOLES) break
+        val c = free[r.nextInt(free.size)]; val q = p.cube.antipode(c)
+        if (q >= 0 && q != c && owner[q] < 0 && warp[c] < 0 && warp[q] < 0) { warp[c] = q; warp[q] = c; pairs.add(c) }
+    }
+    while (pairs.isNotEmpty() && !solvable(Puzzle(p.cube, p.paths, p.dirs, p.target, p.lap, p.bombs, p.keys, p.twoWay, warp))) {
+        val c = pairs.removeAt(pairs.size - 1); warp[warp[c]] = -1; warp[c] = -1
+    }
+    return warp
+}
+
+/** A cube anyone can make from a name: everyone who types the same name (case and spaces aside) gets the same one. */
+fun nameSeed(name: String): Long {
+    var h = -3750763034362895579L
+    for (b in name.trim().lowercase().toByteArray()) h = (h xor (b.toLong() and 0xff)) * 1099511628211L
+    return h
+}
+fun nameSpec(name: String) = LevelSpec(12, 10, nameSeed(name))
 
 /** About one arrow in this many is a bomb, a locked arrow, or two-way. Mirror the constants in puzzle.go. */
 const val BOMB_EVERY = 30
@@ -223,7 +301,8 @@ fun generate(spec: LevelSpec): Puzzle {
     }
     if (!spec.hasSpecial) return best
     val (bombs, keys, two) = specialsFor(best.paths.size, spec.seed)
-    return Puzzle(best.cube, best.paths, best.dirs, best.target, best.lap, bombs, keys, two)
+    val special = Puzzle(best.cube, best.paths, best.dirs, best.target, best.lap, bombs, keys, two)
+    return Puzzle(best.cube, best.paths, best.dirs, best.target, best.lap, bombs, keys, two, wormholesFor(special, spec.seed))
 }
 
 /** Arrows that must be removed before the pink one is free: those on its way out, those on theirs, and so on. */

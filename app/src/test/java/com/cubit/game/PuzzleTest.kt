@@ -102,6 +102,7 @@ fun specialPrint(p: Puzzle): Long {
         if (p.keys[a] >= 0) { mix(20_000L + a); mix(30_000L + p.keys[a]) }
         if (p.twoWay[a]) { mix(40_000L + a); p.tailExit(a).forEach { mix(50_000L + it) } }
     }
+    for (c in 0 until p.cube.size) if (p.warp[c] > c) { mix(60_000L + c); mix(70_000L + p.warp[c]) }
     return h
 }
 
@@ -109,7 +110,7 @@ class SpecialTest {
     private val specs = listOf(specForLevel(4), specForLevel(30), LevelSpec(14, 20, -987654321), endlessSpec(dailyEndlessSeed(20800), 6))
 
     @Test fun specialsMatchServer() {
-        val expected = listOf(7161757959314111960L, -5848080600933065072L, 8421851543497214288L, 3947938222237347106L)
+        val expected = listOf(-2168532955706612572L, 893908734425870072L, 8367443714046685816L, 776641724789738145L)
         assertEquals(expected, specs.map { specialPrint(generate(it)) })
     }
 
@@ -160,6 +161,33 @@ class SpecialTest {
         val a = p.paths.indices.first { b -> p.bombs[b] && p.blast(b).any { p.bombs[it] } }
         val chained = p.blast(a).first { p.bombs[it] }
         assertTrue(p.cleared(a, gone).toSet().containsAll(p.blast(chained).toList()))
+    }
+
+    @Test fun wormholesPairOppositeCellsAndKeepCubesSolvable() {
+        val cubes = (1..12).map { generate(LevelSpec(12, 8, it * 101L)) }
+        assertTrue("no wormholes in a dozen cubes", cubes.any { p -> p.warp.any { it >= 0 } })
+        for (p in cubes) {
+            val owner = IntArray(p.cube.size) { -1 }; p.paths.forEachIndexed { i, path -> path.forEach { owner[it] = i } }
+            for (c in 0 until p.cube.size) if (p.warp[c] >= 0) {
+                assertEquals(c, p.warp[p.warp[c]]); assertEquals(p.cube.antipode(c), p.warp[c]); assertEquals(-1, owner[c])
+            }
+            assertTrue(solvable(p))
+        }
+    }
+
+    @Test fun fourTwistsGoFullCircle() {
+        val p = generate(specForLevel(30)).forPlay()
+        val before = p.dirs.copyOf()
+        p.turn(4); assertTrue(!before.contentEquals(p.dirs))
+        repeat(3) { p.turn(4) }
+        assertTrue(before.contentEquals(p.dirs))
+        assertTrue("twisting changed the shared cube", generate(specForLevel(30)).dirs.contentEquals(before))
+        for (f in 0 until 6) for (d in 0 until 6) if (d / 2 != f / 2) assertTrue(turnDir(d, f) / 2 != f / 2) // stays on the face
+    }
+
+    @Test fun nameCubesIgnoreCaseAndSpaces() {
+        assertEquals(nameSpec("Tay"), nameSpec("  tay "))
+        assertTrue(nameSpec("Tay") != nameSpec("Tai"))
     }
 
     @Test fun lockedArrowsWaitForTheirKey() {

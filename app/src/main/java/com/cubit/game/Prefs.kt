@@ -16,7 +16,10 @@ enum class Difficulty(val label: String, val lives: Int, val secPerArrow: Float,
     CLEAN("Clean", 0, 0f, 0.5f, "Just the cube · no lives · no timer"),
     /** The hardest mode: arrows lap the whole cube before leaving (a lap cube), one life, no hints or powerups.
      *  Last in the list so saved difficulty ordinals stay put. Mirrors "Nightmare" in server/verify.go. */
-    NIGHTMARE("Nightmare", 1, 2.5f, 3.5f, "Arrows lap the whole cube before leaving · 1 life · no help");
+    NIGHTMARE("Nightmare", 1, 2.5f, 3.5f, "Arrows lap the whole cube before leaving · 1 life · no help"),
+    /** Twist a face to turn every arrowhead on it a quarter turn. Twists are free but count against par. Mirrors
+     *  "Twist" in server/verify.go; after Nightmare so saved ordinals stay put. */
+    TWIST("Twist", 3, 4f, 1.5f, "Twist a face to turn its arrowheads · 3 lives · relaxed timer");
 
     fun timeLimitSec(arrows: Int) = if (secPerArrow == 0f) 0 else (10 + arrows * secPerArrow).toInt()
 }

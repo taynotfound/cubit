@@ -13,16 +13,19 @@ type Difficulty struct {
 	SecPerArrow float32
 	XPMult      float32
 	Nightmare   bool // arrows lap the whole cube before leaving (a lap cube), and no powerups
+	Twists      int  // Twist mode: how many face twists a run may hold (twistTap codes); 0 for none
 }
 
 var difficulties = map[string]Difficulty{
-	"Zen":       {0, 0, 0.5, false},
-	"Easy":      {5, 0, 1, false},
-	"Normal":    {3, 4, 1.3, false},
-	"Hard":      {3, 2, 1.7, false},
-	"Expert":    {1, 1.2, 2.4, false},
-	"Clean":     {0, 0, 0.5, false}, // Zen rules with nothing on screen but the cube; tagged on the board
-	"Nightmare": {1, 2.5, 3.5, true},
+	"Zen":       {0, 0, 0.5, false, 0},
+	"Easy":      {5, 0, 1, false, 0},
+	"Normal":    {3, 4, 1.3, false, 0},
+	"Hard":      {3, 2, 1.7, false, 0},
+	"Expert":    {1, 1.2, 2.4, false, 0},
+	"Clean":     {0, 0, 0.5, false, 0}, // Zen rules with nothing on screen but the cube; tagged on the board
+	"Nightmare": {1, 2.5, 3.5, true, 0},
+	// Twists are unlimited (any twist can be undone, so a cube never gets stuck) but each is a move against par.
+	"Twist": {3, 4, 1.5, false, 200},
 }
 
 // Powerup codes a run records as a negative arrow index (Powerup.code in Prefs.kt). Each works once per run.
@@ -33,6 +36,8 @@ const (
 	puScan   = -4 // shows free arrows; cosmetic, recorded for the run details
 	puUndo   = -5 // takes back the last bump: the mistake is struck off
 	undoTap  = -6 // Zen/Clean only, any number of times: puts the last removed arrow back
+	// Twist mode: -10-f twists face f (0..5), turning every arrowhead on it a quarter turn. Mirrors TWIST_TAP in GameView.kt.
+	twistTap = -10
 )
 
 var powerupNames = map[int]string{puShield: "Shield", puFreeze: "Freeze", puLife: "Spare life", puScan: "Scan", puUndo: "Undo"}
@@ -88,6 +93,7 @@ func replay(p *Puzzle, d Difficulty, moves []Move, all bool) (Replay, error) {
 	prev, prevTap := int64(0), int64(-1)
 	lives, shield := d.Lives, false
 	used := map[int]bool{}
+	twists := 0
 	for i, m := range moves {
 		if m.Ms < prev || m.Ms < 0 {
 			return r, fmt.Errorf("move %d: clock went backwards", i)
@@ -105,6 +111,13 @@ func replay(p *Puzzle, d Difficulty, moves []Move, all bool) (Replay, error) {
 				}
 			}
 			stack = stack[:len(stack)-1]
+			continue
+		}
+		if m.Arrow <= twistTap && m.Arrow > twistTap-6 {
+			if twists++; twists > d.Twists {
+				return r, fmt.Errorf("move %d: no twists left", i)
+			}
+			p.turn(twistTap - m.Arrow)
 			continue
 		}
 		if m.Arrow < 0 {

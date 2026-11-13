@@ -32,6 +32,8 @@ class GameView(ctx: Context) : View(ctx) {
         fun onTap(arrow: Int)
         /** Two fingers tapped without moving: Clean mode's undo, since it has no buttons. */
         fun onTwoFingerTap() {}
+        /** Twist mode: the player twisted face [f]. */
+        fun onTwist(f: Int) {}
         /** A bomb arrow left and took [count] other arrows with it, set off by [bombs] bombs (more than one: a chain). */
         fun onBomb(count: Int, bombs: Int) {}
     }
@@ -100,6 +102,7 @@ class GameView(ctx: Context) : View(ctx) {
         remaining = p.paths.size
         anims.clear(); hintArrow = -1; scanUntil = 0L; history.clear()
         ghostOcc = occ.copyOf(); ghostGone = BooleanArray(p.paths.size); ghostHist.clear(); ghostOn = false; ghostLeft = p.paths.size
+        wormholes = (0 until cube.size).filter { p.warp[it] > it }
         tracks = Array(p.paths.size) { buildTrack(p.paths[it], p.dirs[it], p.exit(it)) }
         revTracks = Array(p.paths.size) { if (p.twoWay[it]) buildTrack(p.paths[it].reversedArray(), p.tailDir(it), p.tailExit(it)) else null }
         // The faces an arrow's body lies on (not its way out, which on Nightmare goes all round the cube).
@@ -150,7 +153,9 @@ class GameView(ctx: Context) : View(ctx) {
 
     private fun buildTrack(path: IntArray, dir: Int, ray: IntArray): Track {
         val cube = puzzle.cube; val n = cube.n.toFloat()
-        val cells = path + ray
+        // Through a wormhole the arrow is drawn only as far as the portal, where it sinks out of sight.
+        val jump = ray.indexOfFirst { puzzle.warp[it] >= 0 }
+        val cells = path + (if (jump >= 0) ray.copyOf(jump + 1) else ray)
         val xs = ArrayList<Float>(); val ys = ArrayList<Float>(); val zs = ArrayList<Float>(); val ts = ArrayList<Float>(); val fs = ArrayList<Int>()
         fun add(x: Int, y: Int, z: Int, t: Float, f: Int) { xs.add(x / n); ys.add(y / n); zs.add(z / n); ts.add(t); fs.add(f) }
         add(cube.px[cells[0]], cube.py[cells[0]], cube.pz[cells[0]], 0f, cube.face[cells[0]])
@@ -160,6 +165,13 @@ class GameView(ctx: Context) : View(ctx) {
             add(cube.px[c], cube.py[c], cube.pz[c], i.toFloat(), fc)
         }
         val last = cells.last(); val lt = (cells.size - 1).toFloat(); val fl = cube.face[last]
+        if (jump >= 0) {
+            // Straight down into the portal: edge-on to the face, so the ribbon narrows to nothing as it goes.
+            val deep = 2 * cube.n
+            add(cube.px[last] - DX[fl] * deep, cube.py[last] - DY[fl] * deep, cube.pz[last] - DZ[fl] * deep, lt + path.size + 8f, -1)
+            return Track(xs.toFloatArray(), ys.toFloatArray(), zs.toFloatArray(), ts.toFloatArray(), fs.toIntArray(),
+                (path.size - 1).toFloat(), cube.face[path.last()], ray)
+        }
         add(cube.px[last] + DX[dir], cube.py[last] + DY[dir], cube.pz[last] + DZ[dir], lt + 0.5f, fl)
         val fly = path.size + 8
         add(cube.px[last] + DX[dir] * (1 + 2 * fly), cube.py[last] + DY[dir] * (1 + 2 * fly), cube.pz[last] + DZ[dir] * (1 + 2 * fly), lt + 0.5f + fly, -1)
@@ -188,6 +200,11 @@ class GameView(ctx: Context) : View(ctx) {
             remaining -= group.size; history.add(group)
             if (hintArrow in group) hintArrow = -1
             group.forEach { anims.add(Anim(it, true, now, 0f, rev = it == a && way == Puzzle.TAIL)) }
+            // Out through a wormhole: a flash where it comes out, on the far side.
+            (if (way == Puzzle.TAIL) revTracks[a]?.rayCells else tracks[a].rayCells)?.firstOrNull { puzzle.warp[it] >= 0 }?.let { pIn ->
+                val q = puzzle.warp[pIn]; val n = puzzle.cube.n.toFloat()
+                if (faceVisible(puzzle.cube.face[q])) { project(puzzle.cube.px[q] / n, puzzle.cube.py[q] / n, puzzle.cube.pz[q] / n, p1); burst(p1[0], p1[1], WORMHOLE_COLORS[0], 18, 1f) }
+            }
             pointAt(tracks[a], tracks[a].headT, p1)
             if (a == puzzle.target) {
                 burst(p1[0], p1[1], PINK, 46, 1.6f)
@@ -235,11 +252,25 @@ class GameView(ctx: Context) : View(ctx) {
         return group
     }
 
+    /** World Cube: arrows other players cleared. They fly off (or just vanish when [animate] is off), with no callbacks. */
+    fun removeExternal(list: List<Int>, animate: Boolean) {
+        val now = SystemClock.uptimeMillis()
+        for (a in list) {
+            if (a !in tracks.indices || removed[a]) continue
+            puzzle.paths[a].forEach { occ[it] = -1 }; removed[a] = true; remaining--
+            if (a == hintArrow) hintArrow = -1
+            if (animate) anims.add(Anim(a, true, now, 0f))
+        }
+        if (!animate) introStart = 0L
+        invalidate()
+    }
+
     /** Restores a saved level: applies its recorded taps instantly, without animation, sound or callbacks. */
     fun applyInstant(moves: List<LongArray>) {
         for (m in moves) {
             val a = m[0].toInt()
             if (a == UNDO_TAP) { undoLast(); continue }
+            if (a <= TWIST_TAP && a > TWIST_TAP - 6) { twist(TWIST_TAP - a, show = false); continue }
             if (a !in tracks.indices || removed[a] || wayOf(a) == Puzzle.STUCK) continue
             val group = take(a, occ, removed)
             remaining -= group.size; history.add(group)
@@ -339,6 +370,7 @@ class GameView(ctx: Context) : View(ctx) {
 
         if (glass) { drawGlass(canvas, now, dt, shakeT); return }
         for (f in 0 until 6) if (faceVisible(f)) drawFace(canvas, f)
+        drawWormholes(canvas, now)
 
         val w = 2f / puzzle.cube.n * (0.06f + thickness * 0.018f)
         baseLift = w * 0.55f
@@ -436,6 +468,7 @@ class GameView(ctx: Context) : View(ctx) {
             }
         }
         onlyFace = -1
+        drawWormholes(canvas, now)
         drawAnims(canvas, now, w)
         finishFrame(canvas, now, dt, shakeT, false)
     }
@@ -811,6 +844,7 @@ class GameView(ctx: Context) : View(ctx) {
 
     private fun tap(x: Float, y: Float) {
         if (!inputEnabled || !::puzzle.isInitialized) return
+        if (twistArmed) { val f = faceAt(x, y); if (f >= 0) { twistArmed = false; listener?.onTwist(f) }; return }
         arrowAt(x, y).takeIf { it >= 0 }?.let { tapArrow(it) }
     }
 
@@ -826,6 +860,64 @@ class GameView(ctx: Context) : View(ctx) {
         }
         val cellPx = focal / camDist * 2f / cube.n
         return if (best >= 0 && bestD < cellPx * 0.9f + 12f) occ[best] else -1
+    }
+
+    // ---- wormholes ----
+
+    /** Pairs in a fixed order (by their lower cell), for colours that match on both sides. */
+    private var wormholes = emptyList<Int>()
+    private val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
+
+    /** Each portal: a coloured ring with a dark middle, flat on its face, slowly breathing. */
+    private fun drawWormholes(canvas: Canvas, now: Long) {
+        if (wormholes.isEmpty()) return
+        val cube = puzzle.cube; val n = cube.n.toFloat()
+        val beat = 0.85f + 0.15f * sin(now / 300f)
+        wormholes.forEachIndexed { i, c0 ->
+            for (c in intArrayOf(c0, puzzle.warp[c0])) {
+                val f = cube.face[c]
+                if (!faceVisible(f)) continue
+                val ax = f / 2
+                val u = FloatArray(3).also { it[(ax + 1) % 3] = 1f / n }; val v = FloatArray(3).also { it[(ax + 2) % 3] = 1f / n }
+                val cx = cube.px[c] / n + DX[f] * 0.004f; val cy = cube.py[c] / n + DY[f] * 0.004f; val cz = cube.pz[c] / n + DZ[f] * 0.004f
+                for ((k, col) in listOf(0.82f * beat to WORMHOLE_COLORS[i % WORMHOLE_COLORS.size], 0.5f to theme.bg)) {
+                    shape.reset(); addDisc(cx, cy, cz, u[0] * k, u[1] * k, u[2] * k, v[0] * k, v[1] * k, v[2] * k)
+                    ring.color = if (glass) withAlpha(col, 200) else col
+                    canvas.drawPath(shape, ring)
+                }
+            }
+        }
+    }
+
+    // ---- twist mode ----
+
+    /** The next tap twists the face under the finger instead of tapping an arrow. */
+    var twistArmed = false
+
+    /** Turns every arrowhead on face [f] a quarter turn (Twist mode; the puzzle must be a [Puzzle.forPlay] copy).
+     *  [show]: the burst of light on that face, skipped when restoring a saved level. */
+    fun twist(f: Int, show: Boolean = true) {
+        puzzle.turn(f)
+        for (a in tracks.indices) if (puzzle.cube.face[puzzle.paths[a].last()] == f) tracks[a] = buildTrack(puzzle.paths[a], puzzle.dirs[a], puzzle.exit(a))
+        if (show) {
+            project(DX[f].toFloat(), DY[f].toFloat(), DZ[f].toFloat(), p1)
+            burst(p1[0], p1[1], theme.accent, 28, 1.3f)
+        }
+        invalidate()
+    }
+
+    /** The face under screen point (x, y), or -1. */
+    private fun faceAt(x: Float, y: Float): Int {
+        val cube = puzzle.cube; val n = cube.n.toFloat()
+        var best = -1; var bestD = Float.MAX_VALUE
+        for (c in 0 until cube.size) {
+            if (!faceVisible(cube.face[c])) continue
+            project(cube.px[c] / n, cube.py[c] / n, cube.pz[c] / n)
+            val d = hypot(tmp[0] - x, tmp[1] - y)
+            if (d < bestD) { bestD = d; best = c }
+        }
+        val cellPx = focal / camDist * 2f / cube.n
+        return if (best >= 0 && bestD < cellPx * 1.5f + 12f) cube.face[best] else -1
     }
 
     // ---- long-press preview ----
@@ -967,6 +1059,10 @@ const val BOMB = 0xFFFF8A1F.toInt()
 const val LOCK = 0xFFE8EEF8.toInt()
 /** Move code for "undo the last removal" (Zen and Clean only); the server replays it too. */
 const val UNDO_TAP = -6
+/** Twist mode: move code TWIST_TAP - f twists face f (0..5). Mirrors twistTap in server/verify.go. */
+const val TWIST_TAP = -10
+/** Wormhole pairs, told apart by colour as well as by sitting exactly opposite each other. */
+val WORMHOLE_COLORS = intArrayOf(0xFFB06EFF.toInt(), 0xFF2ED3C6.toInt(), 0xFFB4E83C.toInt())
 private val PIP_COUNT = intArrayOf(3, 4, 2, 5, 1, 6) // opposite faces sum to 7, like a die
 private val PIPS = arrayOf(
     listOf(0f to 0f),

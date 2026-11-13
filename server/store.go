@@ -68,6 +68,7 @@ type DB struct {
 	// Open endless runs by id, and each player's best daily endless run per day.
 	Endless      map[string]*EndlessRun `json:"endless,omitempty"`
 	EndlessDaily []EndlessScore         `json:"endlessDaily,omitempty"`
+	World        *World                 `json:"world,omitempty"` // the shared World Cube
 }
 
 const maxScores = 5000

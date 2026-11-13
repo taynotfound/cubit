@@ -108,19 +108,6 @@ func toMoves(m [][2]int64) []Move {
 	return out
 }
 
-func occupancy(p *Puzzle) []int {
-	occ := make([]int, p.cube.size)
-	for i := range occ {
-		occ[i] = -1
-	}
-	for i, path := range p.paths {
-		for _, c := range path {
-			occ[c] = i
-		}
-	}
-	return occ
-}
-
 func laneClear(occ []int, a int, cells []int) bool {
 	for _, c := range cells {
 		if occ[c] >= 0 && occ[c] != a {

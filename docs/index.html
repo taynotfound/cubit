@@ -217,6 +217,7 @@
       </div>
       <p class="fine" style="margin-top:12px"><a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium%3A%2F%2Fapp%2F%257B%2522id%2522%253A%2522de.taymaerz.cubit%2522%252C%2522url%2522%253A%2522https%253A%252F%252Fgithub.com%252Ftaynotfound%252Fcubit%2522%252C%2522author%2522%253A%2522taynotfound%2522%252C%2522name%2522%253A%2522Cubit%2522%252C%2522additionalSettings%2522%253A%2522%257B%255C%2522apkFilterRegEx%255C%2522%253A%2520%255C%2522%255ECubit%255C%255C%255C%255C.apk%2524%255C%2522%257D%2522%257D">Get it on Obtainium</a> or <a href="https://f-droid.org/en/packages/de.taymaerz.cubit/">F-Droid</a> for automatic updates</p>
       <p class="fine"><a class="ver" href="https://github.com/taynotfound/cubit/releases/latest">Version <span data-ver>1.6.0</span><span data-date></span></a> · free with no ads · under 1 MB · Android 7.0 or newer · <a href="#install">how to install</a><span data-players hidden></span></p>
+      <p class="fine" data-world hidden></p>
     </div>
 
     <div class="phones">
@@ -438,6 +439,16 @@ fetch("https://api.github.com/repos/taynotfound/cubit/releases/latest").then(r =
   const io = new IntersectionObserver(es => es.forEach(e => e.isIntersecting ? e.target.play().catch(() => {}) : e.target.pause()), { threshold: 0.6 });
   vids.forEach(v => io.observe(v));
 })();
+
+// The World Cube, live: which one, how many arrows are left and how many players are on it.
+fetch("https://cubit-lb-api.taymaerz.de/v1/world").then(r => r.ok ? r.json() : null).then(w => {
+  if (!w || !w.id) return;
+  const el = document.querySelector("[data-world]");
+  const a = document.createElement("a"); a.href = "open.html?world"; a.textContent = "World Cube #" + w.id;
+  const who = w.players ? w.players + " player" + (w.players === 1 ? "" : "s") + " clearing it together right now" : "one cube for every player: be the first to clear an arrow";
+  el.append(a, " · " + w.left.toLocaleString("en-GB") + " of " + w.arrows.toLocaleString("en-GB") + " arrows left · " + who);
+  el.hidden = false;
+}).catch(() => {});
 
 // How many people are on the board, from the leaderboard server; the page reads fine without it.
 fetch("https://cubit-lb-api.taymaerz.de/v1/stats").then(r => r.ok ? r.json() : null).then(st => {

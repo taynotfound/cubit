@@ -12,6 +12,9 @@ data class GlobalPlayer(val name: String, val xp: Int, val level: Int, val clean
 /** [total] is every ranked player, where [players] lists only the top of the board. */
 data class GlobalBoard(val players: List<GlobalPlayer>, val scores: List<ScoreEntry>, val total: Int = players.size)
 data class RunResult(val status: String, val score: Int, val xp: Int, val rank: Int)
+/** The World Cube as the server has it: which cube, its recipe, and the arrows cleared since version [v] was asked for. */
+class WorldState(val id: Int, val spec: LevelSpec, val v: Int, val removed: List<Int>, val left: Int, val arrows: Int, val players: Int,
+                 val top: List<Pair<String, Int>>, val lastId: Int, val lastWinner: String?)
 /** One row of an endless board: a player and the most cubes they cleared in one run. */
 data class EndlessEntry(val name: String, val level: Int, val cubes: Int)
 /** A ranked endless run's next cube: the server's run id, the lives carried in and the seconds bought. */
@@ -90,6 +93,25 @@ object Net {
             val o = JSONObject(authed(p, "POST", "/v1/endless", JSONObject().put("daily", daily).toString()))
             o.getString("id") to o.getString("seed").toLong()
         }
+        main.post { done(r) }
+    }
+
+    /** The World Cube; with [id] and [since], only what's been cleared on it since that version. */
+    fun world(id: Int?, since: Int, done: (WorldState?) -> Unit) = io.execute {
+        val r = call {
+            val o = JSONObject(request("GET", "/v1/world" + (id?.let { "?id=$it&since=$since" } ?: ""), null, null))
+            val rm = o.getJSONArray("removed"); val top = o.optJSONArray("top") ?: JSONArray(); val last = o.optJSONObject("last")
+            WorldState(o.getInt("id"), LevelSpec(o.getInt("n"), o.getInt("maxLen"), o.getString("seed").toLong(), special = true), o.getInt("v"),
+                (0 until rm.length()).map { rm.getInt(it) }, o.getInt("left"), o.getInt("arrows"), o.getInt("players"),
+                (0 until top.length()).map { top.getJSONObject(it).let { t -> t.optString("name") to t.optInt("arrows") } },
+                last?.optInt("id") ?: 0, last?.optString("winner"))
+        }
+        main.post { done(r) }
+    }
+
+    /** One tap on the World Cube. Done gets the server's answer: ok, what it cleared, and won when it freed the pink one. */
+    fun worldTap(p: Prefs, id: Int, arrow: Int, done: (JSONObject?) -> Unit) = io.execute {
+        val r = call { JSONObject(authed(p, "POST", "/v1/world/tap", JSONObject().put("id", id).put("arrow", arrow).toString())) }
         main.post { done(r) }
     }
 

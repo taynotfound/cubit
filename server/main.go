@@ -51,6 +51,8 @@ type App struct {
 
 	mu   sync.Mutex
 	runs map[string]*Run
+
+	world *worldBoard // the World Cube's live board; guarded by store.mu
 }
 
 // ---------- helpers ----------
@@ -585,6 +587,8 @@ func (a *App) routes() http.Handler {
 		send(w, 200, map[string]any{"friends": a.store.friends(codes)})
 	})
 	m.HandleFunc("GET /v1/stats", a.stats)
+	m.HandleFunc("GET /v1/world", a.worldState)
+	m.HandleFunc("POST /v1/world/tap", a.worldTap)
 	m.HandleFunc("GET /v1/profile/{code}", a.profile)
 	m.HandleFunc("POST /v1/me/profile", a.setProfile)
 	m.HandleFunc("POST /v1/endless", a.startEndless)
