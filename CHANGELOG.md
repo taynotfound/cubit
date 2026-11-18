@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.7.3 (2026-11-18)
+
+- **New arrows tip stays put**: the explanation of bombs, locked and two-way arrows is now a sheet you close yourself instead of a toast that got cut off, and the clock waits while it's open.
+- Changing a colourway or arrow colour in Settings no longer jumps the page to the top.
+
 ## 1.7.2 (2026-11-13)
 
 - **World Cubes on profiles**: public profiles now show how many World Cubes a player helped clear and how many they won by freeing the pink arrow themselves. Winners of World Cubes freed before this update are counted too.

@@ -1,0 +1,2 @@
+- The new arrows tip is now a sheet you close yourself, and the clock waits while it's open.
+- Settings no longer jumps to the top when you change a colourway or arrow colour.
