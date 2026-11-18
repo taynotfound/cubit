@@ -580,7 +580,13 @@ class MainActivity : Activity(), GameView.Listener {
         content.removeAllViews()
         val page = when (t) { Tab.PLAY -> playTab(); Tab.RANKS -> ranksTab(); Tab.SETTINGS -> settingsTab() }
         content.addView(page, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
-        if (y > 0) { page.post { page.scrollTo(0, y) }; return }
+        if (y > 0) {
+            // Scroll after layout but before the first draw: a post could run before layout (clamped to 0) or after a frame at the top.
+            page.viewTreeObserver.addOnPreDrawListener(object : android.view.ViewTreeObserver.OnPreDrawListener {
+                override fun onPreDraw(): Boolean { page.viewTreeObserver.removeOnPreDrawListener(this); page.scrollTo(0, y); return false }
+            })
+            return
+        }
         if (motionEnabled()) { page.alpha = 0f; page.translationY = dp(10).toFloat(); page.animate().alpha(1f).translationY(0f).setDuration(220).setInterpolator(DecelerateInterpolator(2f)).start() }
     }
 
@@ -2226,10 +2232,24 @@ class MainActivity : Activity(), GameView.Listener {
         Sfx.start(); Music.game()
         handler.post(tick)
         if (demoOn) handler.postDelayed(demoStep, 1600) // the demo starts tapping once the cube has spun in
-        if (!prefs.bombSeen && (puzzle.bombs.any { it } || puzzle.keys.any { it >= 0 } || puzzle.twoWay.any { it })) {
+        if (!demoOn && !prefs.bombSeen && (puzzle.bombs.any { it } || puzzle.keys.any { it >= 0 } || puzzle.twoWay.any { it })) {
             prefs.bombSeen = true
-            toast("New arrows: an orange core is a bomb (it takes the arrows touching it along), a dashed core is locked until its key leaves, and two heads means it can leave either way.")
+            newArrowsSheet()
         }
+    }
+
+    /** Teaches the special arrows in a sheet (a toast is cut to two lines and gone in seconds); the clock waits until it closes. */
+    private fun newArrowsSheet() {
+        pauseClock(); handler.removeCallbacks(tick)
+        val c = openSheet()
+        c.add(display("New arrows", 30f))
+        c.add(body("An orange core is a bomb: it takes the arrows touching it along.\n\nA dashed core is locked until its key leaves.\n\nTwo heads means it can leave either way.", th.muted), 8)
+        c.add(primary("Got it") { closeSheet() }, 20)
+        // Any way out (button, tap outside, back) detaches the sheet, so restart the clock there.
+        (c.parent.parent as View).addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+            override fun onViewAttachedToWindow(v: View) {}
+            override fun onViewDetachedFromWindow(v: View) { if (running) { resumedAt = SystemClock.uptimeMillis(); handler.removeCallbacks(tick); handler.post(tick) } }
+        })
     }
 
     private val tick = object : Runnable {
