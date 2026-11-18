@@ -171,6 +171,11 @@
   .news li { display: flex; gap: 12px; color: var(--muted); }
   .news li::before { content: ""; flex: none; width: 12px; height: 12px; margin-top: 7px; border-radius: 3px; background: var(--pink); }
   .news li b { color: var(--text); font-weight: 500; }
+  .meter { height: 12px; border-radius: 6px; background: var(--tile); overflow: hidden; margin-top: 28px; }
+  .meter span { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 6px; transition: width .6s; }
+  .wstats { margin-top: 12px; color: var(--muted); }
+  .wstats b { color: var(--text); font: 700 22px/1 "Barlow Condensed"; }
+  .worldcube { display: block; width: 100%; max-width: 440px; aspect-ratio: 1; margin: 0 auto; }
   .final { text-align: center; }
   .final .cta { justify-content: center; }
   .support { max-width: 620px; margin: 40px auto 18px; padding: 26px 22px; border: 1px solid var(--hair); border-radius: 10px; background: var(--panel); }
@@ -270,6 +275,22 @@
       <figure><div class="phone"><video data-reel src="img/reel-endless.mp4" poster="img/reel-endless.jpg" muted loop playsinline preload="none"
         aria-label="Endless: cube after cube, each a little bigger, lives carrying over"></video></div><figcaption>Endless</figcaption></figure>
     </div>
+  </div>
+</section>
+
+<!-- Shown only once the leaderboard server answers; the features list below still covers the World Cube without it. -->
+<section id="world" hidden>
+  <div class="wrap split">
+    <div>
+      <span class="label">Live, right now</span>
+      <h2 style="margin-top:10px">World Cube <span class="pink" data-w-id></span></h2>
+      <p class="lede">One giant cube every Cubit player clears together. Each arrow anyone clears is gone for everyone, and whoever frees the pink one wins it and starts the next.</p>
+      <div class="meter" role="progressbar" aria-label="World Cube cleared" aria-valuemin="0" aria-valuemax="100" data-w-meter><span data-w-bar></span></div>
+      <p class="wstats"><b data-w-pct></b> cleared · <span data-w-left></span> · <span data-w-players></span></p>
+      <p class="fine" data-w-last hidden></p>
+      <div class="cta"><a class="btn primary" href="open.html?world">Help clear it</a></div>
+    </div>
+    <canvas class="worldcube" data-w-cube role="img" aria-label="The World Cube as it stands: the arrows still on it, with the pink one somewhere inside"></canvas>
   </div>
 </section>
 
@@ -463,15 +484,159 @@ fetch("https://api.github.com/repos/taynotfound/cubit/releases/latest").then(r =
   vids.forEach(v => io.observe(v));
 })();
 
-// The World Cube, live: which one, how many arrows are left and how many players are on it.
-fetch("https://cubit-lb-api.taymaerz.de/v1/world").then(r => r.ok ? r.json() : null).then(w => {
-  if (!w || !w.id) return;
-  const el = document.querySelector("[data-world]");
-  const a = document.createElement("a"); a.href = "open.html?world"; a.textContent = "World Cube #" + w.id;
-  const who = w.players ? w.players + " player" + (w.players === 1 ? "" : "s") + " clearing it together right now" : "one cube for every player: be the first to clear an arrow";
-  el.append(a, " · " + w.left.toLocaleString("en-GB") + " of " + w.arrows.toLocaleString("en-GB") + " arrows left · " + who);
-  el.hidden = false;
-}).catch(() => {});
+// The World Cube, live: the hero line, and the #world section with a drawing of the cube as it stands. Without the
+// server both stay hidden.
+// Port of build/generate in server/puzzle.go (geometry only: specials don't move arrows), so the site can draw the
+// live World Cube from its seed. Must stay bit-identical to the server; checked against its arrow count.
+function worldPaths(n, maxLen, seed) {
+  const M = (1n << 64n) - 1n, dx = [1, -1, 0, 0, 0, 0], dy = [0, 0, 1, -1, 0, 0], dz = [0, 0, 0, 0, 1, -1];
+  const size = 6 * n * n, px = [], py = [], pz = [], fc = [], index = new Map();
+  const key = (x, y, z) => ((x + 512) << 20) | ((y + 512) << 10) | (z + 512);
+  for (let f = 0, i = 0; f < 6; f++) {
+    const a = f >> 1, s = f % 2 ? -n : n;
+    for (let u = -n + 1; u < n; u += 2) for (let v = -n + 1; v < n; v += 2, i++) {
+      const p = []; p[a] = s; p[(a + 1) % 3] = u; p[(a + 2) % 3] = v;
+      px[i] = p[0]; py[i] = p[1]; pz[i] = p[2]; fc[i] = f; index.set(key(p[0], p[1], p[2]), i);
+    }
+  }
+  const at = (x, y, z) => index.has(key(x, y, z)) ? index.get(key(x, y, z)) : -1;
+  const tangents = c => [0, 1, 2, 3, 4, 5].filter(d => d >> 1 !== fc[c] >> 1);
+  const step = (c, d) => {
+    const x = px[c] + 2 * dx[d], y = py[c] + 2 * dy[d], z = pz[c] + 2 * dz[d];
+    if (x * dx[d] + y * dy[d] + z * dz[d] > n) { const f = fc[c]; return at(px[c] + dx[d] - dx[f], py[c] + dy[d] - dy[f], pz[c] + dz[d] - dz[f]) * 8 + (f ^ 1); }
+    return at(x, y, z) * 8 + d;
+  };
+  const ray = (c, d) => { const out = []; for (;;) { const s = step(c, d); if (s % 8 !== d) return out; c = s >> 3; out.push(c); } };
+
+  function build(seed) {
+    let st = BigInt.asUintN(64, BigInt(seed));
+    const next = () => {
+      st = (st + 0x9E3779B97F4A7C15n) & M; let z = st;
+      z = ((z ^ (z >> 30n)) * 0xBF58476D1CE4E5B9n) & M; z = ((z ^ (z >> 27n)) * 0x94D049BB133111EBn) & M;
+      return z ^ (z >> 31n);
+    };
+    const nextInt = b => Number((next() >> 33n) % BigInt(b));
+    const shuffle = xs => { for (let i = xs.length - 1; i >= 1; i--) { const j = nextInt(i + 1); [xs[i], xs[j]] = [xs[j], xs[i]]; } };
+    const occ = new Array(size).fill(-1), paths = [], dirs = [];
+    const fen = new Array(size + 1).fill(0); let count = size;
+    for (let i = 1; i <= size; i++) { fen[i]++; const j = i + (i & -i); if (j <= size) fen[j] += fen[i]; }
+    const take = c => { for (let i = c + 1; i <= size; i += i & -i) fen[i]--; count--; };
+    const kth = k => { let s = 1; while (s * 2 <= size) s *= 2; let pos = 0, rem = k + 1;
+      for (; s > 0; s >>= 1) { const nx = pos + s; if (nx <= size && fen[nx] < rem) { pos = nx; rem -= fen[nx]; } } return pos; };
+    let filled = 0, fails = 0;
+    const goal = Math.floor(size * 92 / 100), mid = -n + 1 + 2 * (n >> 1), center = at(mid, mid, n);
+    while (filled < goal && fails < 400 && count >= 2) {
+      let start = center, length = Math.max(4, n + 1);
+      if (paths.length) { start = kth(nextInt(count)); length = 2 + nextInt(maxLen - 1); }
+      const path = [start], inPath = new Set([start]);
+      let cur = start; const t = tangents(start); let dir = t[nextInt(t.length)], firstDir = dir, arrive = dir;
+      for (let i = 1; i < length; i++) {
+        let opts = tangents(cur).filter(d => d !== (dir ^ 1));
+        shuffle(opts);
+        if (nextInt(4) === 0) { const k = opts.indexOf(dir); if (k >= 0) opts = [dir, ...opts.slice(0, k), ...opts.slice(k + 1)]; }
+        let moved = false;
+        for (const d of opts) {
+          const s = step(cur, d), nc = Math.floor(s / 8);
+          if (nc < 0 || occ[nc] >= 0 || inPath.has(nc)) continue;
+          path.push(nc); inPath.add(nc); cur = nc; dir = arrive = s % 8;
+          if (i === 1) firstDir = d;
+          moved = true; break;
+        }
+        if (!moved) break;
+      }
+      if (path.length < 2) { fails++; continue; }
+      const options = [[path, arrive], [[...path].reverse(), firstDir ^ 1]];
+      shuffle(options);
+      const pick = options.find(([p, d]) => ray(p[p.length - 1], d).every(c => occ[c] < 0 && !inPath.has(c)));
+      if (!pick) { fails++; continue; }
+      const id = paths.length; paths.push(pick[0]); dirs.push(pick[1]);
+      for (const c of pick[0]) { occ[c] = id; take(c); }
+      filled += pick[0].length; fails = 0;
+    }
+    return { paths, dirs };
+  }
+  // mustClear: arrows that have to go before the pink one (arrow 0) is free.
+  function depth(p) {
+    const occ = new Array(size).fill(-1); p.paths.forEach((path, i) => path.forEach(c => occ[c] = i));
+    const seen = [true], q = [0]; let k = 0;
+    while (q.length) { const a = q.shift(), path = p.paths[a];
+      for (const c of ray(path[path.length - 1], p.dirs[a])) { const b = occ[c]; if (b >= 0 && !seen[b]) { seen[b] = true; k++; q.push(b); } } }
+    return k;
+  }
+  const need = p => Math.floor(p.paths.length * (10 + Math.max(0, maxLen - 8)) / 80);
+  let best = build(BigInt(seed)), bestDepth = depth(best);
+  for (let k = 1n; bestDepth < need(best) && k <= 10n; k++) {
+    const p = build(BigInt(seed) + k * 1000003n), d = depth(p);
+    if (d > bestDepth) { best = p; bestDepth = d; }
+  }
+  return { paths: best.paths, dirs: best.dirs, px, py, pz, fc };
+}
+
+let lastWorld = null, worldCube = null; // { id, paths, ... } for the cube drawn last, so a new one is only built when the id changes
+function drawWorld(w) {
+  const cv = document.querySelector("[data-w-cube]"), css = getComputedStyle(document.documentElement), v = k => css.getPropertyValue(k).trim();
+  if (!worldCube || worldCube.id !== w.id) worldCube = { id: w.id, ...worldPaths(w.n, w.maxLen, w.seed) };
+  const { paths, dirs, px, py, pz, fc } = worldCube, gone = new Set(w.removed), n = w.n;
+  const W = cv.clientWidth * (devicePixelRatio || 1); cv.width = cv.height = W;
+  const g = cv.getContext("2d"), k = W / (4 * n) * 0.96, c = W / 2;
+  // Isometric, looking down on the +x, +y and +z faces.
+  const P = (x, y, z) => [c + (x - z) * 0.866 * k, c + ((x + z) * 0.5 - y) * k];
+  const faces = [[[n, n, n], [n, -n, n], [n, -n, -n], [n, n, -n], 0.28], [[n, n, n], [-n, n, n], [-n, n, -n], [n, n, -n], 0], [[n, n, n], [n, -n, n], [-n, -n, n], [-n, n, n], 0.45]];
+  for (const [a, b, d, e, shade] of faces) {
+    g.beginPath(); [a, b, d, e].forEach((q, i) => g[i ? "lineTo" : "moveTo"](...P(...q))); g.closePath();
+    g.fillStyle = v("--face"); g.fill(); g.fillStyle = `rgba(5,11,29,${shade})`; g.fill();
+  }
+  const seen = q => fc[q] % 2 === 0; // the three faces in view
+  const dx = [1, -1, 0, 0, 0, 0], dy = [0, 0, 1, -1, 0, 0], dz = [0, 0, 0, 0, 1, -1];
+  g.lineCap = g.lineJoin = "round"; g.lineWidth = k * 0.55;
+  // The pink one last, so nothing is drawn over it.
+  for (const a of [...paths.keys()].slice(1).concat(0)) {
+    if (gone.has(a)) continue;
+    const path = paths[a], col = a ? v("--text") : v("--pink");
+    g.strokeStyle = g.fillStyle = col; g.beginPath();
+    for (let i = 1; i < path.length; i++) {
+      if (!seen(path[i - 1]) || !seen(path[i])) continue;
+      g.moveTo(...P(px[path[i - 1]], py[path[i - 1]], pz[path[i - 1]])); g.lineTo(...P(px[path[i]], py[path[i]], pz[path[i]]));
+    }
+    g.stroke();
+    const h = path[path.length - 1], d = dirs[a];
+    if (!seen(h)) continue;
+    const [hx, hy] = P(px[h], py[h], pz[h]), [ux, uy] = [(dx[d] - dz[d]) * 0.866, (dx[d] + dz[d]) * 0.5 - dy[d]], m = Math.hypot(ux, uy) || 1;
+    const fx = ux / m * k, fy = uy / m * k;
+    g.beginPath(); g.moveTo(hx + fx * 0.9, hy + fy * 0.9); g.lineTo(hx - fy * 0.6, hy + fx * 0.6); g.lineTo(hx + fy * 0.6, hy - fx * 0.6); g.fill();
+  }
+}
+function showWorld(w) {
+  lastWorld = w;
+  const num = x => x.toLocaleString("en-GB"), cleared = w.arrows ? (w.arrows - w.left) / w.arrows : 0;
+  const players = w.players ? num(w.players) + " player" + (w.players === 1 ? "" : "s") + " on it" : "nobody on it yet";
+  const hero = document.querySelector("[data-world]"), a = document.createElement("a");
+  a.href = "open.html?world"; a.textContent = "World Cube #" + w.id;
+  hero.replaceChildren(a, " · " + num(w.left) + " of " + num(w.arrows) + " arrows left · " +
+    (w.players ? players.replace("on it", "clearing it together right now") : "one cube for every player: be the first to clear an arrow"));
+  hero.hidden = false;
+  const set = (sel, t) => document.querySelector(sel).textContent = t;
+  set("[data-w-id]", "#" + w.id); set("[data-w-pct]", Math.floor(cleared * 100) + "%");
+  set("[data-w-left]", num(w.left) + " of " + num(w.arrows) + " arrows left"); set("[data-w-players]", players);
+  document.querySelector("[data-w-bar]").style.width = cleared * 100 + "%";
+  document.querySelector("[data-w-meter]").setAttribute("aria-valuenow", Math.floor(cleared * 100));
+  const last = document.querySelector("[data-w-last]");
+  if (w.last && w.last.winner) {
+    const t = w.last.seconds, took = t >= 3600 ? Math.floor(t / 3600) + " h " + Math.floor(t % 3600 / 60) + " min" : Math.max(1, Math.round(t / 60)) + " min";
+    const who = document.createElement(w.last.code ? "a" : "b"); who.textContent = w.last.winner;
+    if (w.last.code) who.href = "u.html?c=" + encodeURIComponent(w.last.code);
+    last.replaceChildren("Cube #" + w.last.id + " went to ", who, " after " + took + ", with " + num(w.last.players) + " player" + (w.last.players === 1 ? "" : "s") + " on it.");
+    last.hidden = false;
+  }
+  document.getElementById("world").hidden = false;
+  try { drawWorld(w); } catch (e) { document.querySelector("[data-w-cube]").hidden = true; }
+}
+function loadWorld() {
+  return fetch("https://cubit-lb-api.taymaerz.de/v1/world").then(r => r.ok ? r.json() : null).then(w => { if (w && w.id) showWorld(w); }).catch(() => {});
+}
+// Refreshes every half minute while the tab is open, and redraws when the page is resized.
+loadWorld().then(() => setInterval(() => { if (!document.hidden) loadWorld(); }, 30000));
+addEventListener("resize", () => { if (lastWorld) try { drawWorld(lastWorld); } catch (e) {} });
 
 // How many people are on the board, from the leaderboard server; the page reads fine without it.
 fetch("https://cubit-lb-api.taymaerz.de/v1/stats").then(r => r.ok ? r.json() : null).then(st => {
