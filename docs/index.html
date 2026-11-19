@@ -43,6 +43,7 @@
   "mainEntity": [
     { "@type": "Question", "name": "Is Cubit really free?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. Every level, mode and powerup is in the free download. There are no ads and nothing to buy." } },
     { "@type": "Question", "name": "Why isn't it on the Play Store?", "acceptedAnswer": { "@type": "Answer", "text": "It's a one-person project, published on GitHub instead. You download the APK and install it like any other app; updates install over the top and keep your progress." } },
+    { "@type": "Question", "name": "Can I play Cubit on an iPhone or a computer?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. Today's cube plays in the browser on any phone, tablet or computer at https://taynotfound.github.io/cubit/play.html, and so do shared daily, weekly and name cubes. The full game is the Android app." } },
     { "@type": "Question", "name": "Is the APK safe to install?", "acceptedAnswer": { "@type": "Answer", "text": "The full source is on GitHub under the MIT licence, every release is signed with the same key, and each release lists the file's SHA-256 checksum so you can check the download." } },
     { "@type": "Question", "name": "Does it need the internet?", "acceptedAnswer": { "@type": "Answer", "text": "Only for the optional global rankings. Everything else works offline." } }
   ]
@@ -72,6 +73,21 @@
   nav .links a { text-decoration: none; font: 600 15px/1 "Barlow Condensed"; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
   nav .links a:hover { color: var(--text); }
   nav .links a.get { color: var(--on-accent); background: var(--accent); padding: 10px 14px; border-radius: 6px; }
+  nav .links a.playlink { color: var(--text); border: 1px solid var(--pink); padding: 9px 13px; border-radius: 6px; }
+  .btn.play { background: transparent; color: var(--text); border: 2px solid var(--pink); font-size: 18px; letter-spacing: .05em; }
+  .btn.play svg { color: var(--pink); width: 20px; height: 20px; }
+  .btn.play.lead { background: var(--pink); color: #fff; border-color: var(--pink); font-size: inherit; }
+  .btn.play.lead svg { color: #fff; }
+  /* Today's cube: a drawing of the day's cube that turns into the real game (an iframe of play.html) on a click. */
+  .trybox { position: relative; width: 100%; max-width: 520px; margin: 0 auto; aspect-ratio: 1; border-radius: 12px; overflow: hidden;
+            background: radial-gradient(circle at 50% 55%, rgba(31, 79, 191, .35), transparent 65%); }
+  .trybox canvas { display: block; width: 100%; height: 100%; }
+  .trybox .go { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); white-space: nowrap; box-shadow: 0 8px 30px rgba(0, 0, 0, .35); }
+  .trybox iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .trybox.playing { aspect-ratio: auto; height: min(720px, 86vh); max-width: none; background: var(--bg); border: 1px solid var(--hair); }
+  .todaystats { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 22px; }
+  .todaystats span { background: var(--tile); border: 1px solid var(--hair); border-radius: 6px; padding: 10px 14px; font: 600 15px/1 "Barlow Condensed"; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  .todaystats b { color: var(--text); font-size: 22px; margin-right: 6px; }
 
   /* hero */
   .hero { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; padding: 28px 0 72px; }
@@ -213,6 +229,7 @@
       <a class="opt" href="#modes">Modes</a>
       <a class="opt" href="#faq">FAQ</a>
       <a class="opt" href="https://github.com/taynotfound/cubit">GitHub</a>
+      <a class="playlink" href="play.html">Play</a>
       <a class="opt" href="#support">Support</a>
       <a class="get" href="#get">Get it</a>
     </div>
@@ -229,9 +246,10 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12M6 11l6 6 6-6M5 21h14"/></svg></a>
         <a class="btn secondary" href="https://f-droid.org/en/packages/de.taymaerz.cubit/">Get it on F-Droid
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1.2 11.2a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg></a>
+        <a class="btn play" href="play.html" data-playlead>Play now in your browser
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12-7.5a1 1 0 0 0 0-1.72l-12-7.5A1 1 0 0 0 7 4.5z"/></svg></a>
       </div>
-      <p class="fine" style="margin-top:14px"><a href="play.html"><b>No Android phone? Play today's cube in your browser →</b></a></p>
-      <p class="fine" style="margin-top:6px"><a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium%3A%2F%2Fapp%2F%257B%2522id%2522%253A%2522de.taymaerz.cubit%2522%252C%2522url%2522%253A%2522https%253A%252F%252Fgithub.com%252Ftaynotfound%252Fcubit%2522%252C%2522author%2522%253A%2522taynotfound%2522%252C%2522name%2522%253A%2522Cubit%2522%252C%2522additionalSettings%2522%253A%2522%257B%255C%2522apkFilterRegEx%255C%2522%253A%2520%255C%2522%255ECubit%255C%255C%255C%255C.apk%2524%255C%2522%257D%2522%257D">Get it on Obtainium</a>, or get it from <a href="https://f-droid.org/en/packages/de.taymaerz.cubit/">F-Droid</a>: both keep it updated for you</p>
+      <p class="fine" style="margin-top:12px"><a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium%3A%2F%2Fapp%2F%257B%2522id%2522%253A%2522de.taymaerz.cubit%2522%252C%2522url%2522%253A%2522https%253A%252F%252Fgithub.com%252Ftaynotfound%252Fcubit%2522%252C%2522author%2522%253A%2522taynotfound%2522%252C%2522name%2522%253A%2522Cubit%2522%252C%2522additionalSettings%2522%253A%2522%257B%255C%2522apkFilterRegEx%255C%2522%253A%2520%255C%2522%255ECubit%255C%255C%255C%255C.apk%2524%255C%2522%257D%2522%257D">Get it on Obtainium</a>, or get it from <a href="https://f-droid.org/en/packages/de.taymaerz.cubit/">F-Droid</a>: both keep it updated for you</p>
       <p class="fine"><a class="ver" href="https://github.com/taynotfound/cubit/releases/latest">Version <span data-ver>1.6.0</span><span data-date></span></a> · free with no ads · under 1 MB · Android 7.0 or newer · <a href="#install">how to install</a><span data-players hidden></span></p>
       <p class="fine" data-world hidden></p>
     </div>
@@ -242,6 +260,29 @@
     </div>
   </header>
 </div>
+
+<section id="today">
+  <div class="wrap split">
+    <div>
+      <span class="label">No download, no sign-up</span>
+      <h2 style="margin-top:10px">Play today's cube <span class="pink">right here</span></h2>
+      <p class="lede">Every day there's one new cube, the same for everyone. Free the pink arrow in as few taps as you can, then share your result and see who beats it.</p>
+      <div class="todaystats" aria-label="Today's cube">
+        <span><b data-t-num>#</b>daily cube</span><span><b data-t-par>–</b>par</span><span><b data-t-arrows>–</b>arrows</span>
+      </div>
+      <div class="cta">
+        <a class="btn primary" href="play.html" data-t-play>Play today's cube
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12-7.5a1 1 0 0 0 0-1.72l-12-7.5A1 1 0 0 0 7 4.5z"/></svg></a>
+      </div>
+      <p class="fine" style="margin-top:14px">Works on any phone, tablet or computer, iPhone included. The Android app adds levels that grow to 18×18, the weekly challenge, Endless, rankings and the World Cube.</p>
+    </div>
+    <div class="trybox" data-try>
+      <canvas data-t-cube role="img" aria-label="Today's cube: a blue cube covered in white arrows, with the pink one on the front face"></canvas>
+      <a class="btn primary go" href="play.html" data-t-go>Play it here
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12-7.5a1 1 0 0 0 0-1.72l-12-7.5A1 1 0 0 0 7 4.5z"/></svg></a>
+    </div>
+  </div>
+</section>
 
 <section id="new">
   <div class="wrap">
@@ -276,6 +317,7 @@
       <figure><div class="phone"><video data-reel src="img/reel-endless.mp4" poster="img/reel-endless.jpg" muted loop playsinline preload="none"
         aria-label="Endless: cube after cube, each a little bigger, lives carrying over"></video></div><figcaption>Endless</figcaption></figure>
     </div>
+    <p class="lede" style="margin:28px auto 0"><a href="play.html">Or skip the videos: play today's cube in your browser →</a></p>
   </div>
 </section>
 
@@ -405,6 +447,7 @@
     <div class="faq">
       <details><summary>Is it really free?</summary><p>Yes. Every level, mode and powerup is in the free download. There are no ads and nothing to buy.</p></details>
       <details><summary>Why isn't it on the Play Store?</summary><p>It's a one-person project, published on GitHub and <a href="https://f-droid.org/en/packages/de.taymaerz.cubit/">F-Droid</a> instead. You install the APK like any other app, and updates install over the top.</p></details>
+      <details><summary>Can I play on an iPhone or a computer?</summary><p>Yes: <a href="play.html">today's cube plays in your browser</a> on any phone, tablet or computer, and so does any daily, weekly or name cube a friend shares with you. The full game, with levels, Endless, rankings and the World Cube, is the Android app.</p></details>
       <details><summary>Is the APK safe?</summary><p>You can read every line of the source on GitHub, each release is signed with the same key, and the release page lists the file's SHA-256 checksum so you can check what you downloaded.</p></details>
       <details><summary>Does it need the internet?</summary><p>Only for the optional global rankings. You choose on first launch, and everything else works offline. On GrapheneOS, allow Cubit's Network permission if you want rankings.</p></details>
       <details><summary>What does the leaderboard know about me?</summary><p>The name you pick, your XP, and your ranked runs, including the taps, so the server can check them. It stores no email or account, and the app runs no analytics.</p></details>
@@ -422,7 +465,8 @@
       <a class="btn primary" href="https://github.com/taynotfound/cubit/releases/latest/download/Cubit.apk">Get Cubit for Android
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12M6 11l6 6 6-6M5 21h14"/></svg></a>
       <a class="btn secondary" href="https://f-droid.org/en/packages/de.taymaerz.cubit/">Get it on F-Droid</a>
-      <a class="btn secondary" href="#clean">See Clean mode</a>
+      <a class="btn play" href="play.html">Play in your browser
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12-7.5a1 1 0 0 0 0-1.72l-12-7.5A1 1 0 0 0 7 4.5z"/></svg></a>
     </div>
     <div class="support" id="support">
       <h3>Keep Cubit free</h3>
@@ -495,11 +539,39 @@ function worldPaths(n, maxLen, seed) {
   return { paths: p.paths, dirs: p.dirs, px: c.px, py: c.py, pz: c.pz, fc: c.face };
 }
 
+// Today's cube: drawn from cubit-core, with its number and par; "Play it here" swaps the drawing for the real game on
+// big screens with a mouse, and opens play.html on phones (where a game inside the page would fight with scrolling).
+(() => {
+  const C = CubitCore, day = C.utcDay(), p = C.generate(C.dailySpec(day)), num = day - C.FIRST_DAILY + 1;
+  const set = (sel, t) => document.querySelectorAll(sel).forEach(el => el.textContent = t);
+  set("[data-t-num]", "#" + num); set("[data-t-par]", C.parOf(p)); set("[data-t-arrows]", p.paths.length);
+  const cube = { paths: p.paths, dirs: p.dirs, px: p.cube.px, py: p.cube.py, pz: p.cube.pz, fc: p.cube.face };
+  const cv = document.querySelector("[data-t-cube]"), draw = () => { if (cv.isConnected) try { drawIso(cv, cube, new Set(), p.cube.n); } catch (e) {} };
+  draw(); addEventListener("resize", draw);
+  const box = document.querySelector("[data-try]");
+  document.querySelector("[data-t-go]").addEventListener("click", e => {
+    if (!matchMedia("(min-width: 900px) and (pointer: fine)").matches) return; // phones: just follow the link
+    e.preventDefault();
+    const f = document.createElement("iframe");
+    f.src = "play.html?embed&daily=" + day; f.title = "Cubit: today's cube"; f.allow = "clipboard-write; web-share";
+    box.classList.add("playing"); box.replaceChildren(f); f.focus();
+  });
+  // Off Android the app can't be installed, so playing in the browser is the main way in.
+  if (!/Android/i.test(navigator.userAgent)) {
+    document.querySelectorAll("[data-playlead]").forEach(b => { b.classList.add("lead"); b.parentNode.prepend(b); });
+    document.querySelectorAll(".hero .cta .btn.primary:not(.play)").forEach(b => { b.classList.remove("primary"); b.classList.add("secondary"); });
+  }
+})();
+
 let lastWorld = null, worldCube = null; // { id, paths, ... } for the cube drawn last, so a new one is only built when the id changes
 function drawWorld(w) {
-  const cv = document.querySelector("[data-w-cube]"), css = getComputedStyle(document.documentElement), v = k => css.getPropertyValue(k).trim();
   if (!worldCube || worldCube.id !== w.id) worldCube = { id: w.id, ...worldPaths(w.n, w.maxLen, w.seed) };
-  const { paths, dirs, px, py, pz, fc } = worldCube, gone = new Set(w.removed), n = w.n;
+  drawIso(document.querySelector("[data-w-cube]"), worldCube, new Set(w.removed), w.n);
+}
+/** A cube's three top faces, isometric, with the arrows still on it ([gone] left out). The World Cube and today's cube. */
+function drawIso(cv, cube, gone, n) {
+  const css = getComputedStyle(document.documentElement), v = k => css.getPropertyValue(k).trim();
+  const { paths, dirs, px, py, pz, fc } = cube;
   const W = cv.clientWidth * (devicePixelRatio || 1); cv.width = cv.height = W;
   const g = cv.getContext("2d"), k = W / (4 * n) * 0.96, c = W / 2;
   // Isometric, looking down on the +x, +y and +z faces.

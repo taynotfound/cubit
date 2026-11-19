@@ -30,7 +30,7 @@ One account for everything works well: you post as a person, and the daily cube 
 "This is an automated account" only if the account is just the bot; a mixed account is fine without it as long as you
 read and answer replies. Then set the `MASTODON_INSTANCE` (`https://mastodon.gamedev.place`) and `MASTODON_TOKEN`
 secrets for `.github/workflows/daily-post.yml`. Make the token under Preferences → Development → New application,
-with only the `write:statuses` scope.
+with the `write:statuses` and `write:media` scopes (media is for the picture of the cube).
 
 **A first post:**
 

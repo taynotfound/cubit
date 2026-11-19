@@ -54,6 +54,19 @@
   .card small { display: block; color: var(--muted); margin-top: 14px; font-size: 14px; }
   .card small a { color: var(--muted); }
   @media (min-width: 700px) { #sheet { place-items: center; } }
+  /* ?card: a still picture of the cube for posts (the daily Mastodon post screenshots it at 1200×1200). */
+  .cardtext { display: none; }
+  body.cardmode header, body.cardmode .stats, body.cardmode footer, body.cardmode #tip { display: none; }
+  body.cardmode .cardtext { display: block; padding: 56px 64px 0; }
+  body.cardmode .cardtext.foot { padding: 0 64px 52px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+  .cardtext .mark { display: flex; align-items: center; gap: 14px; font: 700 40px/1 "Barlow Condensed", sans-serif; text-transform: uppercase; }
+  .cardtext .mark i { width: 26px; height: 26px; background: var(--accent); display: inline-block; }
+  .cardtext h1 { font: 700 96px/0.95 "Barlow Condensed", sans-serif; text-transform: uppercase; margin: 26px 0 10px; }
+  .cardtext h1 span { color: var(--pink); }
+  .cardtext p { font: 500 30px/1.3 Barlow, sans-serif; color: var(--muted); margin: 0; }
+  .cardtext .go { font: 700 34px/1 "Barlow Condensed", sans-serif; text-transform: uppercase; background: var(--accent); color: var(--on-accent);
+                  padding: 18px 26px; border-radius: 8px; white-space: nowrap; }
+  .cardtext .url { font: 500 26px/1.3 Barlow, sans-serif; color: var(--muted); }
 </style>
 </head>
 <body>
@@ -67,9 +80,18 @@
   <div class="stat"><b id="bumps">0</b><span data-t="bumps"></span></div>
   <div class="stat"><b id="clock">0:00</b><span data-t="time"></span></div>
 </div>
+<div class="cardtext" aria-hidden="true">
+  <div class="mark"><i></i>Cubit</div>
+  <h1 id="card-title"></h1>
+  <p id="card-line"></p>
+</div>
 <div id="stage">
   <canvas id="cv" role="application" aria-label=""></canvas>
   <div id="tip"></div>
+</div>
+<div class="cardtext foot" aria-hidden="true">
+  <span class="go">Free the pink arrow</span>
+  <span class="url">Play free in your browser<br>taynotfound.github.io/cubit</span>
 </div>
 <footer>
   <button id="hint" type="button" data-t="hint"></button>
@@ -243,7 +265,7 @@ function load() {
   if (spec.special) $("tip").textContent += " " + t("specials");
   if (isAndroid) { $("getapp").textContent = t("openApp"); $("getapp").href = appLink; }
   const done = store.get("done:" + pageLink);
-  if (done && done.taps) setTimeout(() => showWin(done), 400);
+  if (done && done.taps && !q.has("card")) setTimeout(() => showWin(done), 400);
 }
 
 // ---------- camera ----------
@@ -535,7 +557,22 @@ $("sh-share").onclick = share;
 $("sh-close").onclick = () => $("sheet").hidden = true;
 addEventListener("resize", resize);
 
-if (setup()) { load(); }
+// ?card: a still for posts. ?embed: inside the homepage's iframe, where links open in the whole tab.
+const CARD = q.has("card"), EMBED = q.has("embed");
+if (CARD) {
+  document.body.classList.add("cardmode");
+  zoom = 1.5;
+}
+if (EMBED) document.querySelectorAll("a").forEach(a => a.target = "_top");
+if (setup()) {
+  load();
+  if (CARD) {
+    $("sheet").hidden = true; won = false;
+    const [head, num] = label.split("#");
+    $("card-title").innerHTML = num ? `${head.trim()} <span>#${num}</span>` : label;
+    $("card-line").textContent = `Par ${C.parOf(P)} · ${P.paths.length} arrows · ${P.cube.n}×${P.cube.n} · the same cube for everyone`;
+  }
+}
 resize();
 </script>
 </body>

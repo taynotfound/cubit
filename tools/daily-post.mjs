@@ -1,8 +1,10 @@
 // Writes today's daily-cube post for the Mastodon bot (.github/workflows/daily-post.yml): the cube's number, its par
 // and a link anyone can play in the browser. Run: node tools/daily-post.mjs [day]
+// With --day it prints just the day number; with --alt, the alt text for the picture of the cube (play.html?card).
 import { createRequire } from "module";
 const C = createRequire(import.meta.url)("../docs/cubit-core.js");
-const day = process.argv[2] ? parseInt(process.argv[2], 10) : C.utcDay();
+const arg = process.argv.slice(2).find(a => /^\d+$/.test(a));
+const day = arg ? parseInt(arg, 10) : C.utcDay();
 const p = C.generate(C.dailySpec(day));
 const num = day - C.FIRST_DAILY + 1, par = C.parOf(p);
 const date = new Date(day * 86400000).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
@@ -15,4 +17,8 @@ const lines = [
   ``,
   `Reply with your result! #Cubit #puzzle #dailypuzzle`,
 ];
-process.stdout.write(lines.join("\n"));
+if (process.argv.includes("--day")) process.stdout.write(String(day));
+else if (process.argv.includes("--alt")) process.stdout.write(`Cubit daily cube #${num}: a blue cube seen from above one corner, every face covered in ` +
+  `winding white arrows, with one pink arrow on the front face. Text: "Daily cube #${num}. Par ${par}, ${p.paths.length} arrows, 12 by 12, ` +
+  `the same cube for everyone. Free the pink arrow. Play free in your browser."`);
+else process.stdout.write(lines.join("\n"));

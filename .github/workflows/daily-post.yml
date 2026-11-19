@@ -1,7 +1,9 @@
 # Posts the daily cube to Mastodon (or any Mastodon-compatible server) every day just after it changes (00:00 UTC),
-# with a link anyone can play in the browser. Does nothing until both are set (Settings → Secrets and variables → Actions):
-#   MASTODON_INSTANCE  the bot account's server, e.g. https://mastodon.social (secret or variable)
-#   MASTODON_TOKEN     an access token for that account with the write:statuses scope (Preferences → Development)
+# with a picture of the cube and a link anyone can play in the browser. Does nothing until both are set
+# (Settings → Secrets and variables → Actions):
+#   MASTODON_INSTANCE  the account's server, e.g. https://mastodon.gamedev.place (secret or variable)
+#   MASTODON_TOKEN     an access token for that account with the write:statuses and write:media scopes
+#                      (Preferences → Development → New application)
 # Run it by hand from the Actions tab to test.
 
 name: Daily cube post
@@ -22,14 +24,46 @@ jobs:
       MASTODON_TOKEN: ${{ secrets.MASTODON_TOKEN }}
     steps:
       - uses: actions/checkout@v4
-      - name: Post today's cube
+
+      - name: Write the post
+        run: |
+          node tools/daily-post.mjs > post.txt
+          node tools/daily-post.mjs --alt > alt.txt
+          cat post.txt
+
+      # play.html?card draws the day's cube with its number and par; the runner's own Chrome screenshots it.
+      - name: Picture the cube
+        continue-on-error: true
+        run: |
+          day=$(node tools/daily-post.mjs --day)
+          chrome=$(command -v google-chrome || command -v chromium || command -v chromium-browser)
+          timeout 120 "$chrome" --headless=new --no-sandbox --disable-gpu --hide-scrollbars --window-size=1200,1200 \
+            --virtual-time-budget=8000 --screenshot="$PWD/card.png" "file://$PWD/docs/play.html?daily=$day&card&lang=en"
+          test -s card.png
+
+      - name: Post it
         run: |
           if [ -z "$MASTODON_INSTANCE" ] || [ -z "$MASTODON_TOKEN" ]; then echo "Mastodon isn't set up; skipping."; exit 0; fi
-          node tools/daily-post.mjs > post.txt
-          cat post.txt
-          curl -fsS -X POST "${MASTODON_INSTANCE%/}/api/v1/statuses" \
-            -H "Authorization: Bearer $MASTODON_TOKEN" \
+          api="${MASTODON_INSTANCE%/}/api"
+          auth="Authorization: Bearer $MASTODON_TOKEN"
+          media=()
+          # The picture is a bonus: if it's missing or the upload fails, the post goes out without it.
+          if [ -s card.png ]; then
+            id=$(curl -fsS -X POST "$api/v2/media" -H "$auth" -F "file=@card.png;type=image/png" -F "description=<alt.txt" \
+                 | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])' 2>/dev/null) || id=""
+            # Large uploads can still be processing; wait until the server has a URL for it.
+            for i in 1 2 3 4 5 6 7 8 9 10; do
+              [ -z "$id" ] && break
+              url=$(curl -fsS "$api/v1/media/$id" -H "$auth" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("url") or "")' 2>/dev/null) || url=""
+              [ -n "$url" ] && break
+              sleep 3
+            done
+            [ -n "$id" ] && media=(--data-urlencode "media_ids[]=$id")
+          fi
+          curl -fsS -X POST "$api/v1/statuses" -H "$auth" \
             -H "Idempotency-Key: cubit-daily-$(date -u +%F)" \
             --data-urlencode "status@post.txt" \
+            "${media[@]}" \
             --data-urlencode "visibility=public" \
             --data-urlencode "language=en" > /dev/null
+          echo "Posted${media:+ with the picture}."
