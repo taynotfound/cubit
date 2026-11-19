@@ -12,7 +12,27 @@ Rules worth knowing before posting:
 
 ---
 
-## Mastodon / Fediverse (your own account)
+## Mastodon / Fediverse
+
+**Where to sign up** (checked 19 Nov 2026 from each server's own rules):
+
+- **Cubit's account: mastodon.gamedev.place.** A server for game developers (about 4,300 active people a month, the
+  official itch.io account lives there). Its rules have nothing against sharing your own game or automated posts.
+  Sign-ups need approval, so say in the request that it's the account for Cubit, a free open source puzzle game, and
+  that it will also post the daily cube automatically. The admin's contact is on the server's About page.
+- **Backup: mastodon.social.** The biggest server (about 265,000 active a month), open sign-up, run by Mastodon's own
+  non-profit. Its rules ask that generative AI use is disclosed and that accounts don't post only AI-generated content.
+  Cubit's posts aren't AI-generated, but the game is built with Claude, so link AI-DECLARATION.md in the profile.
+- **Avoid:** fosstodon.org (closed to sign-ups, and its rules forbid automated posting from an account nobody watches,
+  and posts that are only links and hashtags). botsin.space, the old home for bots, looks shut: its site no longer serves a Mastodon server.
+
+One account for everything works well: you post as a person, and the daily cube goes out from the same account. Tick
+"This is an automated account" only if the account is just the bot; a mixed account is fine without it as long as you
+read and answer replies. Then set the `MASTODON_INSTANCE` (`https://mastodon.gamedev.place`) and `MASTODON_TOKEN`
+secrets for `.github/workflows/daily-post.yml`. Make the token under Preferences → Development → New application,
+with only the `write:statuses` scope.
+
+**A first post:**
 
 > I made a puzzle game: a cube covered in winding arrows. Tap one and it slides off, if nothing's in its way. Dig out
 > the pink one.
@@ -25,10 +45,6 @@ Rules worth knowing before posting:
 
 Attach `docs/img/reel-hook.mp4` with alt text: "A cube covered in white arrows. Taps slide arrows off one by one
 until the pink arrow is free and flies off."
-
-There's also a daily bot, see `.github/workflows/daily-post.yml`. Make a separate account for it on a server whose rules allow
-bots, tick "This is an automated account" in its profile settings, create an access token with the
-`write:statuses` scope, and add the `MASTODON_INSTANCE` and `MASTODON_TOKEN` secrets.
 
 ---
 
