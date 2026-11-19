@@ -100,7 +100,7 @@ class GameView(ctx: Context) : View(ctx) {
         p.paths.forEachIndexed { i, path -> path.forEach { occ[it] = i } }
         removed = BooleanArray(p.paths.size)
         remaining = p.paths.size
-        anims.clear(); hintArrow = -1; scanUntil = 0L; history.clear()
+        anims.clear(); hintArrow = -1; scanUntil = 0L; history.clear(); blocker = -1
         ghostOcc = occ.copyOf(); ghostGone = BooleanArray(p.paths.size); ghostHist.clear(); ghostOn = false; ghostLeft = p.paths.size
         wormholes = (0 until cube.size).filter { p.warp[it] > it }
         tracks = Array(p.paths.size) { buildTrack(p.paths[it], p.dirs[it], p.exit(it)) }
@@ -189,6 +189,14 @@ class GameView(ctx: Context) : View(ctx) {
     /** How far a stuck arrow nudges before it bounces back: up to whatever blocks its head (a locked one barely moves). */
     private fun bounceAt(a: Int) = tracks[a].rayCells.indexOfFirst { occ[it] >= 0 && occ[it] != a }.coerceAtLeast(0)
 
+    /** The first arrow standing in [a]'s way out, or -1 (nothing in the way: the pink arrow waiting to go last). */
+    private fun blockerOf(a: Int) = tracks[a].rayCells.firstOrNull { occ[it] >= 0 && occ[it] != a }?.let { occ[it] } ?: -1
+
+    /** After a bump, the arrow that was in the way glows red for a moment, so you see what stopped it. */
+    private var blocker = -1
+    private var blockerAt = 0L
+    private val blockerFlashing get() = blocker >= 0 && SystemClock.uptimeMillis() - blockerAt < BLOCKER_MS
+
     private fun tapArrow(a: Int) {
         if (anims.any { it.arrow == a }) return
         if (a == hintArrow) hintArrow = -1
@@ -218,6 +226,7 @@ class GameView(ctx: Context) : View(ctx) {
             if (a == puzzle.target) listener?.onTargetFreed()
         } else {
             anims.add(Anim(a, false, now, bounceAt(a) + 0.12f))
+            blocker = blockerOf(a); blockerAt = now
             val key = puzzle.keys[a]
             if (key >= 0 && !removed[key]) hintArrow = key // a locked arrow points out its key
             shakeStart = now
@@ -404,6 +413,7 @@ class GameView(ctx: Context) : View(ctx) {
             if (markTarget) drawSnake(canvas, tracks[tg], 0f, tracks[tg].headT - 0.6f, w * 0.4f, Color.WHITE, lift = baseLift * 1.1f, shadow = false)
         }
 
+        drawBlocker(canvas, now, w)
         drawPreview(canvas, w)
         drawAnims(canvas, now, w)
         finishFrame(canvas, now, dt, shakeT, scanning)
@@ -426,7 +436,7 @@ class GameView(ctx: Context) : View(ctx) {
                 val dur = 0.22f + an.dist * 0.05f
                 if (e > dur) { it.remove(); continue }
                 val off = an.dist * sin(Math.PI * e / dur).toFloat()
-                drawSnake(canvas, tr, off, off + tr.headT, w, Color.rgb(235, 40, 60), if (glass) 0f else baseLift, !glass)
+                drawSnake(canvas, tr, off, off + tr.headT, w, BUMP_RED, if (glass) 0f else baseLift, !glass)
             }
         }
     }
@@ -438,7 +448,7 @@ class GameView(ctx: Context) : View(ctx) {
         drawParticles(canvas, dt)
 
         val pulsing = inputEnabled && !removed[puzzle.target]
-        if (pulsing || turning || preview >= 0 || showTaps && now - ringAt < 500 || particles.isNotEmpty() || shakeT < 320 || now - introStart < 700 || autoSpin || anims.isNotEmpty() || hintArrow >= 0 || scanning || spinX != 0f || spinY != 0f) postInvalidateOnAnimation()
+        if (pulsing || turning || preview >= 0 || showTaps && now - ringAt < 500 || particles.isNotEmpty() || shakeT < 320 || now - introStart < 700 || autoSpin || anims.isNotEmpty() || hintArrow >= 0 || scanning || blockerFlashing || spinX != 0f || spinY != 0f) postInvalidateOnAnimation()
     }
 
     private val targetColor get() = PINK
@@ -471,6 +481,7 @@ class GameView(ctx: Context) : View(ctx) {
         }
         onlyFace = -1
         drawWormholes(canvas, now)
+        drawBlocker(canvas, now, w)
         drawAnims(canvas, now, w)
         finishFrame(canvas, now, dt, shakeT, false)
     }
@@ -936,11 +947,21 @@ class GameView(ctx: Context) : View(ctx) {
         }
     }
 
+    private fun drawBlocker(canvas: Canvas, now: Long, w: Float) {
+        val b = blocker
+        if (!blockerFlashing || removed[b]) return
+        val tr = tracks[b]
+        val k = 1f - (now - blockerAt).toFloat() / BLOCKER_MS
+        drawSnake(canvas, tr, 0f, tr.headT, w * 3.2f, withAlpha(BUMP_RED, (150 * k).toInt()), lift = 0f, shadow = false)
+    }
+
     private fun drawPreview(canvas: Canvas, w: Float) {
         val a = preview
         if (a < 0 || removed[a]) return
         val tr = tracks[a]; val free = wayOf(a) != Puzzle.STUCK
-        val c = if (free) Color.rgb(80, 220, 140) else Color.rgb(235, 40, 60)
+        // Blocked: outline what's in the way, too.
+        if (!free) blockerOf(a).takeIf { it >= 0 }?.let { b -> drawSnake(canvas, tracks[b], 0f, tracks[b].headT, w * 2.6f, withAlpha(BUMP_RED, 120), lift = 0f, shadow = false) }
+        val c = if (free) Color.rgb(80, 220, 140) else BUMP_RED
         drawSnake(canvas, tr, 0f, tr.headT, w * 2.6f, withAlpha(c, 70), lift = 0f, shadow = false)
         // The way out: from the head to the face edge (on Nightmare, round the cube first).
         drawSnake(canvas, tr, tr.headT, tr.headT + tr.rayCells.size + 0.5f, w * 0.7f, withAlpha(c, 170), lift = baseLift, shadow = false)
@@ -1057,6 +1078,9 @@ class GameView(ctx: Context) : View(ctx) {
 /** How far the cube's surface travels for the finger's travel. A little over 1, so a swipe across the cube turns it a
  *  bit more than a quarter turn without it running away from the finger. */
 private const val TURN_GAIN = 1.4f
+/** A bump: the arrow that bounced, and the glow on whatever stopped it. */
+private const val BUMP_RED = 0xFFEB283C.toInt()
+private const val BLOCKER_MS = 700L
 const val PINK = 0xFFFF3D7F.toInt()
 /** Bomb arrows' core and blast. */
 const val BOMB = 0xFFFF8A1F.toInt()

@@ -394,7 +394,7 @@ class MainActivity : Activity(), GameView.Listener {
 
     // The tick stops while we're in the background, or it would count that time and could end the level.
     override fun onPause() { super.onPause(); pauseClock(); handler.removeCallbacks(tick); Music.pause(); if (running && !tutorial && game?.let { it.remaining < it.total } == true) saveRun() } // nothing to keep before the first arrow goes
-    override fun onResume() { super.onResume(); if (running) { resumedAt = SystemClock.uptimeMillis(); handler.post(tick) }; Music.resume() }
+    override fun onResume() { super.onResume(); if (running && !tipOpen) { resumedAt = SystemClock.uptimeMillis(); handler.post(tick) }; Music.resume() }
 
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
@@ -976,7 +976,7 @@ class MainActivity : Activity(), GameView.Listener {
         c.add(xpBar(into.toFloat() / need), 10, MATCH_PARENT, dp(4))
         val stats = listOf(
             "Cubes cleared" to "${prefs.solved}", "Arrows cleared" to "${prefs.totalArrows}",
-            "Campaign level" to "${prefs.level}", "Daily streak" to "${prefs.liveStreak(utcDay())}",
+            "Campaign level" to "${prefs.level}", "Daily streak" to "${prefs.liveStreak(utcDay())}", "Best streak" to "${prefs.bestStreak}",
             "Hints in hand" to "${prefs.hints}", "Badges" to "${prefs.achievements.size} / ${Achievement.entries.size}",
         )
         stats.forEach { (k, v) ->
@@ -1055,7 +1055,7 @@ class MainActivity : Activity(), GameView.Listener {
             c.add(r)
         }
         val streak = prefs.liveStreak(today)
-        c.add(body("${solved.size} daily cube${if (solved.size == 1) "" else "s"} solved · $streak-day streak · ${prefs.streakFreezes} streak freeze${if (prefs.streakFreezes == 1) "" else "s"}" +
+        c.add(body("${solved.size} daily cube${if (solved.size == 1) "" else "s"} solved · $streak-day streak (best ${prefs.bestStreak}) · ${prefs.streakFreezes} streak freeze${if (prefs.streakFreezes == 1) "" else "s"}" +
             if (prefs.dailyBest > 0) " · best ${prefs.dailyBest} on ${dailyDate(prefs.dailyBestDay)}" else "", th.muted), 8)
         c.add(label("By mode"), 22)
         val played = Difficulty.entries.map { it to prefs.stats(it) }.filter { (_, s) -> s[0] + s[1] > 0 }
@@ -2235,7 +2235,7 @@ class MainActivity : Activity(), GameView.Listener {
             }
             prefs.savedRun = null
         }
-        elapsedMs = resume?.optLong("elapsed") ?: 0L; resumedAt = SystemClock.uptimeMillis(); running = true
+        elapsedMs = resume?.optLong("elapsed") ?: 0L; resumedAt = SystemClock.uptimeMillis(); running = true; lastCountdown = 0
         updateHud()
         Sfx.start(); Music.game()
         handler.post(tick)
@@ -2248,7 +2248,7 @@ class MainActivity : Activity(), GameView.Listener {
 
     /** Teaches the special arrows in a sheet (a toast is cut to two lines and gone in seconds); the clock waits until it closes. */
     private fun newArrowsSheet() {
-        pauseClock(); handler.removeCallbacks(tick)
+        pauseClock(); handler.removeCallbacks(tick); tipOpen = true
         val c = openSheet()
         c.add(display("New arrows", 30f))
         c.add(body("An orange core is a bomb: it takes the arrows touching it along.\n\nTwo heads means it can leave either way.\n\nA coloured ring is a wormhole: a way out that reaches it carries on from the ring on the far side.", th.muted), 8)
@@ -2256,15 +2256,23 @@ class MainActivity : Activity(), GameView.Listener {
         // Any way out (button, tap outside, back) detaches the sheet, so restart the clock there.
         (c.parent.parent as View).addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
             override fun onViewAttachedToWindow(v: View) {}
-            override fun onViewDetachedFromWindow(v: View) { if (running) { resumedAt = SystemClock.uptimeMillis(); handler.removeCallbacks(tick); handler.post(tick) } }
+            override fun onViewDetachedFromWindow(v: View) { tipOpen = false; if (running) { resumedAt = SystemClock.uptimeMillis(); handler.removeCallbacks(tick); handler.post(tick) } }
         })
     }
+
+    /** The second the countdown last ticked, so each one sounds once. */
+    private var lastCountdown = 0
+    /** The new-arrows sheet is open: the clock waits, even across leaving the app and coming back. */
+    private var tipOpen = false
 
     private val tick = object : Runnable {
         override fun run() {
             if (!running) return
             advanceGhost()
             updateHud()
+            // The last ten seconds count down: a soft flap and a tick you can feel, once a second.
+            val left = timeLimit - elapsedSec().toInt()
+            if (timeLimit > 0 && left in 1..10 && left != lastCountdown) { lastCountdown = left; Sfx.flap(0.22f); Haptics.tick() }
             if (timeLimit > 0 && elapsedSec() >= timeLimit) lose("Time's up") else handler.postDelayed(this, 250)
         }
     }
@@ -2283,9 +2291,9 @@ class MainActivity : Activity(), GameView.Listener {
         }
     }
 
-    private fun elapsedMillis() = elapsedMs + (if (running) SystemClock.uptimeMillis() - resumedAt else 0)
+    private fun elapsedMillis() = elapsedMs + (if (running && !tipOpen) SystemClock.uptimeMillis() - resumedAt else 0)
     private fun elapsedSec() = elapsedMillis() / 1000f
-    private fun pauseClock() { if (running) { elapsedMs += SystemClock.uptimeMillis() - resumedAt; resumedAt = SystemClock.uptimeMillis() } }
+    private fun pauseClock() { if (running) { if (!tipOpen) elapsedMs += SystemClock.uptimeMillis() - resumedAt; resumedAt = SystemClock.uptimeMillis() } }
     private fun stopRound() {
         pauseClock(); running = false; handler.removeCallbacks(tick); handler.removeCallbacks(demoStep); game = null; hud = null
         window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -2463,6 +2471,7 @@ class MainActivity : Activity(), GameView.Listener {
             }
             prefs.dailyDone = d
             prefs.dailyDays = prefs.dailyDays + d
+            prefs.bestStreak = prefs.bestStreak
         }
         val dailyBest = dailyDay != null && score > prefs.dailyBest
         if (dailyBest) { prefs.dailyBest = score; prefs.dailyBestDay = dailyDay!! }

@@ -259,6 +259,8 @@ class Prefs(ctx: Context) {
     /** UTC day of the last solved daily cube. */
     var dailyDone: Int get() = sp.getInt("dailyDone", -1); set(v) = sp.edit().putInt("dailyDone", v).apply()
     var dailyStreak: Int get() = sp.getInt("dailyStreak", 0); set(v) = sp.edit().putInt("dailyStreak", v).apply()
+    /** Longest daily streak ever (kept from 1.7.4; before that, the current one is the best we know of). */
+    var bestStreak: Int get() = maxOf(sp.getInt("bestStreak", 0), dailyStreak); set(v) = sp.edit().putInt("bestStreak", v).apply()
     var totalArrows: Int get() = sp.getInt("totalArrows", 0); set(v) = sp.edit().putInt("totalArrows", v).apply()
     var noPowerupStreak: Int get() = sp.getInt("noPuStreak", 0); set(v) = sp.edit().putInt("noPuStreak", v).apply()
     var cleanSolved: Int get() = sp.getInt("cleanSolved", 0); set(v) = sp.edit().putInt("cleanSolved", v).apply()
@@ -348,7 +350,7 @@ class Prefs(ctx: Context) {
     }
 
     fun resetProgress() = sp.edit().remove("level").remove("xp").remove("hints").remove("scores").remove("solved")
-        .remove("dailyDone").remove("dailyStreak").remove("totalArrows").remove("noPuStreak").remove("cleanSolved").remove("ach")
+        .remove("dailyDone").remove("dailyStreak").remove("bestStreak").remove("totalArrows").remove("noPuStreak").remove("cleanSolved").remove("ach")
         .remove("weeklyDone").remove("parWins").remove("freezes").remove("dailyBest").remove("dailyBestDay").remove("dailyDays").remove("stats")
         .remove("endlessBest").remove("archiveDays").remove("dEndBest").remove("dEndDay")
         .apply { allPacks().forEach { remove("pack_" + it.name) } }.apply()

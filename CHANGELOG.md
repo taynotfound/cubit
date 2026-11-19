@@ -4,6 +4,10 @@
 
 - **No more locked arrows**: an arrow whose way out is clear always leaves. Locked arrows were easy to miss (their dashed core barely showed on light arrows) and bumped for no visible reason (#6). Every cube keeps its arrows, bombs, two-way arrows and wormholes; levels saved before the update, and replays of older runs, play as they were.
 - The new arrows sheet now explains wormholes too.
+- **See what's in the way**: when an arrow bumps, the arrow that stopped it glows red for a moment. Holding an arrow whose way is blocked outlines the blocker too.
+- **Best streak**: your longest daily streak shows in Stats and on your profile.
+- The last ten seconds on the clock count down with a soft clack and a tick you can feel.
+- The clock no longer runs behind the new arrows sheet after you leave the app and come back.
 - Replays of Twist runs now turn the faces as they were turned, and no longer change the cube for the rest of the session.
 - A daily cube saved to My pack (and the pack shared from it) stays that cube instead of gaining bombs and two-way arrows.
 - A highlighted two-way arrow lights up both heads.
