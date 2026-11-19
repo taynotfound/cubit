@@ -41,6 +41,7 @@ Levels start at 10×10 per side with about a hundred winding arrows and grow to 
 - **Nightmare.** The hardest mode. An arrow doesn't just slide off its face: it runs a full lap round the cube first, so everything on that lap, back faces included, has to be gone. One life, a tight timer, no hints, no powerups.
 - **Full clear.** An optional goal: clear every arrow, and the pink one has to leave last.
 - **Endless campaign, a daily cube and a weekly challenge**, the same cube for everyone, each with its own board. Share a link and a friend gets the same cube.
+- **Play in the browser:** [today's cube](https://taynotfound.github.io/cubit/play.html) (and any shared daily, weekly, name or challenge cube) plays right in the browser, so friends without Android can still take you on. Results share as text, Wordle style.
 - **Puzzle packs:** forty picked cubes in four packs, from tiny 5×5 puzzles to 18×18 monsters. Plus free roam (any size from 2×2 to 18×18) and replays of any level.
 - **Par for every cube:** the fewest taps that can win. Hit it for a star.
 - **Ghost race:** on the daily and weekly cubes, the leader's run plays out faintly on your cube as you go.
@@ -97,7 +98,7 @@ cd server && go test ./... && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" 
 | `server/` | Leaderboard and run verification |
 | `tools/` | Scripts that synthesize the swoosh and the music |
 | `DESIGN.md` | The Wayfinding design system |
-| `docs/` | The website (GitHub Pages) |
+| `docs/` | The website (GitHub Pages); `play.html` and `cubit-core.js` are the browser player, checked against the app by `tools/webcore-test.mjs` |
 
 ## Contributing
 

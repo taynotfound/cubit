@@ -1,0 +1,29 @@
+<p>Cubit é um cubo coberto de setas sinuosas. Toque em uma e ela desliza para fora do cubo, a não ser que outra seta esteja no caminho. Desenterre a seta rosa antes que suas vidas acabem.</p>
+
+<p>Os níveis começam com 10×10 casas por face e cerca de cem setas e crescem até 18×18; a seta rosa fica mais enterrada a cada nível. As setas passam pelas bordas para a face seguinte, então gire o cubo, dê zoom e planeje. Cubos maiores trazem bombas com reações em cadeia, setas de mão dupla e buracos de minhoca que atravessam o cubo.</p>
+
+<p><b>Modos de jogar</b></p>
+<ul>
+<li>Uma campanha sem fim com cinco modos, do Zen (sem vidas, sem cronômetro) ao Expert (uma batida e acabou)</li>
+<li>Nightmare: cada seta precisa dar uma volta inteira no cubo antes de sair</li>
+<li>Twist: gire uma face e todas as pontas de seta nela giram junto</li>
+<li>O World Cube: um cubo gigante que todos os jogadores limpam juntos, ao vivo</li>
+<li>Partidas sem fim, cubo após cubo, com uma partida compartilhada do dia</li>
+<li>Um cubo diário e um desafio semanal, iguais para todos, cada um com seu ranking, e um arquivo dos cubos passados</li>
+<li>Modo limpo: só um cubo de vidro transparente nas suas cores</li>
+<li>Pacotes de quebra-cabeças, cubos de nome e jogo livre: qualquer cubo de 2×2 a 18×18</li>
+</ul>
+
+<p><b>E mais</b></p>
+<ul>
+<li>Par em cada cubo, emblemas, XP, sequência diária e paletas de cores para desbloquear</li>
+<li>Dispute com o fantasma do líder, ou de um amigo a partir de um link</li>
+<li>Compartilhe seu resultado como imagem ou texto; amigos sem Android jogam os cubos compartilhados no navegador</li>
+<li>Power-ups, todos desativáveis, e dicas ganhas jogando bem</li>
+<li>Ranking global opcional, verificado no servidor repetindo cada partida</li>
+<li>Acessibilidade: alvo listrado, layout para canhotos e setas mais grossas</li>
+</ul>
+
+<p>Sem anúncios, sem contas e sem rastreamento. A rede só é usada se você ativar o ranking ou a busca de atualizações.</p>
+
+<p>Por enquanto o app está em inglês.</p>

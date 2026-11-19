@@ -81,4 +81,12 @@ class LinksTest {
         val c = Challenge(LevelSpec(6, 4, 3), false, Difficulty.ZEN, "X", emptyList())
         assertEquals(0, Links.parseChallenge(decoded(Links.challengePayload(c)))!!.moves.size)
     }
+
+    @Test fun resultTextReadsWithoutThePicture() {
+        assertEquals("Cubit daily #18 🟪 freed in 21 taps (par 21) ⭐\n❤️❤️🖤 · ⏱ 2:13 · 1234 pts · 🔥 9-day streak\nhttps://x/open.html?daily=20776",
+            resultText("Cubit daily #18", false, 21, 21, 3, 2, 1, 133, 1234, 9, "https://x/open.html?daily=20776"))
+        // No lives (Zen, Clean): bumps instead of hearts; no streak line for a streak of one.
+        assertEquals("Cubit · Level 3 🟪 cleared in 40 taps (par 38)\n💥 1 bump · ⏱ 0:59 · 50 pts\nL",
+            resultText("Cubit · Level 3", true, 40, 38, 0, 0, 1, 59, 50, 1, "L"))
+    }
 }

@@ -1680,7 +1680,8 @@ class MainActivity : Activity(), GameView.Listener {
         col.add(switchRow(pu.label, pu.blurb, prefs.powerupOn(pu)) { prefs.setPowerup(pu, it) })
     }
 
-    /** First launch: one sheet that walks through name, mode, feel, powerups and rankings. */
+    /** First launch: one short sheet (name, mode, rankings), then straight into play. Sound, feel and powerups have
+     *  sensible defaults and live in Settings, so a newcomer touches the cube within a few taps. */
     private fun showSetup() {
         val scrim = FrameLayout(this).apply { tag = "welcome"; setBackgroundColor(withAlpha(Color.BLACK, 170)); isClickable = true }
         val sheet = column().apply { background = rect(th.panel, 10); setPadding(dp(22), dp(24), dp(22), dp(22)) }
@@ -1693,12 +1694,16 @@ class MainActivity : Activity(), GameView.Listener {
         val pageCol = column()
         sheet.add(pageCol, 18)
         val name = field(if (prefs.name == "Player") "" else prefs.name, "Your name")
-        val steps = 5
+        val steps = 3
 
         fun finish(online: Boolean) {
             prefs.postOnline = online; prefs.onboarded = true; prefs.seenVersion = appVersion // new players don't need "What's new"
             prefs.cloudAsked = true // setup just asked about rankings
-            scrim.animate().alpha(0f).setDuration(180).withEndAction { root.removeView(scrim); showTab(tab) }.start()
+            scrim.animate().alpha(0f).setDuration(180).withEndAction {
+                root.removeView(scrim); showTab(tab)
+                // A shared link that opened the app waited for setup; otherwise a newcomer goes straight into how to play.
+                if (intent?.data?.scheme == "cubit") handleLink(intent) else if (!prefs.tutorialDone) startTutorial()
+            }.start()
         }
         fun show(i: Int) {
             pageCol.removeAllViews()
@@ -1728,22 +1733,6 @@ class MainActivity : Activity(), GameView.Listener {
                     pageCol.add(blurb, 8)
                     pageCol.add(body("Clean shows nothing but the cube. Your clean runs are marked on the board. Change mode any time on the Play tab.", th.muted), 14)
                     pageCol.add(next(), 20)
-                }
-                2 -> {
-                    sign.text = "FEEL"
-                    pageCol.add(display("Sound and touch", 30f))
-                    pageCol.add(switchRow("Sound effects", "Swooshes, bumps, flap boards and a fanfare.", prefs.sound) { prefs.sound = it; Sfx.enabled = it }, 8)
-                    pageCol.add(switchRow("Music", "A quiet ambient loop.", prefs.music) { prefs.music = it; Music.enabled = it })
-                    pageCol.add(switchRow("Vibration", "Feel every slide, bump and win.", prefs.haptics) { prefs.haptics = it; Haptics.enabled = it })
-                    pageCol.add(switchRow("Lines per side", "Colour each face so you always know which side you're on.", prefs.tintSides) { prefs.tintSides = it })
-                    pageCol.add(next(), 16)
-                }
-                3 -> {
-                    sign.text = "POWER"
-                    pageCol.add(display("Powerups", 30f))
-                    pageCol.add(body("One of each per level. Switch off any you'd rather play without.", th.muted), 8)
-                    powerupSwitches(pageCol)
-                    pageCol.add(next(), 16)
                 }
                 else -> {
                     sign.text = "RANKS"
@@ -1895,7 +1884,7 @@ class MainActivity : Activity(), GameView.Listener {
     }
 
     /** A 4:5 card with the cube as it was left and the run's numbers, handed to the system share sheet. */
-    private fun shareCard(line: String, score: Int, secs: Int, cleared: Int, perfect: Boolean) {
+    private fun shareCard(line: String, score: Int, secs: Int, cleared: Int, perfect: Boolean, taps: Int, mistakes: Int) {
         // Draw the level as it started, not the emptied cube left after the win.
         val gv = GameView(this).apply { applyStyle(this); glass = diff == Difficulty.CLEAN; markTarget = prefs.markTarget; load(PuzzleCache.get(spec)); inputEnabled = false; settle() }
         gv.measure(View.MeasureSpec.makeMeasureSpec(900, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(900, View.MeasureSpec.EXACTLY))
@@ -1927,10 +1916,13 @@ class MainActivity : Activity(), GameView.Listener {
         val uri = android.net.Uri.parse("content://${ShareProvider.AUTHORITY}/cubit-run.png")
         val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
             type = "image/png"; putExtra(android.content.Intent.EXTRA_STREAM, uri)
-            val link = dailyDay?.let { " Same cube for you: https://taynotfound.github.io/cubit/open.html?daily=$it" }
-                ?: weekNo?.let { " Same cube for you: https://taynotfound.github.io/cubit/open.html?week=$it" }
-                ?: " Race my ghost on the same cube: ${Links.WEB}?c=${Links.challengePayload(Challenge(spec, roundFull, diff, prefs.name, moves))}"
-            putExtra(android.content.Intent.EXTRA_TEXT, "${if (roundFull) "I cleared a whole cube" else "I freed the pink arrow"} in Cubit: $score points.$link")
+            // A link anyone can open: in the app on Android, or straight in the browser (play.html) anywhere else.
+            val link = dailyDay?.let { "${Links.WEB}?daily=$it" } ?: weekNo?.let { "${Links.WEB}?week=$it" }
+                ?: "${Links.WEB}?c=${Links.challengePayload(Challenge(spec, roundFull, diff, prefs.name, moves))}"
+            val head = dailyDay?.let { "Cubit daily #${it - FIRST_DAILY + 1}" } ?: weekNo?.let { "Cubit weekly #${it - utcWeek(FIRST_DAILY) + 1}" }
+                ?: "Cubit · $line"
+            putExtra(android.content.Intent.EXTRA_TEXT, resultText(head, roundFull, taps, par, diff.lives, livesLeft, mistakes, secs, score,
+                if (dailyDay != null) prefs.dailyStreak else 0, link))
             clipData = android.content.ClipData.newRawUri("Cubit run", uri)
             addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
@@ -2539,7 +2531,7 @@ class MainActivity : Activity(), GameView.Listener {
             else -> "Next level"
         }
         showSheet(if (endless > 0) "Cube $endless cleared" else if (roundFull) "Cube cleared" else "Pink arrow freed", rows, extra, nextText,
-            onShare = { shareCard(shareLine, score, t, cleared, perfect) },
+            onShare = { shareCard(shareLine, score, t, cleared, perfect, taps, mistakes) },
             // Once, on the 20th win: a single line about Ko-fi. Never again after that.
             nudge = if (prefs.solved >= 20 && !prefs.koFiNudged && !tutorial) {
                 prefs.koFiNudged = true

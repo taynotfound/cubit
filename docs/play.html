@@ -1,0 +1,542 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Play Cubit</title>
+<meta name="description" content="Play today's Cubit cube in your browser: the same cube for everyone. Free the pink arrow.">
+<meta property="og:title" content="Play today's Cubit cube">
+<meta property="og:description" content="A cube covered in arrows. Free the pink one. Same cube for everyone, right in your browser.">
+<meta property="og:image" content="https://taynotfound.github.io/cubit/img/social.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#0E1B3D">
+<link rel="icon" href="img/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root { --bg: #0E1B3D; --panel: #172A57; --tile: #0A1330; --face: #1F4FBF; --text: #F4F6FB; --muted: #AEB8D0; --hair: #2B3D69;
+          --accent: #FFC72C; --on-accent: #0E1B3D; --pink: #FF3D7F; --bad: #FF6B5E; --bomb: #FF9F1C; --portal: #B48CFF; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 400 16px/1.45 Barlow, system-ui, sans-serif; -webkit-font-smoothing: antialiased;
+         display: flex; flex-direction: column; overflow: hidden; }
+  header, footer { display: flex; align-items: center; gap: 10px; padding: 10px 16px; padding-top: max(10px, env(safe-area-inset-top)); }
+  footer { padding-bottom: max(12px, env(safe-area-inset-bottom)); justify-content: center; flex-wrap: wrap; }
+  .brand { display: flex; align-items: center; gap: 8px; text-decoration: none; color: var(--text); font: 700 22px/1 "Barlow Condensed", sans-serif; text-transform: uppercase; }
+  .brand i { width: 14px; height: 14px; background: var(--accent); display: inline-block; }
+  .title { flex: 1; min-width: 0; font: 600 16px/1.2 "Barlow Condensed", sans-serif; text-transform: uppercase; letter-spacing: .03em; color: var(--muted);
+           white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: right; }
+  .stats { display: flex; gap: 6px; justify-content: center; padding: 0 16px; }
+  .stat { background: var(--tile); border: 1px solid var(--hair); border-radius: 4px; padding: 6px 10px; min-width: 76px; text-align: center; }
+  .stat b { display: block; font: 700 24px/1 "Barlow Condensed", sans-serif; font-variant-numeric: tabular-nums; }
+  .stat span { font: 600 11px/1 "Barlow Condensed", sans-serif; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  #stage { flex: 1; position: relative; min-height: 0; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: grab; display: block; }
+  canvas:active { cursor: grabbing; }
+  #tip { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); background: var(--panel); border: 1px solid var(--hair); border-radius: 6px;
+         padding: 8px 14px; font-size: 15px; max-width: calc(100% - 32px); text-align: center; pointer-events: none; transition: opacity .3s; }
+  button, .btn { font: 700 18px/1 "Barlow Condensed", sans-serif; text-transform: uppercase; letter-spacing: .03em; border-radius: 6px; cursor: pointer;
+         min-height: 48px; padding: 0 18px; border: 1px solid var(--hair); background: var(--panel); color: var(--text); text-decoration: none;
+         display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-align: center; }
+  .primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+  button:focus-visible, .btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  #sheet { position: fixed; inset: 0; background: rgba(5, 11, 29, .72); display: grid; place-items: end center; padding: 16px; }
+  #sheet[hidden] { display: none; }
+  .card { width: 100%; max-width: 440px; background: var(--panel); border: 1px solid var(--hair); border-radius: 10px; padding: 22px 20px 20px;
+          margin-bottom: env(safe-area-inset-bottom); }
+  .card h2 { font: 700 36px/1 "Barlow Condensed", sans-serif; text-transform: uppercase; margin: 0 0 6px; }
+  .card p { color: var(--muted); margin: 0 0 14px; }
+  .card pre { background: var(--tile); border: 1px solid var(--hair); border-radius: 6px; padding: 12px; font: 500 15px/1.45 Barlow, system-ui, sans-serif;
+              white-space: pre-wrap; word-break: break-word; margin: 0 0 14px; color: var(--text); }
+  .card .row { display: grid; gap: 10px; }
+  .card .row.two { grid-template-columns: 1fr 1fr; }
+  .card small { display: block; color: var(--muted); margin-top: 14px; font-size: 14px; }
+  .card small a { color: var(--muted); }
+  @media (min-width: 700px) { #sheet { place-items: center; } }
+</style>
+</head>
+<body>
+<header>
+  <a class="brand" href="./" aria-label="Cubit home"><i></i>Cubit</a>
+  <div class="title" id="title"></div>
+</header>
+<div class="stats" aria-live="polite">
+  <div class="stat"><b id="taps">0</b><span data-t="taps"></span></div>
+  <div class="stat"><b id="par">–</b><span data-t="par"></span></div>
+  <div class="stat"><b id="bumps">0</b><span data-t="bumps"></span></div>
+  <div class="stat"><b id="clock">0:00</b><span data-t="time"></span></div>
+</div>
+<div id="stage">
+  <canvas id="cv" role="application" aria-label=""></canvas>
+  <div id="tip"></div>
+</div>
+<footer>
+  <button id="hint" type="button" data-t="hint"></button>
+  <button id="undo" type="button" data-t="undo"></button>
+  <a class="btn primary" id="getapp" href="https://github.com/taynotfound/cubit/releases/latest/download/Cubit.apk" data-t="getApp"></a>
+</footer>
+
+<div id="sheet" hidden>
+  <div class="card" role="dialog" aria-modal="true" aria-labelledby="sh-title">
+    <h2 id="sh-title"></h2>
+    <p id="sh-what"></p>
+    <pre id="sh-text"></pre>
+    <div class="row two">
+      <button class="primary" id="sh-share" type="button" data-t="share"></button>
+      <button id="sh-close" type="button" data-t="close"></button>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <a class="btn" id="sh-app" href="https://github.com/taynotfound/cubit/releases/latest/download/Cubit.apk" data-t="getAndroid"></a>
+    </div>
+    <small><span data-t="more"></span> <a href="https://f-droid.org/en/packages/de.taymaerz.cubit/">F-Droid</a></small>
+  </div>
+</div>
+
+<script src="cubit-core.js"></script>
+<script>
+"use strict";
+const C = CubitCore;
+const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const isAndroid = /Android/i.test(navigator.userAgent);
+const $ = id => document.getElementById(id);
+const store = { get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
+                set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
+
+// ---------- words ----------
+// English, German, Spanish, French and Brazilian Portuguese, picked from the browser's languages.
+const WORDS = {
+  en: { taps: "Taps", par: "Par", bumps: "Bumps", time: "Time", hint: "Hint", undo: "Undo", getApp: "Get the app", openApp: "Open in app",
+    share: "Share result", close: "Close", copied: "Copied!", getAndroid: "Get Cubit for Android: free, no ads",
+    more: "The app has a new daily cube every day, a weekly challenge, endless mode, global rankings and more. Also on",
+    tip: "Tap an arrow to slide it off. Drag to turn the cube. Free the pink one.",
+    canvas: "The cube. Drag to turn it, tap an arrow to slide it off. Free the pink arrow to win.",
+    aFriend: "A friend", challenge: "{name}'s challenge", nameCube: "The cube of “{name}”", week: "Week of {d}",
+    daily: "Daily cube #{num}", pastDaily: "Past daily #{num}", appOnly: "{name} shared a {what} run. That one needs the app.",
+    rival: "{name} won in {taps} taps. Can you do better? Free the pink arrow.", specials: "Orange dots are bombs; purple rings are wormholes.",
+    fullClear: "Full clear: the pink arrow has to go last.", freedIn: "freed in {taps} taps (par {par})", beat: "Beat {name} ({taps} taps) 🏆",
+    leads: "{name} still leads with {taps} taps", parFreed: "Par! Freed.", freed: "Freed!",
+    youFreed: "You freed the pink arrow in {taps} taps, {time}. Share it and see if your friends can do better." },
+  de: { taps: "Züge", par: "Par", bumps: "Stöße", time: "Zeit", hint: "Hinweis", undo: "Zurück", getApp: "Zur App", openApp: "In der App öffnen",
+    share: "Ergebnis teilen", close: "Schließen", copied: "Kopiert!", getAndroid: "Cubit für Android: gratis, ohne Werbung",
+    more: "In der App gibt es jeden Tag einen neuen Tageswürfel, eine Wochen-Challenge, einen Endlosmodus, weltweite Bestenlisten und mehr. Auch auf",
+    tip: "Tippe einen Pfeil an, damit er hinausgleitet. Zieh, um den Würfel zu drehen. Befreie den pinken.",
+    canvas: "Der Würfel. Zum Drehen ziehen, Pfeil antippen, damit er hinausgleitet. Befreie den pinken Pfeil.",
+    aFriend: "Jemand", challenge: "Challenge von {name}", nameCube: "Der Würfel „{name}“", week: "Woche ab {d}",
+    daily: "Tageswürfel #{num}", pastDaily: "Früherer Tageswürfel #{num}", appOnly: "{name} hat einen {what}-Lauf geteilt. Dafür brauchst du die App.",
+    rival: "{name} hat es in {taps} Zügen geschafft. Schaffst du es besser? Befreie den pinken Pfeil.", specials: "Orange Punkte sind Bomben, lila Ringe Wurmlöcher.",
+    fullClear: "Alles abräumen: Der pinke Pfeil muss als letzter gehen.", freedIn: "befreit in {taps} Zügen (Par {par})", beat: "{name} geschlagen ({taps} Züge) 🏆",
+    leads: "{name} führt weiter mit {taps} Zügen", parFreed: "Par! Befreit.", freed: "Befreit!",
+    youFreed: "Du hast den pinken Pfeil in {taps} Zügen befreit, in {time}. Teil es und schau, ob deine Freunde es besser können." },
+  es: { taps: "Toques", par: "Par", bumps: "Choques", time: "Tiempo", hint: "Pista", undo: "Deshacer", getApp: "Descargar", openApp: "Abrir en la app",
+    share: "Compartir", close: "Cerrar", copied: "¡Copiado!", getAndroid: "Cubit para Android: gratis, sin anuncios",
+    more: "La app tiene un cubo nuevo cada día, un reto semanal, modo sin fin, clasificación mundial y más. También en",
+    tip: "Toca una flecha para que salga. Arrastra para girar el cubo. Libera la rosa.",
+    canvas: "El cubo. Arrastra para girarlo, toca una flecha para que salga. Libera la flecha rosa para ganar.",
+    aFriend: "Alguien", challenge: "Reto de {name}", nameCube: "El cubo de «{name}»", week: "Semana del {d}",
+    daily: "Cubo diario #{num}", pastDaily: "Cubo diario pasado #{num}", appOnly: "{name} compartió una partida {what}. Esa necesita la app.",
+    rival: "{name} ganó en {taps} toques. ¿Lo mejoras? Libera la flecha rosa.", specials: "Los puntos naranjas son bombas; los anillos morados, agujeros de gusano.",
+    fullClear: "Limpieza total: la flecha rosa tiene que salir la última.", freedIn: "liberada en {taps} toques (par {par})", beat: "Superé a {name} ({taps} toques) 🏆",
+    leads: "{name} sigue en cabeza con {taps} toques", parFreed: "¡Par! Liberada.", freed: "¡Liberada!",
+    youFreed: "Liberaste la flecha rosa en {taps} toques, {time}. Compártelo y a ver si tus amigos lo hacen mejor." },
+  fr: { taps: "Touches", par: "Par", bumps: "Chocs", time: "Temps", hint: "Indice", undo: "Annuler", getApp: "L'appli", openApp: "Ouvrir dans l'appli",
+    share: "Partager", close: "Fermer", copied: "Copié !", getAndroid: "Cubit pour Android : gratuit, sans pub",
+    more: "L'appli propose un nouveau cube chaque jour, un défi de la semaine, un mode sans fin, un classement mondial et plus encore. Aussi sur",
+    tip: "Touche une flèche pour la faire sortir. Glisse pour tourner le cube. Libère la rose.",
+    canvas: "Le cube. Glisse pour le tourner, touche une flèche pour la faire sortir. Libère la flèche rose pour gagner.",
+    aFriend: "Quelqu'un", challenge: "Le défi de {name}", nameCube: "Le cube « {name} »", week: "Semaine du {d}",
+    daily: "Cube du jour n° {num}", pastDaily: "Ancien cube du jour n° {num}", appOnly: "{name} a partagé une partie {what}. Celle-là demande l'appli.",
+    rival: "{name} a gagné en {taps} touches. Feras-tu mieux ? Libère la flèche rose.", specials: "Les points orange sont des bombes, les anneaux violets des trous de ver.",
+    fullClear: "Nettoyage complet : la flèche rose doit sortir en dernier.", freedIn: "libérée en {taps} touches (par {par})", beat: "J'ai battu {name} ({taps} touches) 🏆",
+    leads: "{name} mène toujours avec {taps} touches", parFreed: "Par ! Libérée.", freed: "Libérée !",
+    youFreed: "Tu as libéré la flèche rose en {taps} touches, en {time}. Partage-le et vois si tes amis font mieux." },
+  pt: { taps: "Toques", par: "Par", bumps: "Batidas", time: "Tempo", hint: "Dica", undo: "Desfazer", getApp: "Baixar o app", openApp: "Abrir no app",
+    share: "Compartilhar", close: "Fechar", copied: "Copiado!", getAndroid: "Cubit para Android: grátis, sem anúncios",
+    more: "O app tem um cubo novo todo dia, um desafio semanal, modo sem fim, ranking global e mais. Também no",
+    tip: "Toque numa seta para ela sair. Arraste para girar o cubo. Liberte a rosa.",
+    canvas: "O cubo. Arraste para girar, toque numa seta para ela sair. Liberte a seta rosa para vencer.",
+    aFriend: "Alguém", challenge: "Desafio de {name}", nameCube: "O cubo “{name}”", week: "Semana de {d}",
+    daily: "Cubo diário #{num}", pastDaily: "Cubo diário anterior #{num}", appOnly: "{name} compartilhou uma partida {what}. Essa precisa do app.",
+    rival: "{name} venceu em {taps} toques. Consegue fazer melhor? Liberte a seta rosa.", specials: "Pontos laranja são bombas; anéis roxos são buracos de minhoca.",
+    fullClear: "Limpeza total: a seta rosa tem que sair por último.", freedIn: "libertada em {taps} toques (par {par})", beat: "Venci {name} ({taps} toques) 🏆",
+    leads: "{name} continua na frente com {taps} toques", parFreed: "Par! Libertada.", freed: "Libertada!",
+    youFreed: "Você libertou a seta rosa em {taps} toques, {time}. Compartilhe e veja se seus amigos fazem melhor." },
+};
+const LANG = (() => [new URLSearchParams(location.search).get("lang") || ""].concat(navigator.languages || [navigator.language || "en"]).map(l => l.slice(0, 2).toLowerCase()).find(l => WORDS[l]) || "en")();
+const t = (k, vars) => (WORDS[LANG][k] || WORDS.en[k]).replace(/\{(\w+)\}/g, (_, v) => vars && v in vars ? vars[v] : "");
+document.documentElement.lang = LANG;
+document.querySelectorAll("[data-t]").forEach(el => el.textContent = t(el.dataset.t));
+$("tip").textContent = t("tip");
+$("cv").setAttribute("aria-label", t("canvas"));
+
+// ---------- which cube ----------
+// ?daily=<day> (default: today), ?week=<week>, ?n=<name>, ?c=<challenge payload from the app>.
+const q = new URLSearchParams(location.search);
+const today = C.utcDay();
+let spec, label, shareLabel, appLink, pageLink, full = false, rival = null;
+const SITE = "https://taynotfound.github.io/cubit/play.html";
+function setup() {
+  const c = q.get("c"), nm = (q.get("n") || "").trim().slice(0, 32), wk = parseInt(q.get("week"), 10), dy = parseInt(q.get("daily"), 10);
+  if (c && c.length < 8000) {
+    const f = c.split("_");
+    // Fields: version, n, maxLen, seed36, full, mode, moves, name (the name may hold "_").
+    if (f.length >= 8 && (f[0] === "1" || f[0] === "2")) {
+      const n = parseInt(f[1], 10), maxLen = parseInt(f[2], 10), mode = parseInt(f[5], 10);
+      const seed = parseSeed36(f[3]);
+      if (n >= 2 && n <= 18 && maxLen >= 2 && maxLen <= 24 && seed !== null) {
+        const name = decodeURIComponent(f.slice(7).join("_")).slice(0, 16) || t("aFriend");
+        appLink = "cubit://challenge/" + encodeURIComponent(c);
+        if (mode === 6 || mode === 7) return appOnly(mode === 6 ? "Nightmare" : "Twist", name);
+        spec = { n, maxLen, seed, special: f[0] === "2" };
+        full = f[4] === "1";
+        const taps = f[6].split("~").filter(Boolean).length;
+        rival = { name, taps };
+        label = t("challenge", { name }); shareLabel = "Cubit · " + label; pageLink = SITE + "?c=" + encodeURIComponent(c);
+        return true;
+      }
+    }
+  }
+  if (nm) {
+    spec = C.nameSpec(nm); label = t("nameCube", { name: nm }); shareLabel = `Cubit “${nm}”`;
+    appLink = "cubit://name/" + encodeURIComponent(nm); pageLink = SITE + "?n=" + encodeURIComponent(nm);
+    return true;
+  }
+  if (Number.isInteger(wk) && wk > 0 && wk < 1e6) {
+    spec = C.weekSpec(wk);
+    const d = new Date((wk * 7 - 3) * 86400000).toLocaleDateString(LANG, { day: "numeric", month: "short", timeZone: "UTC" });
+    label = t("week", { d }); shareLabel = "Cubit · " + label; appLink = "cubit://week/" + wk; pageLink = SITE + "?week=" + wk;
+    return true;
+  }
+  const day = Number.isInteger(dy) && dy >= C.FIRST_DAILY && dy <= today ? dy : today;
+  spec = C.dailySpec(day);
+  const num = day - C.FIRST_DAILY + 1;
+  label = t(day === today ? "daily" : "pastDaily", { num });
+  shareLabel = `Cubit daily #${num}`; appLink = "cubit://daily/" + day; pageLink = SITE + "?daily=" + day;
+  return true;
+}
+function parseSeed36(s) {
+  if (!/^-?[0-9a-z]{1,14}$/.test(s)) return null;
+  const neg = s[0] === "-"; let v = 0n;
+  for (const ch of neg ? s.slice(1) : s) v = v * 36n + BigInt(parseInt(ch, 36));
+  return BigInt.asIntN(64, neg ? -v : v);
+}
+function appOnly(what, name) {
+  $("tip").textContent = t("appOnly", { name, what });
+  $("hint").hidden = $("undo").hidden = true;
+  if (isAndroid) setTimeout(() => location.href = appLink, 300);
+  return false;
+}
+
+// ---------- state ----------
+let P, occ, gone, history = [], taps = 0, bumps = 0, hints = 0, started = 0, ended = 0, won = false;
+const anims = []; // { a, pts, faces, len, total, t0, dur, kind: "leave" | "bump", reach }
+const flash = new Map(); // arrow → until (ms): red for a blocker, gold for a hint
+
+function load() {
+  P = C.generate(spec);
+  occ = new Int32Array(P.cube.size).fill(-1);
+  P.paths.forEach((p, i) => p.forEach(c => occ[c] = i));
+  gone = new Array(P.paths.length).fill(false);
+  $("par").textContent = full ? P.paths.length : C.parOf(P);
+  $("title").textContent = label;
+  if (rival) $("tip").textContent = t("rival", rival);
+  if (spec.special) $("tip").textContent += " " + t("specials");
+  if (isAndroid) { $("getapp").textContent = t("openApp"); $("getapp").href = appLink; }
+  const done = store.get("done:" + pageLink);
+  if (done && done.taps) setTimeout(() => showWin(done), 400);
+}
+
+// ---------- camera ----------
+let R = matMul(rotX(0.5), rotY(-0.6)), zoom = 1, panX = 0, panY = 0;
+const D = 5;
+function rotX(a) { const c = Math.cos(a), s = Math.sin(a); return [1, 0, 0, 0, c, -s, 0, s, c]; }
+function rotY(a) { const c = Math.cos(a), s = Math.sin(a); return [c, 0, s, 0, 1, 0, -s, 0, c]; }
+function matMul(a, b) { const r = []; for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) r[i * 3 + j] = a[i * 3] * b[j] + a[i * 3 + 1] * b[3 + j] + a[i * 3 + 2] * b[6 + j]; return r; }
+function rot(v) { return [R[0] * v[0] + R[1] * v[1] + R[2] * v[2], R[3] * v[0] + R[4] * v[1] + R[5] * v[2], R[6] * v[0] + R[7] * v[1] + R[8] * v[2]]; }
+let W = 0, H = 0, F = 1, dpr = 1;
+function project(v) { const r = rot(v), k = F / (D - r[2]); return [W / 2 + panX + r[0] * k, H / 2 + panY - r[1] * k, k]; }
+const faceSeen = f => rot([C.DX[f], C.DY[f], C.DZ[f]])[2] > 1 / D + 0.02;
+// Cell centres and edge points in cube space, scaled to [-1, 1].
+const pos = c => { const n = P.cube.n; return [P.cube.px[c] / n, P.cube.py[c] / n, P.cube.pz[c] / n]; };
+
+/** An arrow's body as a polyline with the face of each segment, plus the way out and a run off into space when
+ *  [leaving] (head first, or tail first for a two-way arrow leaving backwards). */
+function polyline(a, leaving, tail) {
+  const cube = P.cube, n = cube.n, path = tail ? [...P.paths[a]].reverse() : P.paths[a];
+  const d = tail ? P.tailDir(a) : P.dirs[a];
+  const pts = [pos(path[0])], faces = [];
+  const link = (from, to) => {
+    if (cube.face[from] === cube.face[to]) { pts.push(pos(to)); faces.push(cube.face[from]); return; }
+    // Across an edge: through the edge point, half a cell from each centre.
+    const t = cube.tangents(from).find(t => cube.step(from, t) >> 3 === to);
+    const e = pos(from); e[0] += C.DX[t] / n; e[1] += C.DY[t] / n; e[2] += C.DZ[t] / n;
+    pts.push(e); faces.push(cube.face[from]); pts.push(pos(to)); faces.push(cube.face[to]);
+  };
+  for (let i = 1; i < path.length; i++) link(path[i - 1], path[i]);
+  const bodyEnd = pts.length;
+  if (leaving) {
+    const head = path[path.length - 1], f = cube.face[head];
+    const ray = cube.ray(head, d);
+    let prev = head;
+    for (const c of ray) { pts.push(pos(c)); faces.push(f); prev = c; }
+    const last = pos(prev), off = 2 + 2 * path.length / n * 2;
+    pts.push([last[0] + C.DX[d] * off, last[1] + C.DY[d] * off, last[2] + C.DZ[d] * off]); faces.push(f);
+  }
+  return { pts, faces, bodyEnd, d };
+}
+function lengths(pts) { const L = [0]; for (let i = 1; i < pts.length; i++) L.push(L[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1], pts[i][2] - pts[i - 1][2])); return L; }
+function at(pts, L, s) {
+  let i = 1; while (i < L.length - 1 && L[i] < s) i++;
+  const seg = L[i] - L[i - 1] || 1, t = Math.max(0, Math.min(1, (s - L[i - 1]) / seg)), a = pts[i - 1], b = pts[i];
+  return { p: [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t], i };
+}
+
+// ---------- drawing ----------
+const cv = $("cv"), g = cv.getContext("2d");
+const css = getComputedStyle(document.documentElement), col = k => css.getPropertyValue(k).trim();
+const COL = { face: col("--face"), text: col("--text"), pink: col("--pink"), bad: col("--bad"), accent: col("--accent"), bomb: col("--bomb"), portal: col("--portal") };
+function resize() {
+  dpr = Math.min(2, devicePixelRatio || 1);
+  const r = cv.getBoundingClientRect(); W = r.width * dpr; H = r.height * dpr;
+  cv.width = W; cv.height = H;
+  F = Math.min(W * 0.5, H * 0.43) * (D - 1.75) / 1.75 * zoom;
+  draw();
+}
+function shade(hex, k) { const v = parseInt(hex.slice(1), 16); const ch = s => Math.round(((v >> s) & 255) * k); return `rgb(${ch(16)},${ch(8)},${ch(0)})`; }
+
+function strokeWindow(pts, faces, from, to, color, width) {
+  const L = lengths(pts), s0 = at(pts, L, from), s1 = at(pts, L, to);
+  // Segments from s0.i to s1.i; each is drawn only if its face is in view (index faces[i-1]).
+  g.strokeStyle = color; g.lineWidth = width; g.lineCap = g.lineJoin = "round";
+  const seg = [s0.p]; let segFace = faces[s0.i - 1];
+  const flush = () => { if (seg.length > 1 && faceSeen(segFace)) { g.beginPath(); seg.forEach((p, k) => { const q = project(p); g[k ? "lineTo" : "moveTo"](q[0], q[1]); }); g.stroke(); } };
+  for (let i = s0.i; i < s1.i; i++) {
+    seg.push(pts[i]);
+    if (faces[i] !== segFace) { flush(); seg.length = 0; seg.push(pts[i]); segFace = faces[i]; }
+  }
+  seg.push(s1.p); flush();
+  return { head: s1.p, before: at(pts, L, Math.max(from, to - 0.05)).p, face: faces[s1.i - 1], tail: s0.p, after: at(pts, L, Math.min(to, from + 0.05)).p, tailFace: faces[s0.i - 1] };
+}
+function arrowHead(tip, back, face, color, width) {
+  if (!faceSeen(face)) return;
+  const a = project(tip), b = project(back);
+  let ux = a[0] - b[0], uy = a[1] - b[1]; const m = Math.hypot(ux, uy) || 1; ux /= m; uy /= m;
+  const s = width * 1.25;
+  g.fillStyle = color; g.beginPath();
+  g.moveTo(a[0] + ux * s * 1.1, a[1] + uy * s * 1.1); g.lineTo(a[0] - uy * s, a[1] + ux * s); g.lineTo(a[0] + uy * s, a[1] - ux * s); g.closePath(); g.fill();
+}
+function colorOf(a, now) {
+  const fl = flash.get(a);
+  if (fl && fl.until > now) return fl.color;
+  return a === 0 ? COL.pink : COL.text;
+}
+
+function draw() {
+  if (!P) return;
+  const now = performance.now(), n = P.cube.n;
+  g.clearRect(0, 0, W, H);
+  // Faces in view, lit from the upper left.
+  for (let f = 0; f < 6; f++) {
+    if (!faceSeen(f)) continue;
+    const a = f >> 1, s = f % 2 ? -1 : 1, corners = [[1, 1], [1, -1], [-1, -1], [-1, 1]].map(([u, v]) => { const p = [0, 0, 0]; p[a] = s; p[(a + 1) % 3] = u; p[(a + 2) % 3] = v; return project(p); });
+    const nr = rot([C.DX[f], C.DY[f], C.DZ[f]]), light = 0.55 + 0.45 * Math.max(0, nr[0] * -0.35 + nr[1] * 0.6 + nr[2] * 0.72);
+    g.fillStyle = shade(COL.face, light); g.beginPath(); corners.forEach((q, i) => g[i ? "lineTo" : "moveTo"](q[0], q[1])); g.closePath(); g.fill();
+  }
+  const width = F / (D - 0.6) * (0.36 / n);
+  // Wormhole portals.
+  for (let c = 0; c < P.cube.size; c++) if (P.warp[c] >= 0 && occ[c] < 0 && faceSeen(P.cube.face[c])) {
+    const q = project(pos(c)); g.strokeStyle = COL.portal; g.lineWidth = width * 0.5; g.beginPath(); g.arc(q[0], q[1], width * 1.4, 0, 7); g.stroke();
+  }
+  const moving = new Set(anims.map(x => x.a));
+  const order = [...P.paths.keys()].filter(a => a !== 0).concat(0);
+  for (const a of order) {
+    if (gone[a] || moving.has(a)) continue;
+    const pl = polyline(a, false), L = lengths(pl.pts), c = colorOf(a, now);
+    const r = strokeWindow(pl.pts, pl.faces, 0, L[L.length - 1], c, width);
+    arrowHead(r.head, r.before, r.face, c, width);
+    if (P.twoWay[a]) arrowHead(r.tail, r.after, r.tailFace, c, width);
+    if (P.bombs[a]) { const mid = P.paths[a][P.paths[a].length >> 1]; if (faceSeen(P.cube.face[mid])) { const q = project(pos(mid)); g.fillStyle = COL.bomb; g.beginPath(); g.arc(q[0], q[1], width * 0.75, 0, 7); g.fill(); } }
+  }
+  for (let i = anims.length - 1; i >= 0; i--) {
+    const x = anims[i], t = Math.max(0, Math.min(1, (now - x.t0) / x.dur));
+    let s;
+    if (x.kind === "leave") s = (x.total - x.len) * (t * t);
+    else s = x.reach * Math.sin(Math.PI * t);
+    const c = x.a === 0 ? COL.pink : (x.kind === "bump" ? COL.bad : COL.text);
+    g.globalAlpha = x.kind === "leave" ? Math.max(0, 1 - Math.max(0, t - 0.6) / 0.4) : 1;
+    const r = strokeWindow(x.pts, x.faces, s, s + x.len, c, width);
+    arrowHead(r.head, r.before, r.face, c, width);
+    g.globalAlpha = 1;
+    if (t >= 1) { anims.splice(i, 1); x.done && x.done(); }
+  }
+  if (anims.length || [...flash.values()].some(f => f.until > now)) requestAnimationFrame(draw);
+}
+
+// ---------- rules ----------
+function tap(a) {
+  if (won || gone[a] || anims.some(x => x.a === a)) return;
+  if (!started) { started = Date.now(); tick(); }
+  $("tip").style.opacity = 0;
+  taps++;
+  const left = gone.filter(x => !x).length;
+  if (full && a === 0 && left > 1) { bump(a, t("fullClear")); return; }
+  const w = P.way(a, occ, gone);
+  if (w === C.STUCK) { bump(a); return; }
+  const out = P.cleared(a, gone);
+  history.push(out);
+  for (const b of out) { gone[b] = true; P.paths[b].forEach(c => occ[c] = -1); }
+  const warped = P.exit(a).some(c => P.warp[c] >= 0);
+  out.forEach((b, k) => {
+    const tail = b === a && w === C.TAIL, pl = polyline(b, !warped || b !== a, tail), L = lengths(pl.pts);
+    anims.push({ a: b, pts: pl.pts, faces: pl.faces, len: L[pl.bodyEnd - 1], total: L[L.length - 1], t0: performance.now() + k * 40, dur: still ? 1 : 420 + k * 40, kind: "leave",
+      done: b === 0 ? () => win() : null });
+  });
+  if (out.includes(0) && still) win();
+  update(); draw();
+}
+function bump(a, msg) {
+  bumps++;
+  const blockers = P.blockers(a, occ);
+  const until = performance.now() + 900;
+  for (const b of blockers.slice(0, 1)) flash.set(b, { until, color: COL.bad });
+  const pl = polyline(a, true, false), L = lengths(pl.pts), len = L[pl.bodyEnd - 1];
+  // Slide up to the first thing in the way, then back.
+  const first = P.exit(a).findIndex(c => occ[c] >= 0 && occ[c] !== a);
+  const reach = still ? 0 : Math.max(0.03, (first < 0 ? 1 : first) * 2 / P.cube.n - 0.04);
+  anims.push({ a, pts: pl.pts, faces: pl.faces, len, total: L[L.length - 1], t0: performance.now(), dur: 280, kind: "bump", reach });
+  if (navigator.vibrate) try { navigator.vibrate(30); } catch (e) {}
+  if (msg) { $("tip").textContent = msg; $("tip").style.opacity = 1; }
+  update(); draw();
+}
+function undo() {
+  if (won || !history.length) return;
+  const out = history.pop();
+  for (const b of out) { gone[b] = false; P.paths[b].forEach(c => occ[c] = b); }
+  taps++; // an undo still counts as a tap, as in the app
+  update(); draw();
+}
+function hint() {
+  if (won) return;
+  // Walk back from the pink arrow through what's in its way to an arrow that can go now.
+  const seen = new Set([0]), queue = [0];
+  let pick = -1;
+  for (let h = 0; h < queue.length && pick < 0; h++) {
+    const a = queue[h];
+    if (P.way(a, occ, gone) !== C.STUCK) { pick = a; break; }
+    for (const b of P.blockers(a, occ)) if (!seen.has(b)) { seen.add(b); queue.push(b); }
+  }
+  if (pick < 0) pick = P.paths.findIndex((_, a) => !gone[a] && P.way(a, occ, gone) !== C.STUCK);
+  if (pick < 0) return;
+  hints++;
+  flash.set(pick, { until: performance.now() + 1600, color: COL.accent });
+  // Turn the cube so the hinted arrow's head faces the viewer if it's out of sight.
+  const head = P.paths[pick][P.paths[pick].length - 1];
+  if (!faceSeen(P.cube.face[head])) faceTo(P.cube.face[head]);
+  draw();
+}
+function faceTo(f) {
+  const target = { 0: rotY(-Math.PI / 2), 1: rotY(Math.PI / 2), 2: rotX(Math.PI / 2), 3: rotX(-Math.PI / 2), 4: rotY(0), 5: rotY(Math.PI) }[f];
+  R = matMul(matMul(rotX(0.35), rotY(-0.35)), target);
+}
+
+function update() { $("taps").textContent = taps; $("bumps").textContent = bumps; }
+function secs() { return Math.floor(((ended || Date.now()) - started) / 1000); }
+const mmss = s => Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+function tick() { if (!started) return; $("clock").textContent = mmss(secs()); if (!ended) setTimeout(tick, 500); }
+
+function win() {
+  if (won) return;
+  won = true; ended = Date.now();
+  const res = { taps, bumps, hints, secs: secs(), par: full ? P.paths.length : C.parOf(P) };
+  store.set("done:" + pageLink, res);
+  showWin(res);
+}
+function resultText(r) {
+  const star = r.taps <= r.par ? " ⭐" : "";
+  const lines = [`${shareLabel} 🟪 ${t("freedIn", r)}${star}`, `💥 ${r.bumps} · ⏱ ${mmss(r.secs)}${r.hints ? ` · 💡 ${r.hints}` : ""}`];
+  if (rival) lines.push(t(r.taps < rival.taps ? "beat" : "leads", rival));
+  lines.push(pageLink);
+  return lines.join("\n");
+}
+function showWin(r) {
+  won = true;
+  $("sh-title").textContent = t(r.taps <= r.par ? "parFreed" : "freed");
+  $("sh-what").textContent = t("youFreed", { taps: r.taps, time: mmss(r.secs) });
+  $("sh-text").textContent = resultText(r);
+  $("sheet").hidden = false;
+  $("sh-share").focus();
+}
+async function share() {
+  const text = $("sh-text").textContent;
+  try {
+    if (navigator.share && matchMedia("(pointer: coarse)").matches) { await navigator.share({ text }); return; }
+    await navigator.clipboard.writeText(text);
+    $("sh-share").textContent = t("copied");
+    setTimeout(() => $("sh-share").textContent = t("share"), 1600);
+  } catch (e) {}
+}
+
+// ---------- input ----------
+const pointers = new Map(); let dragged = false, downAt = null, pinch0 = 0, zoom0 = 1;
+cv.addEventListener("pointerdown", e => {
+  cv.setPointerCapture(e.pointerId); pointers.set(e.pointerId, [e.clientX, e.clientY]);
+  if (pointers.size === 1) { dragged = false; downAt = [e.clientX, e.clientY]; }
+  if (pointers.size === 2) { const [p, r] = [...pointers.values()]; pinch0 = Math.hypot(p[0] - r[0], p[1] - r[1]); zoom0 = zoom; dragged = true; }
+});
+cv.addEventListener("pointermove", e => {
+  if (!pointers.has(e.pointerId)) return;
+  const prev = pointers.get(e.pointerId); pointers.set(e.pointerId, [e.clientX, e.clientY]);
+  if (pointers.size === 2) {
+    const [p, r] = [...pointers.values()];
+    zoom = Math.max(0.6, Math.min(3.5, zoom0 * Math.hypot(p[0] - r[0], p[1] - r[1]) / (pinch0 || 1)));
+    panX += (e.clientX - prev[0]) * dpr / 2; panY += (e.clientY - prev[1]) * dpr / 2;
+    resize(); return;
+  }
+  if (downAt && Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 8) dragged = true;
+  if (!dragged) return;
+  const k = 0.0085 / Math.sqrt(zoom);
+  R = matMul(matMul(rotY((e.clientX - prev[0]) * k), rotX((e.clientY - prev[1]) * k)), R);
+  draw();
+});
+const up = e => {
+  pointers.delete(e.pointerId);
+  if (!dragged && pointers.size === 0 && downAt) pick(e.clientX, e.clientY);
+  if (pointers.size === 0) downAt = null;
+};
+cv.addEventListener("pointerup", up);
+cv.addEventListener("pointercancel", e => { pointers.delete(e.pointerId); downAt = null; });
+cv.addEventListener("wheel", e => { e.preventDefault(); zoom = Math.max(0.6, Math.min(3.5, zoom * Math.exp(-e.deltaY * 0.0015))); resize(); }, { passive: false });
+
+/** The arrow under a tap: the nearest arrow cell in view within about a cell of it. */
+function pick(x, y) {
+  if (!P) return;
+  const r = cv.getBoundingClientRect(), sx = (x - r.left) * dpr, sy = (y - r.top) * dpr;
+  let best = -1, bestD = Infinity;
+  for (let c = 0; c < P.cube.size; c++) {
+    const a = occ[c];
+    if (a < 0 || !faceSeen(P.cube.face[c])) continue;
+    const q = project(pos(c)), d = Math.hypot(q[0] - sx, q[1] - sy), cell = q[2] * 2 / P.cube.n;
+    if (d < cell * 0.95 && d < bestD) { bestD = d; best = a; }
+  }
+  if (best >= 0) tap(best);
+}
+
+// Keyboard: arrow keys turn the cube.
+addEventListener("keydown", e => {
+  const turns = { ArrowLeft: rotY(-0.2), ArrowRight: rotY(0.2), ArrowUp: rotX(-0.2), ArrowDown: rotX(0.2) };
+  if (turns[e.key] && $("sheet").hidden) { R = matMul(turns[e.key], R); draw(); e.preventDefault(); }
+  if (e.key === "Escape") $("sheet").hidden = true;
+  if ((e.key === "z" || e.key === "u") && (e.ctrlKey || e.metaKey || e.key === "u")) undo();
+});
+
+$("hint").onclick = hint;
+$("undo").onclick = undo;
+$("sh-share").onclick = share;
+$("sh-close").onclick = () => $("sheet").hidden = true;
+addEventListener("resize", resize);
+
+if (setup()) { load(); }
+resize();
+</script>
+</body>
+</html>

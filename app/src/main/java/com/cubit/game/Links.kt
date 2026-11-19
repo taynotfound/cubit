@@ -55,6 +55,22 @@ object Links {
 }
 
 /**
+ * The text that goes with a shared run, Wordle style: it reads fine pasted anywhere (chats, Mastodon, Discord) without
+ * the picture. [head] names the cube ("Cubit daily #18"); [lives] is the mode's lives (0: no lives, so bumps show
+ * instead); [streak] is shown when above 1. The link comes last, on its own line, so chat apps preview it.
+ */
+fun resultText(head: String, full: Boolean, taps: Int, par: Int, lives: Int, livesLeft: Int, mistakes: Int, secs: Int,
+               score: Int, streak: Int, link: String): String {
+    val what = if (full) "cleared" else "freed"
+    val line1 = "$head 🟪 $what in $taps tap${if (taps == 1) "" else "s"} (par $par)" + if (taps <= par) " ⭐" else ""
+    val health = if (lives > 0) "❤️".repeat(livesLeft.coerceIn(0, lives)) + "🖤".repeat((lives - livesLeft).coerceIn(0, lives))
+        else "💥 $mistakes bump${if (mistakes == 1) "" else "s"}"
+    val line2 = listOfNotNull(health, "⏱ %d:%02d".format(secs / 60, secs % 60), "$score pts",
+        if (streak > 1) "🔥 $streak-day streak" else null).joinToString(" · ")
+    return "$line1\n$line2\n$link"
+}
+
+/**
  * One version's notes from CHANGELOG.md (bundled as an asset): its "- " lines, markdown links reduced to their text.
  * Empty if the version isn't there. **Bold** is kept for the sheet to style.
  */

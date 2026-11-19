@@ -19,6 +19,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Web player builds the same cubes as the app
+        run: node tools/webcore-test.mjs
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin

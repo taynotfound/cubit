@@ -1,0 +1,29 @@
+<p>Cubit ist ein Würfel voller verschlungener Pfeile. Tippe einen an, und er gleitet vom Würfel, wenn ihm kein anderer Pfeil im Weg steht. Grab den pinken Pfeil frei, bevor dir die Leben ausgehen.</p>
+
+<p>Die Level beginnen mit 10×10 Feldern pro Seite und rund hundert Pfeilen und wachsen bis 18×18; der pinke Pfeil liegt jedes Level tiefer. Pfeile laufen über die Kanten auf die nächste Seite, also dreh den Würfel, zoom hinein und plane voraus. Größere Würfel bringen Bomben mit Kettenreaktionen, Pfeile in zwei Richtungen und Wurmlöcher quer durch den Würfel.</p>
+
+<p><b>Spielweisen</b></p>
+<ul>
+<li>Eine endlose Kampagne mit fünf Modi, von Zen (keine Leben, kein Timer) bis Expert (ein Fehler und es ist vorbei)</li>
+<li>Nightmare: Jeder Pfeil muss einmal ganz um den Würfel laufen, bevor er ihn verlässt</li>
+<li>Twist: Dreh eine Seite, und jede Pfeilspitze darauf dreht sich mit</li>
+<li>Der World Cube: ein riesiger Würfel, den alle Spieler gemeinsam und live abräumen</li>
+<li>Endlos-Läufe, Würfel um Würfel, mit einem gemeinsamen Lauf des Tages</li>
+<li>Ein Tageswürfel und eine Wochen-Challenge, für alle gleich, mit eigener Bestenliste und einem Archiv vergangener Tageswürfel</li>
+<li>Clean-Modus: nur ein durchsichtiger Glaswürfel in deinen Farben</li>
+<li>Rätselpakete, Namenswürfel und freies Spiel: jeder Würfel von 2×2 bis 18×18</li>
+</ul>
+
+<p><b>Außerdem</b></p>
+<ul>
+<li>Par für jeden Würfel, Abzeichen, XP, eine Tagesserie und Farbschemata zum Freispielen</li>
+<li>Tritt gegen den Geist des Führenden an, oder gegen den eines Freundes aus einem geteilten Link</li>
+<li>Teile dein Ergebnis als Bild oder als Text; Freunde ohne Android spielen geteilte Würfel im Browser</li>
+<li>Powerups, alle abschaltbar, und Tipps, die du dir durch gutes Spielen verdienst</li>
+<li>Optionale weltweite Bestenlisten, auf dem Server durch Nachspielen jedes Laufs geprüft</li>
+<li>Barrierefreiheit: gestreiftes Ziel, Linkshänder-Layout, dickere Pfeile</li>
+</ul>
+
+<p>Keine Werbung, keine Konten, kein Tracking. Das Netzwerk wird nur genutzt, wenn du die Bestenlisten oder die Update-Prüfung einschaltest.</p>
+
+<p>Die App selbst ist derzeit auf Englisch.</p>

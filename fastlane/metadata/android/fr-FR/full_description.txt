@@ -1,0 +1,29 @@
+<p>Cubit est un cube couvert de flèches sinueuses. Touche-en une et elle glisse hors du cube, sauf si une autre flèche lui barre la route. Dégage la flèche rose avant d'être à court de vies.</p>
+
+<p>Les niveaux commencent à 10×10 cases par face avec une centaine de flèches et grandissent jusqu'à 18×18 ; la flèche rose est enfouie un peu plus à chaque niveau. Les flèches passent par-dessus les arêtes sur la face voisine : tourne le cube, zoome et anticipe. Les plus grands cubes ajoutent des bombes et leurs réactions en chaîne, des flèches à double sens et des trous de ver qui traversent le cube.</p>
+
+<p><b>Façons de jouer</b></p>
+<ul>
+<li>Une campagne sans fin avec cinq modes, de Zen (ni vies, ni chrono) à Expert (un choc et c'est fini)</li>
+<li>Nightmare : chaque flèche doit faire un tour complet du cube avant de sortir</li>
+<li>Twist : tourne une face et toutes ses pointes de flèche tournent avec elle</li>
+<li>Le World Cube : un cube géant que tous les joueurs vident ensemble, en direct</li>
+<li>Des parties sans fin, cube après cube, avec une partie commune du jour</li>
+<li>Un cube du jour et un défi de la semaine, identiques pour tous, chacun avec son classement, et les archives des cubes passés</li>
+<li>Mode épuré : juste un cube de verre transparent à tes couleurs</li>
+<li>Packs de puzzles, cubes nommés et jeu libre : n'importe quel cube de 2×2 à 18×18</li>
+</ul>
+
+<p><b>Et aussi</b></p>
+<ul>
+<li>Un par pour chaque cube, des badges, de l'XP, une série quotidienne et des palettes à débloquer</li>
+<li>Affronte le fantôme du meneur, ou celui d'un ami grâce à un lien</li>
+<li>Partage ton résultat en image ou en texte ; tes amis sans Android jouent les cubes partagés dans le navigateur</li>
+<li>Des bonus, tous désactivables, et des indices gagnés en jouant bien</li>
+<li>Classement mondial facultatif, vérifié sur le serveur en rejouant chaque partie</li>
+<li>Accessibilité : cible rayée, disposition pour gauchers, flèches plus épaisses</li>
+</ul>
+
+<p>Pas de pubs, pas de comptes, pas de pistage. Le réseau n'est utilisé que si tu actives le classement ou la recherche de mises à jour.</p>
+
+<p>L'application est pour l'instant en anglais.</p>

@@ -1,0 +1,29 @@
+<p>Cubit es un cubo cubierto de flechas sinuosas. Toca una y saldrá deslizándose del cubo, a menos que otra flecha se lo impida. Desentierra la flecha rosa antes de quedarte sin vidas.</p>
+
+<p>Los niveles empiezan con 10×10 casillas por cara y unas cien flechas, y crecen hasta 18×18; la flecha rosa está más enterrada en cada nivel. Las flechas cruzan los bordes hacia la cara siguiente, así que gira el cubo, acércate y planea. Los cubos más grandes traen bombas con reacciones en cadena, flechas de doble sentido y agujeros de gusano que atraviesan el cubo.</p>
+
+<p><b>Formas de jugar</b></p>
+<ul>
+<li>Una campaña sin fin con cinco modos, de Zen (sin vidas ni reloj) a Experto (un choque y se acabó)</li>
+<li>Nightmare: cada flecha tiene que dar una vuelta completa al cubo antes de salir</li>
+<li>Twist: gira una cara y todas sus puntas de flecha giran con ella</li>
+<li>El World Cube: un cubo gigante que todos los jugadores despejan juntos, en directo</li>
+<li>Partidas sin fin, cubo tras cubo, con una partida compartida del día</li>
+<li>Un cubo diario y un reto semanal, iguales para todos, con su propia clasificación y un archivo de cubos pasados</li>
+<li>Modo limpio: solo un cubo de cristal transparente en tus colores</li>
+<li>Paquetes de puzles, cubos con nombre y juego libre: cualquier cubo de 2×2 a 18×18</li>
+</ul>
+
+<p><b>Además</b></p>
+<ul>
+<li>Par en cada cubo, insignias, XP, racha diaria y combinaciones de colores que se ganan jugando</li>
+<li>Compite contra el fantasma del líder, o el de un amigo desde un enlace</li>
+<li>Comparte tu resultado como imagen o como texto; tus amigos sin Android pueden jugar los cubos compartidos en el navegador</li>
+<li>Potenciadores, todos desactivables, y pistas que se ganan jugando bien</li>
+<li>Clasificación mundial opcional, verificada en el servidor repitiendo cada partida</li>
+<li>Accesibilidad: objetivo con rayas, diseño para zurdos y flechas más gruesas</li>
+</ul>
+
+<p>Sin anuncios, sin cuentas y sin rastreo. Solo usa la red si activas la clasificación o la búsqueda de actualizaciones.</p>
+
+<p>Por ahora la app está en inglés.</p>
