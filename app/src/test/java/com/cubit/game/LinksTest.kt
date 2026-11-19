@@ -67,4 +67,18 @@ class LinksTest {
         assertEquals("AB12CD34", Links.cleanCode("ab12-cd34"))
         assertNull(Links.cleanCode("ab12"))
     }
+
+    @Test fun packsKeepCubesWithoutSpecials() {
+        // A daily cube saved to My pack is 12×12 with no special arrows: shared, it must stay that cube.
+        val levels = listOf(dailySpec(20800), LevelSpec(12, 10, 5), LevelSpec(5, 4, 9))
+        val p = Links.parsePack(decoded(Links.packPayload("Mine", levels)))!!
+        assertEquals(levels, p.levels)
+        // Older links (three fields per cube) still read as before.
+        assertEquals(listOf(LevelSpec(12, 10, 35)), Links.parsePack("1_12.10.z_Old")!!.levels)
+    }
+
+    @Test fun challengeWithNoTapsReads() {
+        val c = Challenge(LevelSpec(6, 4, 3), false, Difficulty.ZEN, "X", emptyList())
+        assertEquals(0, Links.parseChallenge(decoded(Links.challengePayload(c)))!!.moves.size)
+    }
 }

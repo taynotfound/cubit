@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- **No more locked arrows**: an arrow whose way out is clear always leaves. Locked arrows were easy to miss (their dashed core barely showed on light arrows) and bumped for no visible reason (#6). Every cube keeps its arrows, bombs, two-way arrows and wormholes; levels saved before the update, and replays of older runs, play as they were.
+- The new arrows sheet now explains wormholes too.
+- Replays of Twist runs now turn the faces as they were turned, and no longer change the cube for the rest of the session.
+- A daily cube saved to My pack (and the pack shared from it) stays that cube instead of gaining bombs and two-way arrows.
+- A highlighted two-way arrow lights up both heads.
+- Fixed: starting a new level within two seconds of a win could show the old level's win sheet over it; a challenge link with no taps in it didn't open.
+
 ## 1.7.3 (2026-11-18)
 
 - **New arrows tip stays put**: the explanation of bombs, locked and two-way arrows is now a sheet you close yourself instead of a toast that got cut off, and the clock waits while it's open.

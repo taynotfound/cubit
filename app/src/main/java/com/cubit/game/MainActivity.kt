@@ -1477,7 +1477,7 @@ class MainActivity : Activity(), GameView.Listener {
         look.add(slider(1, 14, prefs.thickness) { prefs.thickness = it; thick.text = "%02d".format(it) }, 4)
         look.add(switchRow("Lines per side", "Colour each face like a transit line so you always know which side you're on.", prefs.tintSides) { prefs.tintSides = it }, 4)
         look.add(switchRow("Side dots", "Faint dice dots on each face. Opposite sides add up to seven.", prefs.sideMarkers) { prefs.sideMarkers = it })
-        look.add(switchRow("Plain cubes", "Just the arrows and the cube: no bombs, locked or two-way arrows, and no wormholes. The World Cube stays as it is for everyone.", prefs.plainCubes) { prefs.plainCubes = it })
+        look.add(switchRow("Plain cubes", "Just the arrows and the cube: no bombs, two-way arrows or wormholes. The World Cube stays as it is for everyone.", prefs.plainCubes) { prefs.plainCubes = it })
 
         val access = section(col, "Accessibility", Glyph.SCAN)
         access.add(switchRow("Mark the pink arrow", "A stripe down the target, so it stands out without relying on colour.", prefs.markTarget) { prefs.markTarget = it }, 4)
@@ -1822,7 +1822,7 @@ class MainActivity : Activity(), GameView.Listener {
         closeReplay()
         val layer = FrameLayout(this).apply { tag = "replay"; setBackgroundColor(th.bg); isClickable = true }
         val gv = GameView(this).apply {
-            applyStyle(this); load(PuzzleCache.get(s)); inputEnabled = false; pinkLast = full
+            applyStyle(this); load(PuzzleCache.get(s).forPlay()); inputEnabled = false; pinkLast = full
             listener = object : GameView.Listener {
                 override fun onArrowRemoved(left: Int, total: Int) = Sfx.slide()
                 override fun onMistake() = Sfx.bump()
@@ -1853,7 +1853,12 @@ class MainActivity : Activity(), GameView.Listener {
         fun paintPause() { (pauseBtn.getChildAt(pauseBtn.childCount - 1) as? TextView)?.text = if (paused || at >= mv.size) "PLAY" else "PAUSE" }
         step = Runnable {
             val a = mv[at][0].toInt()
-            if (a >= 0) gv.playTap(a) else if (a == UNDO_TAP) gv.undoLast() else if (a == Powerup.SCAN.code) gv.scan()
+            when {
+                a >= 0 -> gv.playTap(a)
+                a == UNDO_TAP -> gv.undoLast()
+                a == Powerup.SCAN.code -> gv.scan()
+                a <= TWIST_TAP && a > TWIST_TAP - 6 -> gv.twist(TWIST_TAP - a) // Twist runs: the face turns as it did
+            }
             at++; scrub.progress = at
             if (at < mv.size) schedule((mv[at][1] - mv[at - 1][1]).coerceIn(0L, 1500L)) else paintPause() // long pauses cut to 1.5 s
         }
@@ -1868,7 +1873,7 @@ class MainActivity : Activity(), GameView.Listener {
             override fun onProgressChanged(sb: SeekBar?, p: Int, fromUser: Boolean) {
                 if (!fromUser) return
                 handler.removeCallbacksAndMessages(replayToken)
-                gv.load(PuzzleCache.get(s)); gv.inputEnabled = false; gv.applyInstant(mv.take(p)); gv.settle()
+                gv.load(PuzzleCache.get(s).forPlay()); gv.inputEnabled = false; gv.applyInstant(mv.take(p)); gv.settle()
                 at = p; paintPause()
             }
             override fun onStartTrackingTouch(sb: SeekBar?) {}
@@ -1998,7 +2003,7 @@ class MainActivity : Activity(), GameView.Listener {
     private fun saveRun() {
         val g = game ?: return
         val o = org.json.JSONObject()
-            .put("n", spec.n).put("maxLen", spec.maxLen).put("seed", spec.seed).put("special", spec.special).put("endless", endless).put("eseed", endlessSeed).put("eday", endlessDay ?: -1).put("eid", endlessId ?: "").put("archive", archiveDay ?: -1)
+            .put("n", spec.n).put("maxLen", spec.maxLen).put("seed", spec.seed).put("special", spec.special).put("locks", spec.locks).put("endless", endless).put("eseed", endlessSeed).put("eday", endlessDay ?: -1).put("eid", endlessId ?: "").put("archive", archiveDay ?: -1)
             .put("label", baseLabel).put("free", freeRoam).put("daily", dailyDay ?: -1).put("week", weekNo ?: -1).put("diff", diff.ordinal).put("full", roundFull)
             .put("elapsed", elapsedMillis()).put("mistakes", mistakes).put("lives", livesLeft).put("limit", timeLimit)
             .put("shield", shield).put("used", org.json.JSONArray(usedPowerups.map { it.name })).put("run", runId ?: "")
@@ -2013,7 +2018,10 @@ class MainActivity : Activity(), GameView.Listener {
         challenge = o.optString("challenge").takeIf { it.isNotEmpty() }?.let { Links.parseChallenge(java.net.URLDecoder.decode(it, "UTF-8")) }
         packRun = prefs.allPacks().firstOrNull { it.name == o.optString("pack") }?.let { pk -> o.optInt("packIdx", -1).takeIf { it in pk.levels.indices }?.let { pk to it } }
         endless = o.optInt("endless", -1); endlessSeed = o.optLong("eseed"); endlessDay = o.optInt("eday", -1).takeIf { it >= 0 }; endlessId = o.optString("eid").ifEmpty { null }; archiveDay = o.optInt("archive", -1).takeIf { it >= 0 }
-        startRound(LevelSpec(o.getInt("n"), o.getInt("maxLen"), o.getLong("seed"), special = o.optBoolean("special")), o.optString("label"), o)
+        // Levels saved before 1.7.4 have no "locks": their special arrows included locked ones, and the board's copy of a
+        // ranked run still has them, so they resume with them.
+        val special = o.optBoolean("special")
+        startRound(LevelSpec(o.getInt("n"), o.getInt("maxLen"), o.getLong("seed"), special = special, locks = o.optBoolean("locks", special)), o.optString("label"), o)
     }
     private fun dailyDate(day: Int) = java.text.SimpleDateFormat("d MMM", java.util.Locale.ENGLISH).apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }.format(java.util.Date(day * 86_400_000L))
 
@@ -2232,7 +2240,7 @@ class MainActivity : Activity(), GameView.Listener {
         Sfx.start(); Music.game()
         handler.post(tick)
         if (demoOn) handler.postDelayed(demoStep, 1600) // the demo starts tapping once the cube has spun in
-        if (!demoOn && !prefs.bombSeen && (puzzle.bombs.any { it } || puzzle.keys.any { it >= 0 } || puzzle.twoWay.any { it })) {
+        if (!demoOn && !prefs.bombSeen && (puzzle.bombs.any { it } || puzzle.twoWay.any { it })) {
             prefs.bombSeen = true
             newArrowsSheet()
         }
@@ -2243,7 +2251,7 @@ class MainActivity : Activity(), GameView.Listener {
         pauseClock(); handler.removeCallbacks(tick)
         val c = openSheet()
         c.add(display("New arrows", 30f))
-        c.add(body("An orange core is a bomb: it takes the arrows touching it along.\n\nA dashed core is locked until its key leaves.\n\nTwo heads means it can leave either way.", th.muted), 8)
+        c.add(body("An orange core is a bomb: it takes the arrows touching it along.\n\nTwo heads means it can leave either way.\n\nA coloured ring is a wormhole: a way out that reaches it carries on from the ring on the far side.", th.muted), 8)
         c.add(primary("Got it") { closeSheet() }, 20)
         // Any way out (button, tap outside, back) detaches the sheet, so restart the clock there.
         (c.parent.parent as View).addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
@@ -2385,7 +2393,8 @@ class MainActivity : Activity(), GameView.Listener {
         game?.inputEnabled = false
         Sfx.win(); Haptics.win()
         game?.celebrate()
-        handler.postDelayed({ win() }, 1700) // let the pink arrow fly and the cube turn before the sheet
+        val serial = roundSerial
+        handler.postDelayed({ if (serial == roundSerial) win() }, 1700) // let the pink arrow fly and the cube turn before the sheet
     }
 
     override fun onMistake() {

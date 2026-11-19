@@ -36,7 +36,7 @@ type WorldWin struct {
 }
 
 func worldSpec(seed int64) LevelSpec {
-	return LevelSpec{N: worldN, MaxLen: worldMaxLen, Seed: seed, Special: true}
+	return LevelSpec{N: worldN, MaxLen: worldMaxLen, Seed: seed, Special: true, NoLocks: true}
 }
 
 // worldBoard is the live board for the current cube, rebuilt from the stored seed and removals. Call with store mu held.
@@ -133,7 +133,9 @@ func (a *App) worldTop(n int) []map[string]any {
 			rows = append(rows, row{d.Name, k})
 		}
 	}
-	sort.Slice(rows, func(i, j int) bool { return rows[i].arrows > rows[j].arrows || rows[i].arrows == rows[j].arrows && rows[i].name < rows[j].name })
+	sort.Slice(rows, func(i, j int) bool {
+		return rows[i].arrows > rows[j].arrows || rows[i].arrows == rows[j].arrows && rows[i].name < rows[j].name
+	})
 	out := []map[string]any{}
 	for i := 0; i < len(rows) && i < n; i++ {
 		out = append(out, map[string]any{"name": rows[i].name, "arrows": rows[i].arrows})

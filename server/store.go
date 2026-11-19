@@ -366,7 +366,7 @@ func (s *Store) replayOf(run string) map[string]any {
 		if d := s.db.Devices[sc.Device]; d == nil || d.Banned || sc.Moves == nil {
 			return nil
 		}
-		return map[string]any{"n": sc.Spec.N, "maxLen": sc.Spec.MaxLen, "seed": sc.Spec.Seed, "lap": sc.Spec.Lap, "special": sc.Spec.Special, "moves": sc.Moves,
+		return map[string]any{"n": sc.Spec.N, "maxLen": sc.Spec.MaxLen, "seed": sc.Spec.Seed, "lap": sc.Spec.Lap, "special": sc.Spec.Special, "noLocks": sc.Spec.NoLocks, "moves": sc.Moves,
 			"all": strings.HasSuffix(sc.Label, "· full clear")} // full clear: the pink arrow leaves last
 	}
 	return nil

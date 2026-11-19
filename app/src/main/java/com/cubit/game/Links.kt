@@ -30,17 +30,22 @@ object Links {
         val mode = Difficulty.entries[f[5].toInt()]
         if (spec.n !in 2..18 || spec.maxLen !in 2..24) return null
         var t = 0L
-        val moves = f[6].split("~").take(2000).map { m -> val (a, d) = m.split("."); t += d.toLong(36).coerceAtLeast(0); longArrayOf(a.toLong(36), t) }
+        val moves = f[6].split("~").filter { it.isNotEmpty() }.take(2000).map { m -> val (a, d) = m.split("."); t += d.toLong(36).coerceAtLeast(0); longArrayOf(a.toLong(36), t) }
         Challenge(spec.copy(lap = mode == Difficulty.NIGHTMARE), f[4] == "1", mode, f[7].take(16).ifBlank { "A friend" }, moves)
     }.getOrNull()
 
+    /** A level is n.maxLen.seed, plus ".0" when it has no special arrows though it's big enough for them (a daily cube
+     *  saved to My pack). Older versions read the first three fields and ignore the rest. */
     fun packPayload(name: String, levels: List<LevelSpec>) =
-        "1_" + levels.joinToString("~") { "${it.n}.${it.maxLen}.${it.seed.toString(36)}" } + "_" + enc(name)
+        "1_" + levels.joinToString("~") { "${it.n}.${it.maxLen}.${it.seed.toString(36)}" + if (it.special != LevelSpec(it.n, it.maxLen, it.seed).special) ".${if (it.special) 1 else 0}" else "" } + "_" + enc(name)
 
     fun parsePack(p: String): Pack? = runCatching {
         val f = p.split("_", limit = 3)
         if (f.size != 3 || f[0] != "1") return null
-        val levels = f[1].split("~").take(30).map { s -> val (n, l, seed) = s.split("."); LevelSpec(n.toInt(), l.toInt(), seed.toLong(36)) }
+        val levels = f[1].split("~").take(30).map { s ->
+            val g = s.split("."); val base = LevelSpec(g[0].toInt(), g[1].toInt(), g[2].toLong(36))
+            if (g.size > 3) base.copy(special = g[3] == "1") else base
+        }
         if (levels.isEmpty() || levels.any { it.n !in 2..18 || it.maxLen !in 2..24 }) return null
         Pack(f[2].take(24).ifBlank { "Shared pack" }, "Shared with you · ${levels.size} cubes", levels)
     }.getOrNull()

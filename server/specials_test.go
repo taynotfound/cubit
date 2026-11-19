@@ -219,3 +219,64 @@ func TestStatsAndCORS(t *testing.T) {
 		t.Fatal("admin endpoints open to other sites")
 	}
 }
+
+// Without locks (app 1.7.4+) a cube keeps its arrows, bombs, two-way arrows and wormholes; a formerly locked arrow
+// leaves as soon as its way out is clear.
+func TestNoLocksKeepsTheCube(t *testing.T) {
+	locked := generate(LevelSpec{N: 14, MaxLen: 10, Seed: 4242, Special: true})
+	open := generate(LevelSpec{N: 14, MaxLen: 10, Seed: 4242, Special: true, NoLocks: true})
+	if open.keys != nil {
+		t.Fatal("no-locks cube still has locks")
+	}
+	if len(open.paths) != len(locked.paths) {
+		t.Fatal("dropping the locks changed the arrows")
+	}
+	for a := range open.paths {
+		if open.bombs[a] != locked.bombs[a] || open.twoWay[a] != locked.twoWay[a] || open.dirs[a] != locked.dirs[a] {
+			t.Fatalf("arrow %d changed", a)
+		}
+	}
+	for c := range open.warp {
+		if open.warp[c] != locked.warp[c] {
+			t.Fatal("dropping the locks moved a wormhole")
+		}
+	}
+	occ := make([]int, open.cube.size)
+	for i := range occ {
+		occ[i] = -1
+	}
+	gone := make([]bool, len(open.paths))
+	for a, k := range locked.keys {
+		if k >= 0 && !open.free(a, occ, gone) {
+			t.Fatal("formerly locked arrow stuck on an empty board")
+		}
+	}
+	moves := playOut(open, true)
+	if moves[len(moves)-1][0] != 0 {
+		t.Fatal("no-locks cube stuck before the pink arrow")
+	}
+	if _, err := replay(open, difficulties["Zen"], toMoves(moves), true); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestNoLocksOnlyWhenAsked(t *testing.T) {
+	h := newHarness(t)
+	_, reg := h.call("POST", "/v1/register", "", map[string]string{"name": "Keys"})
+	tok := reg["token"].(string)
+	spec := func(body map[string]any) LevelSpec {
+		_, st := h.call("POST", "/v1/runs", tok, body)
+		h.app.mu.Lock()
+		defer h.app.mu.Unlock()
+		return h.app.runs[st["run"].(string)].Spec
+	}
+	if s := spec(map[string]any{"mode": "free", "n": 14, "maxLen": 10, "seed": 1, "special": true, "difficulty": "Zen"}); s.NoLocks {
+		t.Fatal("an older app's run lost its locks")
+	}
+	if s := spec(map[string]any{"mode": "free", "n": 14, "maxLen": 10, "seed": 1, "special": true, "noLocks": true, "difficulty": "Zen"}); !s.NoLocks {
+		t.Fatal("a new app's run kept its locks")
+	}
+	if s := spec(map[string]any{"mode": "free", "n": 14, "maxLen": 10, "seed": 1, "noLocks": true, "difficulty": "Zen"}); s.NoLocks {
+		t.Fatal("no-locks on a plain cube")
+	}
+}

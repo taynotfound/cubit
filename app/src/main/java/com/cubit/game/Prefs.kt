@@ -291,8 +291,10 @@ class Prefs(ctx: Context) {
 
     /** Cubes saved from the win sheet into "My pack", which can be shared as a link. */
     var myPack: List<LevelSpec>
-        get() = (sp.getString("myPack", "") ?: "").split(";").mapNotNull { s -> s.split(".").takeIf { it.size == 3 }?.let { (n, l, seed) -> LevelSpec(n.toInt(), l.toInt(), seed.toLong()) } }
-        set(v) = sp.edit().putString("myPack", v.takeLast(30).joinToString(";") { "${it.n}.${it.maxLen}.${it.seed}" }).apply()
+        get() = (sp.getString("myPack", "") ?: "").split(";").mapNotNull { s -> s.split(".").takeIf { it.size in 3..4 }?.let { f ->
+            runCatching { LevelSpec(f[0].toInt(), f[1].toInt(), f[2].toLong()).let { if (f.size == 4) it.copy(special = f[3] == "1") else it } }.getOrNull() } }
+        // A fourth field says whether the cube has special arrows; without it, the size decides (as before 1.7.4).
+        set(v) = sp.edit().putString("myPack", v.takeLast(30).joinToString(";") { "${it.n}.${it.maxLen}.${it.seed}.${if (it.special) 1 else 0}" }).apply()
     /** Packs opened from someone's link, as their payloads. */
     var sharedPacks: List<String>
         get() = runCatching { JSONArray(sp.getString("sharedPacks", "[]")) }.getOrElse { JSONArray() }.let { a -> (0 until a.length()).map { a.getString(it) } }
@@ -324,7 +326,9 @@ class Prefs(ctx: Context) {
             val pu = o.optJSONArray("p") ?: JSONArray()
             ScoreEntry(o.optString("n"), o.optInt("s"), o.optString("l"), o.optString("d"), o.optLong("t"),
                 o.optInt("a"), o.optLong("ms"), o.optInt("m"), o.optInt("z"), (0 until pu.length()).map { pu.getString(it) }, o.optInt("lv"),
-                spec = if (o.has("sn")) LevelSpec(o.getInt("sn"), o.getInt("sl"), o.getLong("ss"), o.optBoolean("sp"), o.optBoolean("sb")) else null,
+                // Runs kept before 1.7.4 have no "lk": their special cubes had locked arrows.
+                spec = if (o.has("sn")) LevelSpec(o.getInt("sn"), o.getInt("sl"), o.getLong("ss"), o.optBoolean("sp"), o.optBoolean("sb"),
+                    if (o.has("lk")) o.optBoolean("lk") else o.optBoolean("sb")) else null,
                 moves = o.optJSONArray("mv")?.let { mv -> (0 until mv.length()).map { val m = mv.getJSONArray(it); longArrayOf(m.getLong(0), m.getLong(1)) } } ?: emptyList())
         }
     }
@@ -336,7 +340,7 @@ class Prefs(ctx: Context) {
         all.forEach {
             arr.put(JSONObject().put("n", it.name).put("s", it.score).put("l", it.label).put("d", it.difficulty).put("t", it.time)
                 .put("a", it.arrows).put("ms", it.ms).put("m", it.mistakes).put("z", it.size).put("p", JSONArray(it.powerups)).put("lv", it.playerLevel)
-                .apply { it.spec?.let { s -> put("sn", s.n).put("sl", s.maxLen).put("ss", s.seed).put("sp", s.lap).put("sb", s.special) } }
+                .apply { it.spec?.let { s -> put("sn", s.n).put("sl", s.maxLen).put("ss", s.seed).put("sp", s.lap).put("sb", s.special).put("lk", s.locks) } }
                 .put("mv", JSONArray().apply { it.moves.forEach { m -> put(JSONArray().put(m[0]).put(m[1])) } }))
         }
         sp.edit().putString("scores", arr.toString()).apply()

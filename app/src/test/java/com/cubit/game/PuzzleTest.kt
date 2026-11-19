@@ -107,7 +107,8 @@ fun specialPrint(p: Puzzle): Long {
 }
 
 class SpecialTest {
-    private val specs = listOf(specForLevel(4), specForLevel(30), LevelSpec(14, 20, -987654321), endlessSpec(dailyEndlessSeed(20800), 6))
+    // With the locks of 1.7.0 to 1.7.3, as the server still builds them for runs that don't send noLocks.
+    private val specs = listOf(specForLevel(4), specForLevel(30), LevelSpec(14, 20, -987654321), endlessSpec(dailyEndlessSeed(20800), 6)).map { it.copy(locks = true) }
 
     @Test fun specialsMatchServer() {
         val expected = listOf(-2168532955706612572L, 893908734425870072L, 8367443714046685816L, 776641724789738145L)
@@ -191,12 +192,26 @@ class SpecialTest {
     }
 
     @Test fun lockedArrowsWaitForTheirKey() {
-        val p = generate(specForLevel(30))
+        val p = generate(specForLevel(30).copy(locks = true))
         val occ = IntArray(p.cube.size) { -1 }
         val gone = BooleanArray(p.paths.size)
         val a = p.keys.indexOfFirst { it >= 0 }
         assertEquals(Puzzle.STUCK, p.way(a, occ, gone)) // an empty board, but the key is still there
         gone[p.keys[a]] = true
         assertEquals(Puzzle.HEAD, p.way(a, occ, gone))
+    }
+
+    /** Since 1.7.4 there are no locked arrows: the same cube otherwise, and any arrow with a clear way out leaves. */
+    @Test fun newCubesHaveNoLocks() {
+        for (s in specs) {
+            val locked = generate(s); val open = generate(s.copy(locks = false))
+            assertTrue("locks on $s", open.keys.all { it < 0 })
+            assertEquals(fingerprint(locked), fingerprint(open))
+            assertTrue(locked.bombs.contentEquals(open.bombs) && locked.twoWay.contentEquals(open.twoWay) && locked.warp.contentEquals(open.warp))
+            val occ = IntArray(open.cube.size) { -1 }; val gone = BooleanArray(open.paths.size)
+            for (a in open.paths.indices) if (locked.keys[a] >= 0) assertEquals(Puzzle.HEAD, open.way(a, occ, gone))
+            playOut(open, true)
+        }
+        assertTrue(!specForLevel(30).locks)
     }
 }

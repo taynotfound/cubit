@@ -227,6 +227,7 @@ func (a *App) startRun(w http.ResponseWriter, r *http.Request) {
 		Week                   int
 		Seed                   int64
 		Special                bool // app 1.7+: special arrows on campaign, free and endless cubes; older apps never send it
+		NoLocks                bool // app 1.7.4+: those cubes come without locked arrows
 		Endless                string
 		Lives, BonusSec        int
 	}
@@ -294,6 +295,7 @@ func (a *App) startRun(w http.ResponseWriter, r *http.Request) {
 	run.Spec.Lap = difficulties[b.Difficulty].Nightmare
 	// Bombs only where the app plays them: not on the shared daily and weekly cubes, nor Nightmare's lap cubes.
 	run.Spec.Special = b.Special && !run.Spec.Lap && (b.Mode == "campaign" || b.Mode == "free" || b.Mode == "endless")
+	run.Spec.NoLocks = run.Spec.Special && b.NoLocks
 	switch b.Goal {
 	case "", "pink":
 	case "all":

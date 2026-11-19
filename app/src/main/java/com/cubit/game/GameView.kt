@@ -382,13 +382,15 @@ class GameView(ctx: Context) : View(ctx) {
             if (removed[a] || a in busy) continue
             val tr = tracks[a]
             if (a == puzzle.target) continue
-            if (a == hintArrow || scanning && wayOf(a) != Puzzle.STUCK) {
+            val lit = a == hintArrow || scanning && wayOf(a) != Puzzle.STUCK
+            if (lit) {
                 val pulse = 0.5f + 0.5f * sin(now / 140f)
                 drawSnake(canvas, tr, 0f, tr.headT, w * (2.4f + pulse), withAlpha(theme.accent, 80), lift = 0f, shadow = false)
                 drawSnake(canvas, tr, 0f, tr.headT, w, theme.accent)
             } else if (ghosted(a)) drawSnake(canvas, tr, 0f, tr.headT, w, withAlpha(ink, 80), shadow = false)
             else drawSnake(canvas, tr, 0f, tr.headT, w, ink)
-            if (!ghosted(a)) drawMarks(canvas, a, w, ink, baseLift)
+            // A lit two-way arrow's second head is lit too.
+            if (lit || !ghosted(a)) drawMarks(canvas, a, w, if (lit) theme.accent else ink, baseLift)
         }
         val tg = puzzle.target
         if (!removed[tg] && tg !in busy) {
@@ -716,8 +718,11 @@ class GameView(ctx: Context) : View(ctx) {
         if (puzzle.bombs[a]) drawSnake(canvas, tr, 0f, tr.headT - 0.6f, w * 0.45f, col(BOMB), lift = core, shadow = false)
         val key = puzzle.keys[a]
         if (key >= 0 && !removed[key]) {
+            // Only in replays of runs from 1.7.0 to 1.7.3, which had locked arrows. The dashes stand out against the
+            // arrow itself: a near-white dash vanished on the near-white arrows of the dark colourways.
+            val dash = col(if (Color.luminance(body) > 0.5f) LOCK_DARK else LOCK)
             var t = 0.1f
-            while (t < tr.headT - 0.5f) { drawSnake(canvas, tr, t, minOf(t + 0.28f, tr.headT - 0.5f), w * 0.42f, col(LOCK), lift = core, shadow = false, head = false); t += 0.55f }
+            while (t < tr.headT - 0.5f) { drawSnake(canvas, tr, t, minOf(t + 0.28f, tr.headT - 0.5f), w * 0.42f, dash, lift = core, shadow = false, head = false); t += 0.55f }
         }
         revTracks[a]?.let { rv -> drawSnake(canvas, rv, rv.headT - 0.3f, rv.headT, w, body, lift = lift, shadow = false) }
     }
@@ -1055,8 +1060,9 @@ private const val TURN_GAIN = 1.4f
 const val PINK = 0xFFFF3D7F.toInt()
 /** Bomb arrows' core and blast. */
 const val BOMB = 0xFFFF8A1F.toInt()
-/** Locked arrows' dashed core. */
+/** Locked arrows' dashed core (replays of 1.7.0 to 1.7.3 only): light on dark arrows, dark on light ones. */
 const val LOCK = 0xFFE8EEF8.toInt()
+const val LOCK_DARK = 0xFF141A2E.toInt()
 /** Move code for "undo the last removal" (Zen and Clean only); the server replays it too. */
 const val UNDO_TAP = -6
 /** Twist mode: move code TWIST_TAP - f twists face f (0..5). Mirrors twistTap in server/verify.go. */

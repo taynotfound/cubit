@@ -249,11 +249,15 @@ class Rng(private var s: Long) {
 
 /**
  * [lap] makes it a Nightmare cube: built so every arrow can clear a full lap of the cube, in some order.
- * [special]: bombs, locked and two-way arrows (1.7+). On by default from 11×11 up; the shared daily and weekly cubes,
+ * [special]: bombs and two-way arrows, and wormholes (1.7+). On by default from 11×11 up; the shared daily and weekly cubes,
  * Nightmare, and specs saved or shared by older versions have none. The server only adds them when the app asks
  * (Net.startRun), so older apps' runs still verify.
  */
-data class LevelSpec(val n: Int, val maxLen: Int, val seed: Long, val lap: Boolean = false, val special: Boolean = n >= 11) {
+data class LevelSpec(val n: Int, val maxLen: Int, val seed: Long, val lap: Boolean = false, val special: Boolean = n >= 11,
+                     /** Locked arrows, as played from 1.7.0 to 1.7.3. Gone since: an arrow with a clear way out always leaves.
+                      *  Only runs recorded back then (saved levels, local and board replays) still have them, so they
+                      *  replay as they were played. The server keeps them for runs that don't send noLocks. */
+                     val locks: Boolean = false) {
     val hasSpecial get() = special && !lap
 }
 
@@ -302,7 +306,9 @@ fun generate(spec: LevelSpec): Puzzle {
     if (!spec.hasSpecial) return best
     val (bombs, keys, two) = specialsFor(best.paths.size, spec.seed)
     val special = Puzzle(best.cube, best.paths, best.dirs, best.target, best.lap, bombs, keys, two)
-    return Puzzle(best.cube, best.paths, best.dirs, best.target, best.lap, bombs, keys, two, wormholesFor(special, spec.seed))
+    // The wormholes are laid with the locks in, so a cube without locks keeps every arrow and portal where it was.
+    val warp = wormholesFor(special, spec.seed)
+    return Puzzle(best.cube, best.paths, best.dirs, best.target, best.lap, bombs, if (spec.locks) keys else IntArray(keys.size) { -1 }, two, warp)
 }
 
 /** Arrows that must be removed before the pink one is free: those on its way out, those on theirs, and so on. */

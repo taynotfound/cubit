@@ -248,6 +248,9 @@ type LevelSpec struct {
 	Seed      int64
 	Lap       bool `json:",omitempty"` // Nightmare: arrows lap the whole cube before they leave
 	Special   bool `json:",omitempty"` // bombs, locked and two-way arrows (app 1.7+, see specialsFor)
+	// NoLocks (app 1.7.4+): a special cube without its locks, so any arrow with a clear way out can leave. The
+	// cube is otherwise the same. Runs stored before it (and runs from older apps, which never send it) keep them.
+	NoLocks bool `json:",omitempty"`
 }
 
 // dailySpec mirrors dailySpec() in Puzzle.kt: one cube for everyone per UTC day (days since 1970).
@@ -305,7 +308,10 @@ func generate(spec LevelSpec) *Puzzle {
 	}
 	if spec.Special && !spec.Lap {
 		best.bombs, best.keys, best.twoWay = specialsFor(len(best.paths), spec.Seed)
-		best.warp = wormholesFor(best, spec.Seed)
+		best.warp = wormholesFor(best, spec.Seed) // laid with the locks in, so the wormholes stay where they were
+		if spec.NoLocks {
+			best.keys = nil
+		}
 	}
 	return best
 }
