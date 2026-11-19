@@ -25,9 +25,10 @@ Free games don't earn the money back, so treat this as a small experiment, not a
 - **Targeting:** Communities: r/puzzles, r/puzzlevideogames, r/AndroidGaming, r/WebGames, r/fossdroid, r/opensource,
   r/sudoku, r/crossword. Also try the interest "Puzzle games".
 - **Link:** `https://taynotfound.github.io/cubit/play.html`, which always opens today's cube.
-- **Creatives** (in `promo/ads/`): run two or three at once and let Reddit favour the winner.
-  - Video: `video-hook-4x5.mp4` ("Can you free the pink arrow?"). Video usually beats stills for games.
-  - Stills: `ad-pink-portrait.png`, `ad-daily-portrait.png`, `ad-noads-square.png`.
+- **Creatives:** run two or three at once and let Reddit favour the winner.
+  - Video: a 4:5 cut of `docs/img/reel-hook.mp4` ("Can you free the pink arrow?"), made with the ffmpeg line under
+    "Making more creatives". Video usually beats stills for games.
+  - Stills (in `promo/ads/`): `ad-pink-portrait.png`, `ad-daily-portrait.png`, `ad-noads-square.png`.
 - **Headline ideas** (Reddit shows a line of text above the creative):
   - "A daily puzzle: free the pink arrow from a cube of 140 arrows. Plays in your browser."
   - "Made a puzzle game with no ads, no accounts, no tracking. Today's cube takes about 3 minutes."
