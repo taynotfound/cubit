@@ -25,15 +25,25 @@ object Sfx {
         load("flap", R.raw.sfx_flap_1, R.raw.sfx_flap_2, R.raw.sfx_flap_3, R.raw.sfx_flap_4, R.raw.sfx_flap_5)
         load("click", R.raw.sfx_click); load("toggle", R.raw.sfx_toggle); load("hint", R.raw.sfx_hint)
         load("start", R.raw.sfx_start); load("win", R.raw.sfx_win); load("lose", R.raw.sfx_lose)
+        // Synthesized by tools/chimes.py, in the play music's key.
+        load("combo", R.raw.sfx_combo); load("ready", R.raw.sfx_ready); load("boom", R.raw.sfx_boom)
         pool = p
     }
 
-    private fun play(name: String, vol: Float, drift: Float = 0f) {
+    private fun play(name: String, vol: Float, drift: Float = 0f, rate: Float = 1f) {
         val p = pool ?: return
         if (!enabled) return
         val v = ids[name] ?: return
-        p.play(v[Random.nextInt(v.size)], vol, vol, 1, 0, 1f + (Random.nextFloat() * 2 - 1) * drift)
+        p.play(v[Random.nextInt(v.size)], vol, vol, 1, 0, (rate * (1f + (Random.nextFloat() * 2 - 1) * drift)).coerceIn(0.5f, 2f))
     }
+
+    /** Semitones from the bell's G4 for each step of a combo: C major pentatonic from C4 up to G5, so quick clears
+     *  climb like a little tune in the music's key, and hold at the top. */
+    private val LADDER = intArrayOf(-7, -5, -3, 0, 2, 5, 7, 9, 12)
+    fun ladderRate(step: Int) = Math.pow(2.0, LADDER[(step - 1).coerceIn(0, LADDER.size - 1)] / 12.0).toFloat()
+
+    /** Clear number [step] of a combo (1 = the first clear after a pause or a bump). */
+    fun combo(step: Int) = play("combo", 0.16f + 0.02f * minOf(step, 8), rate = ladderRate(step))
 
     fun slide() = play("slide", 0.45f, 0.05f)
     fun bump() = play("bump", 0.55f, 0.06f)
@@ -43,6 +53,9 @@ object Sfx {
     fun start() = play("start", 0.4f)
     fun win() = play("win", 0.6f)
     fun lose() = play("lose", 0.5f)
+    /** The pink arrow can go now. */
+    fun ready() = play("ready", 0.5f)
+    fun boom() = play("boom", 0.6f, 0.08f)
 
     /** Split-flap clack; throttled so a whole board flipping reads as a rattle, not a wall of noise. */
     fun flap(vol: Float = 0.11f) {

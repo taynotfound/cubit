@@ -36,6 +36,9 @@ class GameView(ctx: Context) : View(ctx) {
         fun onTwist(f: Int) {}
         /** A bomb arrow left and took [count] other arrows with it, set off by [bombs] bombs (more than one: a chain). */
         fun onBomb(count: Int, bombs: Int) {}
+        /** The pink arrow's way out just came clear: it can leave now. Once per opening; an undo that blocks it again
+         *  re-arms it. */
+        fun onTargetReady() {}
     }
 
     var listener: Listener? = null
@@ -62,6 +65,8 @@ class GameView(ctx: Context) : View(ctx) {
     /** Two-way arrows' tracks run backwards too: tail first, for leaving that way and for the second arrowhead. */
     private lateinit var revTracks: Array<Track?>
     var remaining = 0; private set
+    /** Whether the pink arrow's way out is clear, as last told to the listener ([Listener.onTargetReady]). */
+    private var targetReady = false
     val total get() = puzzle.paths.size
 
     /** [rev]: a two-way arrow leaving tail first, along its reversed track. */
@@ -100,6 +105,7 @@ class GameView(ctx: Context) : View(ctx) {
         p.paths.forEachIndexed { i, path -> path.forEach { occ[it] = i } }
         removed = BooleanArray(p.paths.size)
         remaining = p.paths.size
+        targetReady = wayOf(p.target) != Puzzle.STUCK // a pink arrow that starts free gets no chime
         anims.clear(); hintArrow = -1; scanUntil = 0L; history.clear(); blocker = -1
         ghostOcc = occ.copyOf(); ghostGone = BooleanArray(p.paths.size); ghostHist.clear(); ghostOn = false; ghostLeft = p.paths.size
         wormholes = (0 until cube.size).filter { p.warp[it] > it }
@@ -224,6 +230,7 @@ class GameView(ctx: Context) : View(ctx) {
             } else burst(p1[0], p1[1], theme.accent, 12, 1f)
             listener?.onArrowRemoved(remaining, total)
             if (a == puzzle.target) listener?.onTargetFreed()
+            else if (!targetReady && !removed[puzzle.target] && wayOf(puzzle.target) != Puzzle.STUCK) { targetReady = true; listener?.onTargetReady() }
         } else {
             anims.add(Anim(a, false, now, bounceAt(a) + 0.12f))
             blocker = blockerOf(a); blockerAt = now
@@ -249,6 +256,7 @@ class GameView(ctx: Context) : View(ctx) {
         val group = history.removeLastOrNull() ?: return -1
         for (b in group) { puzzle.paths[b].forEach { occ[it] = b }; removed[b] = false }
         remaining += group.size
+        targetReady = wayOf(puzzle.target) != Puzzle.STUCK
         anims.removeAll { it.arrow in group }
         invalidate()
         return group[0]

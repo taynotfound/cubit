@@ -198,7 +198,8 @@ class MainActivity : Activity(), GameView.Listener {
             override fun onArrowRemoved(left: Int, total: Int) { Sfx.slide(); Haptics.click() }
             override fun onMistake() { Sfx.bump(); Haptics.bump() }
             override fun onTargetFreed() { Sfx.win(); Haptics.win() }
-            override fun onBomb(count: Int, bombs: Int) { Sfx.hint(); Haptics.bump() }
+            override fun onBomb(count: Int, bombs: Int) { Sfx.boom(); Sfx.hint(); Haptics.bump() }
+            override fun onTargetReady() { Sfx.ready() }
             override fun onTap(arrow: Int) {
                 Net.worldTap(prefs, id, arrow) { res ->
                     if (serial != worldSerial || res == null) return@worldTap
@@ -2336,6 +2337,7 @@ class MainActivity : Activity(), GameView.Listener {
         Sfx.slide(); Haptics.click(); updateHud()
         val now = SystemClock.uptimeMillis()
         combo = if (now - lastClearAt < 2500) combo + 1 else 1
+        Sfx.combo(combo)
         lastClearAt = now; bestCombo = maxOf(bestCombo, combo)
         if (combo >= 3 && diff != Difficulty.CLEAN && !tutorial && running) showCombo(combo)
         if (tutorial) coachSay(if (total - left >= 3) "Now find the pink arrow. Clear its way out and tap it to win." else "That's it. Keep clearing. Drag to turn the cube, pinch to zoom.")
@@ -2370,12 +2372,15 @@ class MainActivity : Activity(), GameView.Listener {
         Sfx.toggle(); Haptics.double()
     }
 
-    // A heavy thud you can feel, and the chime rather than the bump sound: a blast is good news, not a mistake.
+    // A heavy thud you can feel and hear, with the chime on top rather than the bump sound: a blast is good news.
     override fun onBomb(count: Int, bombs: Int) {
-        Sfx.hint(); Haptics.bump()
+        Sfx.boom(); Sfx.hint(); Haptics.bump()
         maxBlast = maxOf(maxBlast, count); maxChain = maxOf(maxChain, bombs)
         if (bombs > 1) toast("Chain reaction · $bombs bombs, $count arrows")
     }
+
+    /** The pink arrow's way just came clear: a rising "now!" and a double tick, on top of its faster glow. */
+    override fun onTargetReady() { Sfx.ready(); Haptics.double() }
 
     /** Zen and Clean: put the last removed arrow back. Recorded so ranked replays match. */
     private fun undoTap() {
