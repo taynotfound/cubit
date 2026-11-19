@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.7.4 (2026-11-19)
 
 - **No more locked arrows**: an arrow whose way out is clear always leaves. Locked arrows were easy to miss (their dashed core barely showed on light arrows) and bumped for no visible reason (#6). Every cube keeps its arrows, bombs, two-way arrows and wormholes; levels saved before the update, and replays of older runs, play as they were.
 - The new arrows sheet now explains wormholes too.

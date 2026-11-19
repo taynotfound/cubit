@@ -1,0 +1,5 @@
+- No more locked arrows: an arrow with a clear way out always leaves.
+- When an arrow bumps, the arrow in its way glows red. Holding a blocked arrow outlines it too.
+- Best daily streak in Stats and on your profile.
+- The last ten seconds count down.
+- Twist replays, saved daily cubes in My pack and the new arrows sheet fixed.
