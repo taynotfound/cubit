@@ -14,23 +14,14 @@ Rules worth knowing before posting:
 
 ## Mastodon / Fediverse
 
-**Where to sign up** (checked 19 Nov 2026 from each server's own rules):
+**The account: [@cubitgame@mastodon.social](https://mastodon.social/@cubitgame).** It's marked as automated, and its
+bio discloses that Cubit is built with AI, as mastodon.social's rules ask. The website links back to it with
+`rel="me"`, so its profile links show as verified once the site is live. The daily post needs two repository secrets:
+`MASTODON_INSTANCE` (`https://mastodon.social`) and `MASTODON_TOKEN` (a token with the `write:statuses` and
+`write:media` scopes, from Preferences → Development).
 
-- **Cubit's account: mastodon.gamedev.place.** A server for game developers (about 4,300 active people a month, the
-  official itch.io account lives there). Its rules have nothing against sharing your own game or automated posts.
-  Sign-ups need approval, so say in the request that it's the account for Cubit, a free open source puzzle game, and
-  that it will also post the daily cube automatically. The admin's contact is on the server's About page.
-- **Backup: mastodon.social.** The biggest server (about 265,000 active a month), open sign-up, run by Mastodon's own
-  non-profit. Its rules ask that generative AI use is disclosed and that accounts don't post only AI-generated content.
-  Cubit's posts aren't AI-generated, but the game is built with Claude, so link AI-DECLARATION.md in the profile.
-- **Avoid:** fosstodon.org (closed to sign-ups, and its rules forbid automated posting from an account nobody watches,
-  and posts that are only links and hashtags). botsin.space, the old home for bots, looks shut: its site no longer serves a Mastodon server.
-
-One account for everything works well: you post as a person, and the daily cube goes out from the same account. Tick
-"This is an automated account" only if the account is just the bot; a mixed account is fine without it as long as you
-read and answer replies. Then set the `MASTODON_INSTANCE` (`https://mastodon.gamedev.place`) and `MASTODON_TOKEN`
-secrets for `.github/workflows/daily-post.yml`. Make the token under Preferences → Development → New application,
-with the `write:statuses` and `write:media` scopes (media is for the picture of the cube).
+If you'd like a second, personal account for talking to other developers, mastodon.gamedev.place is a good home for
+it (sign-ups need approval); fosstodon.org is closed to sign-ups and forbids unwatched automated posting.
 
 **A first post:**
 
