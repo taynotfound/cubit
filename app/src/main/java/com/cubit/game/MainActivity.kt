@@ -94,6 +94,8 @@ class MainActivity : Activity(), GameView.Listener {
     private var endlessDay: Int? = null
     /** The server's id for this endless run, when it's ranked. */
     private var endlessId: String? = null
+    /** Bumped whenever a level starts or the player leaves one, so a late server reply can tell it's still wanted. */
+    private var screenNo = 0
     /** Twist mode's button, lit while a twist is armed. */
     private var twistButton: FrameLayout? = null
     /** This round's biggest blast and longest bomb chain, for the badges. */
@@ -1952,9 +1954,13 @@ class MainActivity : Activity(), GameView.Listener {
         endlessSeed = if (daily) dailyEndlessSeed(utcDay()) else Random.nextLong()
         if (!prefs.postOnline) { startRound(endlessSpec(endlessSeed, 0), endlessLabel(0)); return }
         toast("Starting your endless run…")
+        // Start once the server answers, unless the player has since started or left a level. This also runs from the
+        // "Endless over" sheet, where the lost level is still on screen, so it can't wait for the game layer to be gone.
+        val at = screenNo
         Net.endlessStart(prefs, daily) { r ->
+            if (screenNo != at || endless != 0) return@endlessStart
             if (r != null) { endlessId = r.first; endlessSeed = r.second } // the server's seed, so it can check every cube
-            if (endless == 0 && gameLayer == null) startRound(endlessSpec(endlessSeed, 0), endlessLabel(0))
+            startRound(endlessSpec(endlessSeed, 0), endlessLabel(0))
         }
     }
 
@@ -2034,6 +2040,7 @@ class MainActivity : Activity(), GameView.Listener {
     private fun leaveGame() {
         if (tutorial) prefs.tutorialDone = true // seen it; "How to play" in More brings it back
         stopRound()
+        screenNo++
         gameLayer?.let { root.removeView(it) }; gameLayer = null
         shell.visibility = View.VISIBLE
         systemBars(th.bg, th.bg, th.isLight)
@@ -2048,6 +2055,7 @@ class MainActivity : Activity(), GameView.Listener {
         val s = base.copy(lap = mode == Difficulty.NIGHTMARE, special = base.special && (resume != null || !prefs.plainCubes))
         if (!PuzzleCache.has(s)) { whenBuilt(s) { startRound(s, label, resume) }; return }
         stopRound()
+        screenNo++
         gameLayer?.let { root.removeView(it) }
         shell.visibility = View.GONE
         if (resume == null && !tutorial) prefs.savedRun = null // a new level replaces any saved one

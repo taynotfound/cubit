@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **Try today's again** on the Endless over sheet starts the new run again instead of only showing "Starting your endless run…" (#7).
+
 ## 1.7.5 (2026-11-20)
 
 - **Every cube can be finished**: a wormhole could send an arrow's way out into the pink arrow, which Clear all keeps for last, so the last two arrows were stuck for good (#7). Wormholes now always leave a cube clearable with pink last.
