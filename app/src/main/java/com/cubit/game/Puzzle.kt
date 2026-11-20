@@ -162,13 +162,14 @@ fun Cube.antipode(c: Int): Int {
 }
 
 /** Whether every arrow can still get out (bombs aside, which only help). Taking an arrow away never blocks another,
- *  so clearing any free arrow until none is left answers it, in any order. */
+ *  so clearing any free arrow until none is left answers it, in any order, the pink one last (as Clear all asks:
+ *  a wormhole may lead another arrow's way out through it). */
 fun solvable(p: Puzzle): Boolean {
     val occ = IntArray(p.cube.size) { -1 }; p.paths.forEachIndexed { i, path -> path.forEach { occ[it] = i } }
     val gone = BooleanArray(p.paths.size); var left = p.paths.size
     while (left > 0) {
         var moved = false
-        for (a in p.paths.indices) if (!gone[a] && p.way(a, occ, gone) != Puzzle.STUCK) { gone[a] = true; left--; moved = true; p.paths[a].forEach { occ[it] = -1 } }
+        for (a in p.paths.indices) if (!gone[a] && (a != p.target || left == 1) && p.way(a, occ, gone) != Puzzle.STUCK) { gone[a] = true; left--; moved = true; p.paths[a].forEach { occ[it] = -1 } }
         if (!moved) return false
     }
     return true

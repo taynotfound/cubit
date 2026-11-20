@@ -280,3 +280,17 @@ func TestNoLocksOnlyWhenAsked(t *testing.T) {
 		t.Fatal("no-locks on a plain cube")
 	}
 }
+
+// Issue 7: the 2026-11-20 daily endless cube 9 led the second-last arrow's way out, through a wormhole, into the pink
+// one, which Clear all keeps for last. Wormholes now keep every cube clearable pink last.
+func TestWormholesLeavePinkLast(t *testing.T) {
+	for day := 20770; day < 20790; day++ {
+		for k := 0; k < 12; k++ {
+			s := endlessSpec(dailyEndlessSeed(day), k)
+			s.Special, s.NoLocks = true, true
+			if !solvable(generate(s)) {
+				t.Errorf("day %d cube %d: can't be cleared pink last", day, k)
+			}
+		}
+	}
+}

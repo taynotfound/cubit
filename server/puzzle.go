@@ -164,6 +164,7 @@ func (c *Cube) antipode(cell int) int {
 }
 
 // solvable mirrors solvable in Puzzle.kt: clear any free arrow until none is left (bombs aside, which only help).
+// The pink arrow (0) goes last, as Clear all asks: a wormhole may lead another arrow's way out through it.
 func solvable(p *Puzzle) bool {
 	occ := make([]int, p.cube.size)
 	for i := range occ {
@@ -179,7 +180,7 @@ func solvable(p *Puzzle) bool {
 	for left > 0 {
 		moved := false
 		for a := range p.paths {
-			if !gone[a] && p.free(a, occ, gone) {
+			if !gone[a] && (a != 0 || left == 1) && p.free(a, occ, gone) {
 				gone[a], moved = true, true
 				left--
 				for _, c := range p.paths[a] {
