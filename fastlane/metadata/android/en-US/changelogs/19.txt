@@ -1,0 +1,3 @@
+- Every cube can be finished: wormholes no longer trap the last arrows when pink must go last.
+- A dark mode or font size change no longer drops you out of a level.
+- The cube fits in landscape.

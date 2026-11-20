@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.7.5 (2026-11-20)
+
+- **Every cube can be finished**: a wormhole could send an arrow's way out into the pink arrow, which Clear all keeps for last, so the last two arrows were stuck for good (#7). Wormholes now always leave a cube clearable with pink last.
+- Switching dark mode or the font size on your phone no longer drops you out of a level onto the home screen.
+- In landscape the cube fits between the top and bottom bars instead of running under the top one.
+
 ## 1.7.4 (2026-11-19)
 
 - **No more locked arrows**: an arrow whose way out is clear always leaves. Locked arrows were easy to miss (their dashed core barely showed on light arrows) and bumped for no visible reason (#6). Every cube keeps its arrows, bombs, two-way arrows and wormholes; levels saved before the update, and replays of older runs, play as they were.
