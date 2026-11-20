@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.7.6 (2026-11-20)
 
 - **Try today's again** on the Endless over sheet starts the new run again instead of only showing "Starting your endless run…" (#7).
 
