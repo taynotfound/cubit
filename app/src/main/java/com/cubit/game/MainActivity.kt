@@ -594,7 +594,8 @@ class MainActivity : Activity(), GameView.Listener {
     /** Side gap for sheets: 12dp on a phone, wider on a tablet or in landscape so they stay a readable width. */
     private fun side() = maxOf(dp(12), (resources.displayMetrics.widthPixels - dp(620)) / 2)
 
-    /** Rotating (or resizing on a tablet) rebuilds the menus for the new width; a game in progress just re-lays itself out. */
+    /** Rotating, resizing on a tablet, or a system dark mode or font size change rebuilds the menus; a game in progress
+ *  just re-lays itself out, rather than Android restarting the activity and dropping the player on Home. */
     override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
         super.onConfigurationChanged(newConfig)
         if (gameLayer == null) buildShell()
@@ -1812,7 +1813,7 @@ class MainActivity : Activity(), GameView.Listener {
         closeReplay()
         val layer = FrameLayout(this).apply { tag = "replay"; setBackgroundColor(th.bg); isClickable = true }
         val gv = GameView(this).apply {
-            applyStyle(this); load(PuzzleCache.get(s).forPlay()); inputEnabled = false; pinkLast = full
+            applyStyle(this); load(PuzzleCache.get(s).forPlay()); inputEnabled = false; pinkLast = full; chromeY = dp(144).toFloat()
             listener = object : GameView.Listener {
                 override fun onArrowRemoved(left: Int, total: Int) = Sfx.slide()
                 override fun onMistake() = Sfx.bump()
@@ -2057,7 +2058,7 @@ class MainActivity : Activity(), GameView.Listener {
         val puzzle = PuzzleCache.get(s).let { if (mode == Difficulty.TWIST) it.forPlay() else it }
         val layer = FrameLayout(this)
         gameLayer = layer
-        val gv = GameView(this).apply { applyStyle(this); listener = this@MainActivity; load(puzzle); pinkLast = roundFull; markTarget = prefs.markTarget }
+        val gv = GameView(this).apply { applyStyle(this); listener = this@MainActivity; load(puzzle); pinkLast = roundFull; markTarget = prefs.markTarget; chromeY = dp(144).toFloat() }
         game = gv
         layer.addView(gv, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
 

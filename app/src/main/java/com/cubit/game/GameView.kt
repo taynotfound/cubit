@@ -330,7 +330,11 @@ class GameView(ctx: Context) : View(ctx) {
         val t = ((SystemClock.uptimeMillis() - introStart) / 700f).coerceIn(0f, 1f) - 1f
         return 0.5f + 0.5f * (1f + 2.70158f * t * t * t + 1.70158f * t * t) // ease-out-back
     }
-    private val focal get() = 1.55f * min(width, height) * zoom * introScale
+    /** Height the screen's header and footer cover where this view runs under them (the play screen); in landscape
+     *  they eat enough of it that a cube sized to the full height ran under the header. */
+    var chromeY = 0f
+    private val fit get() = min(width.toFloat(), height - chromeY)
+    private val focal get() = 1.55f * fit * zoom * introScale
     private val tmp = FloatArray(2)
 
     private fun project(x: Float, y: Float, z: Float, out: FloatArray = tmp): FloatArray {
@@ -791,7 +795,7 @@ class GameView(ctx: Context) : View(ctx) {
     }
 
     private fun clampPan() {
-        val lim = min(width, height) * 0.6f * zoom
+        val lim = fit * 0.6f * zoom
         panX = panX.coerceIn(-lim, lim); panY = panY.coerceIn(-lim, lim)
     }
 
@@ -852,7 +856,7 @@ class GameView(ctx: Context) : View(ctx) {
     /** On-screen radius of the cube's near surface, in pixels: a drag this long turns the cube one radian at gain 1,
      *  which is the cube staying under the finger. Following the screen size and zoom keeps the feel the same on a
      *  small phone, a tablet, and zoomed right in (where a fixed angle per pixel threw the cube round). */
-    private val grabRadius get() = 1.55f * min(width, height) * zoom / (camDist - 1f)
+    private val grabRadius get() = 1.55f * fit * zoom / (camDist - 1f)
 
     private fun stepSpin(dt: Float) {
         if (spinX == 0f && spinY == 0f) return
