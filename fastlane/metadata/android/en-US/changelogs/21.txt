@@ -1,0 +1,7 @@
+- New layout: Play, Modes, Social and Settings
+- Advent calendar: a new cube every day from 1 to 24 December
+- Cube maker and Community cubes: build, publish and play cubes
+- Clubs and weekly leagues
+- Friend requests, quick messages, challenges and bios
+- Cubit Wrapped: your year in numbers
+- Home-screen widget and a daily reminder at your time

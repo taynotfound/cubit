@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.8.0 (2026-11-27)
 
 - **Advent calendar**: from 1 December a door opens every day until the 24th, each a cube Cubit picks for that day: it builds 8 and keeps the one with the pink arrow buried deepest, the same for everyone. They grow from 7×7 to a 16×16 finale. Missed doors stay open until 6 January; open all 24 for the Advent calendar badge and the new Holly colourway.
 - **Community cubes**: build a cube in the new **Cube maker** (size, arrow length, special arrows, reroll until it looks right), give it a title and publish it. Everyone can browse the top and newest cubes in Modes, play them, and like them; each card counts who cleared it. Titles are filtered like names and can be reported.
