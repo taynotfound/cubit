@@ -31,6 +31,20 @@ type Device struct {
 	// Friends this player added (codes), and players who added them and wait to be added back. See friends.go.
 	Friends  []string `json:"friends,omitempty"`
 	Requests []string `json:"requests,omitempty"`
+	// 1.8 social (social.go): a short bio (hidden after reports, locked by an admin), notes from friends, what this
+	// player did lately for their friends' feed, their league week, and invites.
+	Bio        string        `json:"bio,omitempty"`
+	BioHidden  bool          `json:"bioHidden,omitempty"`
+	BioLocked  bool          `json:"bioLocked,omitempty"`
+	Inbox      []Note        `json:"inbox,omitempty"`
+	Recent     []Activity    `json:"recent,omitempty"`
+	League     *League       `json:"league,omitempty"`
+	PrevLeague *League       `json:"prevLeague,omitempty"`
+	LastLeague *LeagueResult `json:"lastLeague,omitempty"`
+	InvitedBy  string        `json:"invitedBy,omitempty"`
+	InviteDone bool          `json:"inviteDone,omitempty"`
+	Invited    int           `json:"invited,omitempty"` // players this one brought in who finished a run
+	Rewards    int           `json:"rewards,omitempty"` // invite rewards not yet handed to the app
 }
 
 // publicCode is the friend code to show next to the player on public boards: only when they made their profile
@@ -85,7 +99,9 @@ type DB struct {
 	EndlessDaily []EndlessScore         `json:"endlessDaily,omitempty"`
 	World        *World                 `json:"world,omitempty"` // the shared World Cube
 	// WorldCounted: World Cubes won before players' counts existed (1.7.2) have been credited to their winners.
-	WorldCounted bool `json:"worldCounted,omitempty"`
+	WorldCounted bool                   `json:"worldCounted,omitempty"`
+	Reports      []Report               `json:"reports,omitempty"`     // reported bios (social.go)
+	LeagueSlots  map[string]*leagueSlot `json:"leagueSlots,omitempty"` // "week:tier" → the group being filled
 }
 
 const maxScores = 5000
@@ -404,6 +420,7 @@ type friendView struct {
 	CleanRuns int          `json:"cleanRuns"`
 	Best      *publicScore `json:"best"`
 	Public    bool         `json:"public,omitempty"` // has a public profile to open
+	Bio       string       `json:"bio,omitempty"`
 }
 
 // friends is the public view of the players behind these codes (unknown and banned ones left out), each with their
@@ -418,7 +435,7 @@ func (s *Store) friends(codes []string) []friendView {
 		if d == nil || d.Banned {
 			continue
 		}
-		f := friendView{Code: c, Name: d.Name, Level: playerLevel(d.XP), XP: d.XP, CleanRuns: d.CleanRuns, Public: d.publicCode() != ""}
+		f := friendView{Code: c, Name: d.Name, Level: playerLevel(d.XP), XP: d.XP, CleanRuns: d.CleanRuns, Public: d.publicCode() != "", Bio: d.publicBio()}
 		for _, sc := range s.db.Scores {
 			if sc.Device == id {
 				pu := sc.Powerups

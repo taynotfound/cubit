@@ -125,7 +125,12 @@ val THEMES = listOf(
     // distinct with every common colour-vision deficiency.
     Theme("Contrast", Color.BLACK, Color.WHITE, Color.BLACK, Color.rgb(255, 212, 0), Color.WHITE, Color.rgb(28, 28, 28), intArrayOf(
         Color.rgb(0, 114, 178), Color.rgb(0, 158, 115), Color.rgb(213, 94, 0), Color.rgb(240, 228, 66), Color.rgb(86, 180, 233), Color.rgb(230, 159, 0))),
+    // Road to 1,000: opens for everyone once Cubit has 1,000 ranked players (Prefs.goalReached).
+    Theme("Gold", Color.rgb(26, 20, 8), Color.rgb(201, 154, 38), Color.rgb(255, 248, 225), Color.rgb(255, 214, 102), Color.rgb(250, 240, 210), Color.rgb(42, 33, 14)),
 )
+
+/** The colourway Road to 1,000 opens. */
+const val GOLD_THEME = "Gold"
 
 /** Arrow colour override; 0 means "use the colourway's arrows". */
 val ARROW_COLORS = intArrayOf(0, Color.WHITE, Color.rgb(255, 199, 44), Color.rgb(92, 214, 255), Color.rgb(14, 27, 61), Color.rgb(140, 240, 160))
@@ -292,6 +297,14 @@ class Prefs(ctx: Context) {
     var friendCode: String? get() = sp.getString("friendCode", null); set(v) = sp.edit().putString("friendCode", v).apply()
     /** Friends removed while the board couldn't be reached: removed there on the next sync, so it can't hand them back. */
     var friendsToDrop: Set<String> get() = sp.getStringSet("friendsToDrop", emptySet())!!; set(v) = sp.edit().putStringSet("friendsToDrop", HashSet(v)).apply()
+    /** Your bio as the board last had it (Social). */
+    var bio: String get() = sp.getString("bio", "")!!; set(v) = sp.edit().putString("bio", v).apply()
+    /** Cubit reached its player goal (Road to 1,000): the Gold colourway is open for good. */
+    var goalReached: Boolean get() = sp.getBoolean("goalReached", false); set(v) = sp.edit().putBoolean("goalReached", v).apply()
+    /** The friend who invited this player has been told to the board (or there was none to tell). */
+    var inviteSent: Boolean get() = sp.getBoolean("inviteSent", false); set(v) = sp.edit().putBoolean("inviteSent", v).apply()
+    /** The league week whose result was last shown, so it shows once. */
+    var leagueSeen: Int get() = sp.getInt("leagueSeen", 0); set(v) = sp.edit().putInt("leagueSeen", v).apply()
     /** Friend requests already shown on the home screen, so each one shows there once. */
     var requestsSeen: Set<String> get() = sp.getStringSet("requestsSeen", emptySet())!!; set(v) = sp.edit().putStringSet("requestsSeen", HashSet(v.toList().takeLast(200))).apply()
 

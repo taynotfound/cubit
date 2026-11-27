@@ -130,8 +130,8 @@ func (a *App) friendDrop(w http.ResponseWriter, r *http.Request) {
 	send(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
-// GET /v1/me/friends: the caller's friends as the server has them (so a restored backup gets them back) and the
-// requests waiting for them.
+// GET /v1/me/friends: the caller's friends as the server has them (so a restored backup gets them back), the
+// requests and notes waiting for them, and what their friends did this week.
 func (a *App) myFriends(w http.ResponseWriter, r *http.Request) {
 	dev, d, code := a.auth(r)
 	if code != 0 {
@@ -141,9 +141,11 @@ func (a *App) myFriends(w http.ResponseWriter, r *http.Request) {
 	a.store.mu.Lock()
 	friends := slices.Clone(d.Friends)
 	reqs := a.store.requestsFor(dev)
+	inbox := a.store.inboxFor(d)
+	feed := a.store.feedFor(d, a.now())
 	a.store.mu.Unlock()
 	if friends == nil {
 		friends = []string{}
 	}
-	send(w, http.StatusOK, map[string]any{"friends": friends, "requests": reqs})
+	send(w, http.StatusOK, map[string]any{"friends": friends, "requests": reqs, "inbox": inbox, "feed": feed})
 }

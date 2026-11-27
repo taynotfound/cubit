@@ -46,6 +46,17 @@ Friends (signed in): `POST /v1/friends/{code}` adds a friend and leaves them a r
 one they left you (404 for a code nobody has); `DELETE /v1/friends/{code}` removes a friend, ignores their request, or
 takes back yours; `GET /v1/me/friends` gives your friends as the server has them and the requests waiting for you.
 
+Social (signed in, `social.go`): `POST /v1/me/bio` (`{"bio":…}`, 140 characters, no links, handles or numbers);
+`POST /v1/report/{code}` reports a bio (three reporters hide it until an admin decides); `POST /v1/friends/{code}/note`
+(`{"msg":n}` for one of the app's fixed messages, or `{"challenge":payload}`, only between friends who added each other)
+and `DELETE /v1/me/inbox/{id}`; notes and friends' feed come with `GET /v1/me/friends`. `GET /v1/me/league` is the
+caller's league week. `POST /v1/me/invited-by/{code}` (new players only) and `POST /v1/me/rewards` handle invites;
+`GET /v1/stats` gives the `goal` for Road to 1,000.
+
+Moderation: `GET /v1/admin/reports` lists reported bios; `POST /v1/admin/reports/{code}` with `{"action":"keep"}`,
+`"remove"` or `"lock"` (removed, and no new bio). Set `NTFY_URL` (and `NTFY_TOKEN` if the topic needs one) to get a
+push for each report; otherwise they're logged.
+
 Twist mode (`"difficulty":"Twist"`) records each face twist as move `-10 - face`; the replay turns that face's arrowheads.
 
 ## Names

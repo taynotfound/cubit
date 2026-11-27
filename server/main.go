@@ -395,7 +395,9 @@ func (a *App) finishRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.store.mu.Lock()
+	before := playerLevel(d.XP)
 	d.credit(entry)
+	a.store.afterRun(dev, d, entry, before, a.now())
 	if run.Endless != "" {
 		a.store.endlessCleared(run.Endless, run.K, d, dev, a.now().Unix())
 	}
@@ -456,7 +458,9 @@ func (a *App) adminDecide(w http.ResponseWriter, r *http.Request) {
 		a.store.db.Held = append(a.store.db.Held[:i], a.store.db.Held[i+1:]...)
 		if b.Action == "approve" {
 			if d := a.store.db.Devices[h.Score.Device]; d != nil {
+				before := playerLevel(d.XP)
 				d.credit(h.Score)
+				a.store.afterRun(h.Score.Device, d, h.Score, before, a.now())
 				a.store.addScore(h.Score)
 			}
 		}
@@ -570,7 +574,8 @@ func (a *App) routes() http.Handler {
 			return
 		}
 		a.store.mu.Lock()
-		out := map[string]any{"code": d.Code, "name": d.Name, "xp": d.XP, "level": playerLevel(d.XP), "public": d.Profile != nil && d.Profile.Public}
+		out := map[string]any{"code": d.Code, "name": d.Name, "xp": d.XP, "level": playerLevel(d.XP), "public": d.Profile != nil && d.Profile.Public,
+			"bio": d.Bio, "bioHidden": d.BioHidden, "bioLocked": d.BioLocked, "invitedBy": d.InvitedBy, "invited": d.Invited, "rewards": d.Rewards}
 		a.store.mu.Unlock()
 		send(w, 200, out)
 	})
@@ -591,6 +596,15 @@ func (a *App) routes() http.Handler {
 	m.HandleFunc("POST /v1/friends/{code}", a.friendAdd)
 	m.HandleFunc("DELETE /v1/friends/{code}", a.friendDrop)
 	m.HandleFunc("GET /v1/me/friends", a.myFriends)
+	m.HandleFunc("POST /v1/friends/{code}/note", a.sendNote)
+	m.HandleFunc("DELETE /v1/me/inbox/{id}", a.dropNote)
+	m.HandleFunc("POST /v1/me/bio", a.setBio)
+	m.HandleFunc("POST /v1/report/{code}", a.report)
+	m.HandleFunc("GET /v1/me/league", a.myLeague)
+	m.HandleFunc("POST /v1/me/invited-by/{code}", a.invitedBy)
+	m.HandleFunc("POST /v1/me/rewards", a.claimRewards)
+	m.HandleFunc("GET /v1/admin/reports", a.admin(a.adminReports))
+	m.HandleFunc("POST /v1/admin/reports/{code}", a.admin(a.adminReport))
 	m.HandleFunc("GET /v1/stats", a.stats)
 	m.HandleFunc("GET /v1/world", a.worldState)
 	m.HandleFunc("POST /v1/world/tap", a.worldTap)

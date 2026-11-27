@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **A new layout**: a bar at the bottom with Play, Modes, Social and Settings, so nothing hides behind a More sheet any more. Play has today's daily and weekly cubes right under the level; Modes lists every way to play, with how you play (Zen to Twist) on top; Social has your profile card, friends and every board; Badges moved into Stats.
+- **Leagues**: each week, play ranked runs to climb a group of up to 20 players in your league. The top three move up (Bronze, Silver, Gold, Platinum, Diamond), the bottom three move down.
+- **Quick messages and challenges**: send a friend "GG!", "Rematch?" and other set lines, or your last win as a challenge they race as a ghost. They only reach friends who added you back.
+- **What your friends did this week**: their runs and level-ups, under your friends in Social.
+- **Bio**: one line about you on your profile and in your friends' lists. No links, handles or numbers, and anyone can report one.
+- **Road to 1,000**: when Cubit reaches 1,000 ranked players, everyone unlocks the Gold colourway. Invite a friend: once they finish a ranked run, you both get 2 hints and a streak freeze.
 - **Friend requests**: adding someone's friend code now tells them. They see "added you as a friend" on the home screen and at the top of Rankings → Friends, and can add you back in one tap or ignore it. Friends you added before this update get your request too.
 - A friend code nobody has is no longer added; Cubit says so instead.
 - Tap your friend code in Rankings → Friends to copy it.

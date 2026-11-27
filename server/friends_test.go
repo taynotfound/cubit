@@ -3,6 +3,7 @@ package main
 import "testing"
 
 func (h *harness) player(name string) (token, code string) {
+	h.app.limits = newLimiter() // tests sign up more players from one address than the real limit allows
 	_, reg := h.call("POST", "/v1/register", "", map[string]string{"name": name})
 	token = reg["token"].(string)
 	_, me := h.call("GET", "/v1/me", token, nil)

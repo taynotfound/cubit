@@ -84,13 +84,13 @@ func (a *App) profile(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Cache-Control", "public, max-age=30")
 	send(w, http.StatusOK, map[string]any{"code": c, "name": d.Name, "level": playerLevel(d.XP), "xp": d.XP, "runs": d.Runs, "cleanRuns": d.CleanRuns,
-		"endlessBest": d.EndlessBest, "worldCubes": d.WorldCubes, "worldWins": d.WorldWins, "since": d.Created, "badges": badges, "streak": p.Streak, "solved": p.Solved, "dailySolved": p.DailySolved, "best": best})
+		"endlessBest": d.EndlessBest, "worldCubes": d.WorldCubes, "worldWins": d.WorldWins, "since": d.Created, "badges": badges, "streak": p.Streak, "solved": p.Solved, "dailySolved": p.DailySolved, "best": best, "bio": d.publicBio()})
 }
 
 // stats is the public player count for the website: everyone with a verified run, and everyone who turned rankings on.
 func (a *App) stats(w http.ResponseWriter, r *http.Request) {
 	a.store.mu.Lock()
-	out := map[string]int{"players": a.store.ranked(), "registered": len(a.store.db.Devices)}
+	out := map[string]int{"players": a.store.ranked(), "registered": len(a.store.db.Devices), "goal": goalPlayers}
 	a.store.mu.Unlock()
 	w.Header().Set("Cache-Control", "public, max-age=60")
 	send(w, http.StatusOK, out)
