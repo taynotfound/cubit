@@ -522,7 +522,7 @@ class MainActivity : Activity(), GameView.Listener {
     private fun body(s: String, color: Int = th.text) = tv(s, 16f, Fonts.body, color).apply { setLineSpacing(0f, 1.3f) }
     private fun label(s: String, color: Int = th.muted) = tv(s, 13f, Fonts.label, color, caps = true, track = 0.08f)
 
-    private fun rect(color: Int, radius: Int = 6, stroke: Int = 0) = GradientDrawable().apply {
+    private fun rect(color: Int, radius: Int = 10, stroke: Int = 0) = GradientDrawable().apply {
         setColor(color); cornerRadius = dp(radius).toFloat()
         if (stroke != 0) setStroke(dp(1), stroke)
     }
@@ -580,11 +580,11 @@ class MainActivity : Activity(), GameView.Listener {
     /** Tabs in a strip. More than six don't fit a phone side by side, so then the strip scrolls sideways instead. */
     private fun segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit): View {
         val scrolls = options.size > 6
-        val r = row().apply { background = rect(th.panel); setPadding(dp(4), dp(4), dp(4), dp(4)) }
+        val r = row().apply { background = rect(th.panel, 12); setPadding(dp(4), dp(4), dp(4), dp(4)) }
         val items = options.map { tv(it, if (options.size > 5) 13f else 15f, Fonts.label, caps = true, track = 0.04f).apply { gravity = Gravity.CENTER; minHeight = dp(44) } }
         fun paint(sel: Int) = items.forEachIndexed { i, t ->
-            t.background = if (i == sel) rect(th.accent, 4) else null
-            t.setTextColor(if (i == sel) th.onAccent else th.muted)
+            t.background = if (i == sel) rect(th.bg, 8) else null
+            t.setTextColor(if (i == sel) th.accent else th.muted)
         }
         items.forEachIndexed { i, t ->
             t.setOnClickListener { Sfx.click(); Haptics.tick(); paint(i); onSelect(i) }
@@ -621,10 +621,10 @@ class MainActivity : Activity(), GameView.Listener {
             setOnCheckedChangeListener { _, b -> onChange(b); Sfx.toggle(); Haptics.tick() }
             contentDescription = title
         }
-        val r = row().apply { minimumHeight = dp(64); setPadding(0, dp(10), 0, dp(10)) }
+        val r = row().apply { minimumHeight = dp(60); setPadding(0, dp(10), 0, dp(10)) }
         val texts = column()
-        texts.add(tv(title, 17f, Fonts.bodyMedium))
-        texts.add(tv(sub, 14f, Fonts.body, th.muted).apply { setLineSpacing(0f, 1.25f) }, 3)
+        texts.add(tv(title, 16.5f, Fonts.bodyMedium))
+        if (sub.isNotEmpty()) texts.add(tv(sub, 13.5f, Fonts.body, th.muted).apply { setLineSpacing(0f, 1.2f) }, 2)
         r.add(texts, 0, 0, WRAP_CONTENT, 1f)
         r.add(sw, 0, WRAP_CONTENT).let { (it.layoutParams as LinearLayout.LayoutParams).marginStart = dp(12) }
         r.setOnClickListener { sw.toggle() }
@@ -743,7 +743,7 @@ class MainActivity : Activity(), GameView.Listener {
     }
 
     /** Page title; the bottom bar is the way between pages. */
-    private fun header(name: String): View = headline(name).apply { minHeight = dp(48); gravity = Gravity.CENTER_VERTICAL }
+    private fun header(name: String): View = tv(name, 34f, Fonts.display, caps = true).apply { minHeight = dp(44); gravity = Gravity.CENTER_VERTICAL }
 
     /** A chip: icon and caps label on a plate; [on] fills it with the accent. */
     private fun chip(glyph: Glyph, text: String, desc: String, onClick: () -> Unit): Pair<LinearLayout, (Boolean) -> Unit> {
@@ -763,108 +763,92 @@ class MainActivity : Activity(), GameView.Listener {
     }
 
     private fun playTab(): View {
-        val col = column().apply { setPadding(dp(20), dp(18), dp(20), dp(20)) }
+        val (scroll, col) = page()
 
-        // Top: wordmark and player (tap for profile) on the left, rankings and settings as quiet icons on the right.
+        // Top: the wordmark, and you (level and XP) as a pill that opens your profile.
         val top = row()
+        top.add(IconView(this, Glyph.CUBE, th.accent, 26), 0, WRAP_CONTENT)
+        top.add(display("Cubit", 30f).apply { setPadding(dp(8), 0, 0, 0) }, 0, 0, WRAP_CONTENT, 1f)
         val (lvl, into, need) = playerLevel(prefs.xp)
-        val me = column().apply { contentDescription = "Your profile and stats"; pressable { profileSheet() } }
-        val mark = row()
-        mark.add(IconView(this, Glyph.CUBE, th.accent, 24), 0, WRAP_CONTENT)
-        mark.add(display("Cubit", 28f).apply { setPadding(dp(8), 0, 0, 0) }, 0, WRAP_CONTENT)
-        me.add(mark, 0, WRAP_CONTENT)
-        me.add(label("${prefs.name} · LV $lvl"), 6, WRAP_CONTENT)
-        me.add(xpBar(into.toFloat() / need), 6, dp(96), dp(3))
-        top.add(me, 0, WRAP_CONTENT)
-        col.add(top)
-
-        // The cube is the screen.
-        val level = prefs.level
-        var puzzle: Puzzle? = null
-        val demo = GameView(this).apply {
-            applyStyle(this); markTarget = prefs.markTarget
-            contentDescription = "Preview of level $level"
+        val me = row().apply {
+            background = rect(th.panel, 24, stroke = th.hairline); setPadding(dp(5), dp(5), dp(14), dp(5))
+            contentDescription = "${prefs.name}, level $lvl. Your profile and stats"; pressable { profileSheet() }
         }
-        col.add(demo, 0, MATCH_PARENT, 0, 1f)
+        me.add(avatar(prefs.name, 34), 0, dp(34), dp(34))
+        val meText = column().apply { setPadding(dp(8), 0, 0, 0) }
+        meText.add(tv("LV $lvl", 14f, Fonts.label, th.text, caps = true, track = 0.06f))
+        meText.add(xpBar(into.toFloat() / need), 4, dp(60), dp(3))
+        me.add(meText, 0, WRAP_CONTENT)
+        top.add(me, 0, WRAP_CONTENT)
+        col.add(top, 4)
 
-        // One flap line for the level, one quiet line for the rules.
-        val sign = FlapView(this, 9, 30f, th.tile, th.text, false).apply { haptics = prefs.haptics; setInstant("         ") }
-        val signRow = row().apply { gravity = Gravity.CENTER }
-        signRow.add(sign, 0, WRAP_CONTENT)
-        col.add(signRow, 8)
-        val rules = tv("", 15f, Fonts.body, th.muted).apply { gravity = Gravity.CENTER }
-        col.add(rules, 10)
+        // The cube is the screen: open the app, see the next level, tap Play.
+        val saved = prefs.savedRun?.let { runCatching { org.json.JSONObject(it) }.getOrNull() }
+        val level = prefs.level
+        val demo = GameView(this).apply { applyStyle(this); markTarget = prefs.markTarget; contentDescription = "Preview of level $level"; importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO }
+        val cubeH = (resources.displayMetrics.heightPixels * 0.40f).toInt().coerceIn(dp(220), dp(420))
+        col.add(demo, 6, MATCH_PARENT, cubeH)
+        col.add(tv(if (saved != null) "Saved level" else "Next up", 13f, Fonts.label, th.muted, caps = true, track = 0.1f).apply { gravity = Gravity.CENTER }, 2)
+        col.add(tv(if (saved != null) saved.optString("label") else "Level $level", 40f, Fonts.display, th.text, caps = true).apply { gravity = Gravity.CENTER; maxLines = 2 }, 2)
+        val rules = tv("", 14f, Fonts.body, th.muted).apply { gravity = Gravity.CENTER }
+        col.add(rules, 6)
+        col.add(primary(if (saved != null) "Continue" else "Play") {
+            if (saved != null) resumeRun(saved) else if (prefs.tutorialDone) startCampaign() else startTutorial()
+        }.apply { minimumHeight = dp(64); background = rect(th.accent, 14) }, 18)
+        var puzzle: Puzzle? = null
         fun describe() {
+            if (saved != null) { rules.text = "${saved.optInt("left")} arrows left"; return }
             val pz = puzzle ?: run { rules.text = "Building the cube…"; return }
             val d = prefs.difficulty; val n = pz.cube.n
             val t = d.timeLimitSec(pz.paths.size)
-            rules.text = listOfNotNull("$n×$n", "${pz.paths.size} arrows", "par ${if (prefs.fullClear) pz.paths.size else mustClear(pz) + 1}", if (prefs.fullClear) "full clear" else null,
-                if (d == Difficulty.CLEAN) "just the cube" else if (d.lives == 0) "no lives" else "${d.lives} ${if (d.lives == 1) "life" else "lives"}",
-                if (t > 0) "%d:%02d".format(t / 60, t % 60) else if (d != Difficulty.CLEAN) "no timer" else null).joinToString("  ·  ")
+            rules.text = listOfNotNull("$n×$n", "${pz.paths.size} arrows", "par ${if (prefs.fullClear) pz.paths.size else mustClear(pz) + 1}",
+                if (d == Difficulty.CLEAN) null else if (d.lives == 0) "no lives" else "${d.lives} ${if (d.lives == 1) "life" else "lives"}",
+                if (t > 0) "%d:%02d".format(t / 60, t % 60) else null).joinToString("  ·  ")
         }
         describe()
-        handler.postDelayed({ sign.text = "LEVEL %03d".format(level % 1000) }, 200)
         // Big cubes take a moment to build: do it off the main thread, then hand the cube to the preview.
         bg.execute {
             val pz = PuzzleCache.get(specForLevel(level).let { it.copy(lap = prefs.difficulty == Difficulty.NIGHTMARE, special = it.special && !prefs.plainCubes) })
-            handler.post { puzzle = pz; demo.load(pz); demo.inputEnabled = false; demo.autoSpin = true; describe() }
+            handler.post { puzzle = pz; demo.load(pz); demo.inputEnabled = false; demo.autoSpin = true; demo.glass = prefs.difficulty == Difficulty.CLEAN; describe() }
         }
+        if (saved != null) col.add(tv("Discard saved level", 13f, Fonts.label, th.muted, caps = true, track = 0.06f).apply {
+            gravity = Gravity.CENTER; minHeight = dp(40)
+            pressable { confirm("Discard saved level?", "Its progress is lost.", "Keep it", "Discard") { closeSheet(); prefs.savedRun = null; showTab(Tab.PLAY) } }
+        }, 4)
 
-        homeNotices(col)
-        val saved = prefs.savedRun?.let { runCatching { org.json.JSONObject(it) }.getOrNull() }
-        if (saved != null) {
-            // A level left mid-way comes first: continue it, or throw it away.
-            val r = row().apply { background = rect(th.panel, stroke = th.accent); setPadding(dp(16), dp(10), dp(8), dp(10)) }
-            val t = column()
-            t.add(label("Saved level", th.accent)); t.add(tv("${saved.optString("label")} · ${saved.optInt("left")} left", 16f, Fonts.bodyMedium), 4)
-            r.add(t, 0, 0, WRAP_CONTENT, 1f)
-            r.add(plainIcon(Glyph.CLOSE, "Discard the saved level", th.muted) {
-                confirm("Discard saved level?", "Its progress is lost.", "Keep it", "Discard") { closeSheet(); prefs.savedRun = null; showTab(Tab.PLAY) }
-            }, 0, dp(48), dp(48))
-            col.add(r, 14)
-            col.add(primary("Continue") { resumeRun(saved) }, 10)
-        } else col.add(primary("Play") { if (prefs.tutorialDone) startCampaign() else startTutorial() }, 18)
-
-        // Clean is the one switch that stays on the home screen; Mode and More open sheets.
-        val chips = row()
-        lateinit var modeChip: View
-        val (cleanChip, paintClean) = chip(Glyph.CUBE, "Clean", "Clean mode: just the cube, no lives, no timer") {}
-        cleanChip.setOnClickListener {
-            Sfx.click(); Haptics.tick()
-            val on = prefs.difficulty != Difficulty.CLEAN
-            prefs.difficulty = if (on) Difficulty.CLEAN else prefs.lastMode
-            // Nightmare's preview is a different (lap) cube: rebuild the screen rather than relabel it.
-            if (prefs.lastMode == Difficulty.NIGHTMARE) { showTab(Tab.PLAY); return@setOnClickListener }
-            paintClean(on); demo.glass = on; demo.invalidate(); describe()
-            modeChip.alpha = if (on) 0.5f else 1f
-            ((modeChip as LinearLayout).getChildAt(1) as TextView).text = prefs.lastMode.label.uppercase()
-        }
+        // How you play, one tap away: the mode, and Clean on its own.
+        val chips = pills()
         val clean = prefs.difficulty == Difficulty.CLEAN
-        paintClean(clean); demo.glass = clean
-        modeChip = chip(Glyph.SETTINGS, prefs.lastMode.label, "Mode: lives and timer") { modeSheet() }.first
-        if (clean) modeChip.alpha = 0.5f
-        chips.add(cleanChip, 0, 0, WRAP_CONTENT, 1f)
-        chips.add(modeChip, 0, 0, WRAP_CONTENT, 1f).let { (it.layoutParams as LinearLayout.LayoutParams).marginStart = dp(10) }
-        col.add(chips, 10)
+        chips.addView(pill("Mode · ${prefs.lastMode.label}", false, "Mode: ${prefs.lastMode.label}. Lives and timer") { modeSheet() }.apply { alpha = if (clean) 0.5f else 1f })
+        chips.addView(pill("Clean", clean, "Clean mode: just the cube, no lives, no timer") {
+            Sfx.click(); Haptics.tick()
+            prefs.difficulty = if (clean) prefs.lastMode else Difficulty.CLEAN
+            showTab(Tab.PLAY)
+        })
+        if (prefs.fullClear) chips.addView(pill("Full clear", true, "Full clear is on. Change it in Modes") { showTab(Tab.MODES) })
+        col.add(row().apply { gravity = Gravity.CENTER_HORIZONTAL; addView(chips, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT)) }, 12)
 
         // Today's shared cubes sit right on the home screen, so nobody has to dig for them.
         val day = utcDay(); val week = utcWeek(); val streak = prefs.liveStreak(day)
-        col.add(label("Today"), 18)
-        card(col, if (streak > 0) Glyph.FLAME else Glyph.DICE, "Daily cube", when {
-            prefs.dailyDone == day -> "Done today · $streak-day streak"
-            streak > 0 -> "Solve it to keep your $streak-day streak"
-            else -> "One 12×12 cube, the same for everyone"
-        }, highlight = prefs.dailyDone != day) { startDaily() }
+        col.add(label("Today"), 24)
+        val dailyDone = prefs.dailyDone == day
+        card(col, Glyph.FLAME, "Daily cube #${day - FIRST_DAILY + 1}", when {
+            dailyDone -> "Done · $streak-day streak"
+            streak > 0 -> "Keep your $streak-day streak"
+            else -> "Same 12×12 cube for everyone"
+        }, highlight = !dailyDone, action = if (dailyDone) "Again" else "Play", top = 8) { startDaily() }
         WrappedYear.season(day)?.let { y ->
-            card(col, Glyph.BADGE, "Your $y in Cubit", if (prefs.wrappedSeen == y) "Your year in numbers · share it" else "Your year in Cubit is ready!", highlight = prefs.wrappedSeen != y) { wrappedSheet(y) }
+            card(col, Glyph.BADGE, "Your $y in Cubit", if (prefs.wrappedSeen == y) "Your year in numbers" else "Your year is ready!", highlight = prefs.wrappedSeen != y, action = "Open") { wrappedSheet(y) }
         }
         Advent.season(day)?.let { (year, open) ->
             val done = prefs.adventDoors(year)
-            card(col, Glyph.BADGE, "Advent calendar", Advent.status(open, done), highlight = open !in done) { adventSheet() }
+            card(col, Glyph.BADGE, "Advent calendar", Advent.status(open, done), highlight = open !in done, action = "Open") { adventSheet() }
         }
-        card(col, Glyph.RANKS, "Weekly challenge", if (prefs.weeklyDone == week) "Done this week · resets Monday"
-            else "One big 16×16 cube · earns a streak freeze", highlight = prefs.weeklyDone != week) { startWeekly() }
-        return col
+        val weekDone = prefs.weeklyDone == week
+        card(col, Glyph.RANKS, "Weekly challenge", if (weekDone) "Done · resets Monday" else "16×16 · earns a streak freeze",
+            action = if (weekDone) "Again" else "Play") { startWeekly() }
+        homeNotices(col)
+        return scroll
     }
 
     /** Every way to play beyond the next level: how you play on top, then the modes, each saying where you stand. */
@@ -872,36 +856,36 @@ class MainActivity : Activity(), GameView.Listener {
         val (scroll, col) = page()
         col.add(header("Modes"))
         col.add(label("How you play · applies everywhere"), 14)
-        val chips = row()
-        Difficulty.entries.forEachIndexed { i, d ->
-            val (c, paint) = chip(if (d == Difficulty.CLEAN) Glyph.CUBE else Glyph.SETTINGS, d.label, "${d.label}: ${d.blurb}") {
-                prefs.difficulty = d; Sfx.click(); Haptics.tick(); showTab(Tab.MODES)
-            }
-            (c.getChildAt(0) as View).visibility = View.GONE
-            paint(d == prefs.difficulty)
-            chips.add(c, if (i == 0) 0 else 0, WRAP_CONTENT).let { if (i > 0) (it.layoutParams as LinearLayout.LayoutParams).marginStart = dp(8) }
+        val chips = pills()
+        Difficulty.entries.forEach { d ->
+            chips.addView(pill(d.label, d == prefs.difficulty, "${d.label}: ${d.blurb}") { prefs.difficulty = d; Sfx.click(); Haptics.tick(); showTab(Tab.MODES) })
         }
-        col.add(android.widget.HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false; addView(chips) }, 8)
+        col.add(chips, 10)
         val d = prefs.difficulty
-        col.add(tv("${d.blurb} · ×%.1f XP".format(d.xpMult), 14f, Fonts.body, th.muted), 8)
-        col.add(switchRow("Full clear", "Clear every arrow, not just the way out. The pink one has to leave last.", prefs.fullClear) { prefs.fullClear = it }, 4)
+        col.add(tv("${d.blurb} · ×%.1f XP".format(d.xpMult), 13.5f, Fonts.body, th.muted), 10)
+        val fc = column().apply { background = rect(th.panel, 12); setPadding(dp(16), 0, dp(16), 0) }
+        fc.add(switchRow("Full clear", "Clear every arrow; the pink one leaves last.", prefs.fullClear) { prefs.fullClear = it })
+        col.add(fc, 12)
 
         val day = utcDay()
-        group(col, "Together")
-        card(col, Glyph.CUBE, "World Cube", "One giant cube everyone clears, live", highlight = true) { openWorld() }
+        col.add(label("Together"), 26)
+        card(col, Glyph.CUBE, "World Cube", "One giant cube everyone clears, live", highlight = true, top = 8) { openWorld() }
         val todayBest = if (prefs.dailyEndlessDay == day) prefs.dailyEndlessBest else 0
         card(col, Glyph.BOLT, "Today's endless", "The same run of cubes for everyone" + if (todayBest > 0) " · best $todayBest" else "") { startEndless(daily = true) }
-        card(col, Glyph.RANKS, "Community cubes", "Cubes other players made · play and like them") { communitySheet() }
-        group(col, "Your way")
-        card(col, Glyph.BOLT, "Endless", "Cube after cube, lives carry over" + if (prefs.endlessBest > 0) " · best ${prefs.endlessBest}" else "") { startEndless() }
+        card(col, Glyph.RANKS, "Community cubes", "Cubes players made · play and like them") { communitySheet() }
+
+        col.add(label("Your way"), 26)
         val packs = prefs.allPacks(); val packsDone = packs.count { prefs.packSolved(it) >= it.levels.size }
-        card(col, Glyph.BADGE, "Puzzle packs", "${packs.size} packs of picked cubes" + if (packsDone > 0) " · $packsDone done" else "") { packsSheet() }
         val missed = (maxOf(FIRST_DAILY, day - 30) until day).count { it !in prefs.dailyDays && it !in prefs.archiveDays }
-        card(col, Glyph.REPLAY, "Past daily cubes", if (missed > 0) "$missed missed in the last 30 days" else "Every daily cube since the first") { archiveSheet(0) }
-        card(col, Glyph.CUBE, "Cube maker", "Build a cube, then publish it or send it") { makerSheet() }
-        card(col, Glyph.SHARE, "Name cube", "Any name makes a cube · dare a friend") { nameSheet() }
-        card(col, Glyph.ROAM, "Free roam", "Any size you like, or replay a level") { freeRoamSheet() }
-        card(col, Glyph.HINT, "How to play", "The tutorial, again") { startTutorial() }
+        tileGrid(col, listOf(
+            Triple(Glyph.BOLT, "Endless" to ("Cube after cube" + if (prefs.endlessBest > 0) " · best ${prefs.endlessBest}" else "")) { startEndless() },
+            Triple(Glyph.BADGE, "Puzzle packs" to ("${packs.size} packs" + if (packsDone > 0) " · $packsDone done" else "")) { packsSheet() },
+            Triple(Glyph.REPLAY, "Past dailies" to (if (missed > 0) "$missed missed this month" else "All caught up")) { archiveSheet(0) },
+            Triple(Glyph.CUBE, "Cube maker" to "Build one, share it") { makerSheet() },
+            Triple(Glyph.SHARE, "Name cube" to "Any name makes a cube") { nameSheet() },
+            Triple(Glyph.ROAM, "Free roam" to "Any size, or replay a level") { freeRoamSheet() },
+        ), top = 8)
+        card(col, Glyph.HINT, "How to play", "The tutorial, again", top = 10) { startTutorial() }
         return scroll
     }
 
@@ -1017,19 +1001,63 @@ class MainActivity : Activity(), GameView.Listener {
     private fun group(c: LinearLayout, name: String, first: Boolean = false) = c.add(label(name), if (first) 18 else 24)
 
     /** One way to play: icon, name, a line of where you stand, and a chevron. [highlight] marks what's waiting for you. */
-    private fun card(c: LinearLayout, glyph: Glyph, name: String, status: String, highlight: Boolean = false, onClick: () -> Unit) {
+    /** A row card: an icon on its own plate, title and status, and an optional [action] button on the right. */
+    private fun card(c: LinearLayout, glyph: Glyph, name: String, status: String, highlight: Boolean = false, action: String? = null, top: Int = 10, onClick: () -> Unit) {
         val r = row().apply {
-            background = rect(th.tile, stroke = if (highlight) th.accent else th.hairline)
-            setPadding(dp(14), dp(12), dp(10), dp(12)); minimumHeight = dp(64); contentDescription = "$name. $status"
+            background = rect(th.panel, 12, stroke = if (highlight) th.accent else th.hairline)
+            setPadding(dp(14), dp(12), dp(12), dp(12)); minimumHeight = dp(72); contentDescription = "$name. $status"
         }
-        r.add(IconView(this, glyph, if (highlight) th.accent else th.text, 24), 0, WRAP_CONTENT)
-        val t = column().apply { setPadding(dp(14), 0, dp(8), 0) }
-        t.add(title(name)); t.add(tv(status, 14f, Fonts.body, th.muted), 2)
+        r.add(iconPlate(glyph, highlight), 0, dp(40), dp(40))
+        val t = column().apply { setPadding(dp(14), 0, dp(10), 0) }
+        t.add(tv(name, 17f, Fonts.bodyMedium).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END })
+        t.add(tv(status, 13.5f, Fonts.body, th.muted).apply { maxLines = 2; setLineSpacing(0f, 1.15f) }, 2)
         r.add(t, 0, 0, WRAP_CONTENT, 1f)
-        r.add(IconView(this, Glyph.ARROW, th.muted, 18), 0, WRAP_CONTENT)
+        if (action != null) r.add(tv(action, 15f, Fonts.label, if (highlight) th.onAccent else th.text, caps = true, track = 0.05f).apply {
+            gravity = Gravity.CENTER; setPadding(dp(14), 0, dp(14), 0); minHeight = dp(40)
+            background = if (highlight) rect(th.accent, 8) else rect(th.bg, 8, stroke = th.hairline)
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        }, 0, WRAP_CONTENT)
+        else r.add(IconView(this, Glyph.ARROW, th.muted, 18), 0, WRAP_CONTENT)
         r.pressable(onClick)
-        c.add(r, 8)
+        c.add(r, top)
     }
+
+    /** A glyph on a small rounded plate: accent when [lit]. */
+    private fun iconPlate(glyph: Glyph, lit: Boolean = false, size: Int = 22) = FrameLayout(this).apply {
+        background = rect(if (lit) th.accent else th.bg, 10)
+        addView(IconView(this@MainActivity, glyph, if (lit) th.onAccent else th.accent, size), FrameLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT, Gravity.CENTER))
+        importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+    }
+
+    /** Square-ish tiles two to a row: plate, title, one line of status. */
+    private fun tileGrid(c: LinearLayout, tiles: List<Triple<Glyph, Pair<String, String>, () -> Unit>>, top: Int = 10) {
+        tiles.chunked(2).forEachIndexed { i, pair ->
+            val line = row().apply { gravity = Gravity.TOP }
+            pair.forEachIndexed { j, (glyph, text, onClick) ->
+                val t = column().apply {
+                    background = rect(th.panel, 12, stroke = th.hairline); setPadding(dp(14), dp(14), dp(14), dp(14))
+                    minimumHeight = dp(116); contentDescription = "${text.first}. ${text.second}"
+                }
+                t.add(iconPlate(glyph, size = 20), 0, dp(36), dp(36))
+                t.add(tv(text.first, 16.5f, Fonts.bodyMedium).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }, 12)
+                t.add(tv(text.second, 13f, Fonts.body, th.muted).apply { maxLines = 2; setLineSpacing(0f, 1.15f) }, 2)
+                t.pressable(onClick)
+                line.add(t, 0, 0, MATCH_PARENT, 1f).let { if (j > 0) (it.layoutParams as LinearLayout.LayoutParams).marginStart = dp(10) }
+            }
+            if (pair.size == 1) line.space(0, 1f).also { (line.getChildAt(1).layoutParams as LinearLayout.LayoutParams).marginStart = dp(10) }
+            c.add(line, if (i == 0) top else 10)
+        }
+    }
+
+    /** A rounded pill for picking one of a few things; [on] is filled. */
+    private fun pill(text: String, on: Boolean, desc: String = text, onClick: () -> Unit) = tv(text, 15f, Fonts.label, if (on) th.onAccent else th.text, caps = true, track = 0.04f).apply {
+        gravity = Gravity.CENTER; minHeight = dp(42); setPadding(dp(16), 0, dp(16), 0)
+        background = if (on) rect(th.accent, 21) else rect(th.panel, 21, stroke = th.hairline)
+        contentDescription = desc + if (on) ", selected" else ""
+        pressable(onClick)
+    }
+
+    private fun pills(): FlowLayout = FlowLayout(this, dp(8), dp(8))
 
     /** A sheet opened from Modes: a way back, then the title. */
     private fun subSheet(name: String): LinearLayout {
@@ -1165,7 +1193,7 @@ class MainActivity : Activity(), GameView.Listener {
         val c = subSheet("Cube maker")
         c.add(body("Pick the rules, reroll until you like it, then publish it for everyone or send it to a friend.", th.muted), 6)
         var spec = makerSpec ?: LevelSpec(9, 7, Random.nextLong(), special = false)
-        val preview = GameView(this).apply { applyStyle(this); markTarget = true; inputEnabled = false; contentDescription = "Preview of your cube" }
+        val preview = GameView(this).apply { applyStyle(this); transparent = true; markTarget = true; inputEnabled = false; contentDescription = "Preview of your cube" }
         c.add(preview, 12, MATCH_PARENT, dp(240))
         val facts = tv("", 14f, Fonts.body, th.muted).apply { gravity = Gravity.CENTER }
         c.add(facts, 8)
@@ -1525,7 +1553,7 @@ class MainActivity : Activity(), GameView.Listener {
         val streak = prefs.liveStreak(utcDay())
         t.add(tv("LV $lvl · ${prefs.xp} XP" + if (streak > 0) " · $streak-day streak" else "", 14f, Fonts.body, withAlpha(th.ink, 210)), 2)
         top.add(t, 0, 0, WRAP_CONTENT, 1f)
-        top.add(secondary("Stats") { profileSheet() }, 0, WRAP_CONTENT)
+        top.add(secondary("Stats") { profileSheet() }.apply { background = rect(th.bg, 10) }, 0, WRAP_CONTENT)
         c.add(top)
         if (prefs.postOnline) {
             val bio = prefs.bio
@@ -1539,10 +1567,17 @@ class MainActivity : Activity(), GameView.Listener {
         if (prefs.postOnline && code != null) {
             val r = row().apply { background = rect(withAlpha(Color.BLACK, 50), 8); setPadding(dp(12), dp(4), dp(4), dp(4)) }
             r.add(label("Friend code", withAlpha(th.ink, 210)), 0, WRAP_CONTENT)
-            r.add(tv(fmtCode(code), 20f, Fonts.display, th.ink).apply { setPadding(dp(10), 0, 0, 0); contentDescription = "Your friend code ${code.chunked(1).joinToString(" ")}" }, 0, 0, WRAP_CONTENT, 1f)
-            r.add(secondary("Share", glyph = Glyph.SHARE) {
+            r.add(tv(fmtCode(code), 20f, Fonts.display, th.ink).apply {
+                setPadding(dp(10), 0, 0, 0); minHeight = dp(44); gravity = Gravity.CENTER_VERTICAL
+                contentDescription = "Your friend code ${code.chunked(1).joinToString(" ")}. Tap to copy"
+                pressable {
+                    (getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager).setPrimaryClip(android.content.ClipData.newPlainText("Cubit friend code", fmtCode(code)))
+                    toast("Friend code copied")
+                }
+            }, 0, 0, WRAP_CONTENT, 1f)
+            r.add(secondary("Share", th.onAccent, Glyph.SHARE) {
                 shareText("Add me on Cubit: my friend code is ${fmtCode(code)}. ${Links.WEB}?f=$code", "Share your friend code")
-            }, 0, WRAP_CONTENT)
+            }.apply { background = rect(th.accent, 10); minimumHeight = dp(44) }, 0, WRAP_CONTENT)
             c.add(r, 12)
         }
         return c
@@ -1562,13 +1597,12 @@ class MainActivity : Activity(), GameView.Listener {
         c.add(box, 14)
         fun save(text: String) = Net.setBio(prefs, text) { why ->
             if (why != null) { toast(why.replaceFirstChar { it.uppercase() }); return@setBio }
-            closeSheet(); toast(if (text.isBlank()) "Bio removed" else "Bio saved"); if (tab == Tab.SOCIAL && gameLayer == null) showTab(Tab.SOCIAL)
+            closeSheet(); toast(if (text.isBlank()) "Bio removed" else "Bio saved"); if ((tab == Tab.SOCIAL || tab == Tab.SETTINGS) && gameLayer == null) showTab(tab)
         }
         c.add(primary("Save") { save(box.text.toString()) }, 14)
         if (prefs.bio.isNotEmpty()) c.add(secondary("Remove my bio") { save("") }, 10)
     }
 
-    /** Badges as a sheet (from Stats): what you've earned, and what's left. */
     /** Name a new club; the board checks the name like a player name. */
     private fun clubCreateSheet(done: () -> Unit) {
         val c = openSheet()
@@ -1583,6 +1617,7 @@ class MainActivity : Activity(), GameView.Listener {
         }, 14)
     }
 
+    /** Badges as a sheet (from Stats): what you've earned, and what's left. */
     private fun badgesSheet() {
         val c = openSheet()
         c.add(display("Badges", 32f))
@@ -1650,16 +1685,18 @@ class MainActivity : Activity(), GameView.Listener {
 
     /** Road to 1,000: the board's player count toward the goal, what everyone gets there, and an invite to share. */
     private fun goalCard(): View {
-        val c = column().apply { background = rect(th.tile, stroke = th.accent); setPadding(dp(16), dp(14), dp(16), dp(14)) }
+        val c = column().apply { background = rect(th.panel, 12); setPadding(dp(16), dp(14), dp(16), dp(14)) }
         val n = playerCount; val goal = playerGoal
-        c.add(label("Road to %,d".format(java.util.Locale.ENGLISH, goal), th.accent))
-        c.add(tv(if (n != null) "%,d / %,d players".format(java.util.Locale.ENGLISH, n, goal) else "Counting players…", 26f, Fonts.display), 4)
-        c.add(xpBar((n ?: 0).toFloat() / goal), 8, MATCH_PARENT, dp(6))
-        c.add(tv(if (prefs.goalReached) "We made it! Thank you. The $GOLD_THEME colourway is open for everyone in Settings → Look."
-            else "At %,d players everyone unlocks the $GOLD_THEME colourway. Invite a friend: once they finish a ranked run, you both get 2 hints and a streak freeze.".format(java.util.Locale.ENGLISH, goal),
-            14f, Fonts.body, th.muted).apply { setLineSpacing(0f, 1.25f) }, 10)
+        val head = row()
+        head.add(label("Road to %,d".format(java.util.Locale.ENGLISH, goal), th.accent), 0, 0, WRAP_CONTENT, 1f)
+        head.add(tv(if (n != null) "%,d / %,d".format(java.util.Locale.ENGLISH, n, goal) else "…", 16f, Fonts.label, th.text, caps = true, track = 0.04f), 0, WRAP_CONTENT)
+        c.add(head)
+        c.add(xpBar((n ?: 0).toFloat() / goal), 10, MATCH_PARENT, dp(5))
+        c.add(tv(if (prefs.goalReached) "We made it! The $GOLD_THEME colourway is open for everyone."
+            else "At %,d players everyone unlocks the $GOLD_THEME colourway. Invite a friend and you both get 2 hints and a streak freeze.".format(java.util.Locale.ENGLISH, goal),
+            13.5f, Fonts.body, th.muted).apply { setLineSpacing(0f, 1.2f) }, 10)
         val code = prefs.friendCode
-        if (code != null) c.add(primary("Invite a friend", Glyph.SHARE) {
+        if (code != null) c.add(secondary("Invite a friend", th.accent, Glyph.SHARE) {
             shareText("Play Cubit with me! It's a free puzzle game, no ads. Add my friend code ${fmtCode(code)} and we both get a reward: ${Links.WEB}?f=$code", "Invite a friend")
         }, 12)
         return c
@@ -1731,12 +1768,8 @@ class MainActivity : Activity(), GameView.Listener {
         fun renderFriends() {
             if (!prefs.postOnline) { status.text = "Friends need global rankings. Turn them on to swap codes."; return }
             val mine = prefs.friendCode
-            status.text = if (mine == null) codeError?.let { "Couldn't get your friend code ($it). Try again later." } ?: "Getting your friend code…" else "Your friend code: ${fmtCode(mine)} · tap to copy"
-            if (mine != null) status.setOnClickListener {
-                (getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager).setPrimaryClip(android.content.ClipData.newPlainText("Cubit friend code", fmtCode(mine)))
-                toast("Friend code copied")
-            }
-            list.add(goalCard())
+            status.text = if (mine == null) codeError?.let { "Couldn't get your friend code ($it). Try again later." } ?: "Getting your friend code…" else ""
+            status.visibility = if (mine == null) View.VISIBLE else View.GONE // your code is on your card above
             val addRow = row()
             val box = field("", "Friend's code, like AB12-CD34")
             addRow.add(box, 0, 0, WRAP_CONTENT, 1f)
@@ -1747,10 +1780,9 @@ class MainActivity : Activity(), GameView.Listener {
                 else if (c in prefs.friends) toast("Already in your friends")
                 else addFriend(c) { friendRows = null; render(); loadFriends() }
             }, 0, WRAP_CONTENT).let { (it.layoutParams as LinearLayout.LayoutParams).marginStart = dp(10) }
-            list.add(addRow, 14)
             val reqs = friendInbox.orEmpty().filter { it.code !in prefs.friends }
             if (reqs.isNotEmpty()) {
-                list.add(label("Friend requests · ${reqs.size}"), 20)
+                list.add(label("Friend requests · ${reqs.size}"), 4)
                 reqs.forEachIndexed { i, q -> requestRow(q, if (i == 0) 8 else 6) }
             }
             if (friendNotes.isNotEmpty()) {
@@ -1758,10 +1790,11 @@ class MainActivity : Activity(), GameView.Listener {
                 val now = System.currentTimeMillis() / 1000
                 friendNotes.forEachIndexed { i, n -> noteRow(n, now, if (i == 0) 8 else 6) }
             }
-            if (reqs.isNotEmpty() || friendNotes.isNotEmpty()) list.add(label("Your friends"), 20)
+            list.add(label("Your friends" + if (prefs.friends.isNotEmpty()) " · ${prefs.friends.size}" else ""), if (list.childCount == 0) 4 else 22)
+            list.add(addRow, 8)
             val rows = friendRows
-            if (rows == null) { list.add(body("Loading your friends…", th.muted), 14); return }
-            if (prefs.friends.isEmpty()) { list.add(body("No friends yet. Share your code, or add theirs above.", th.muted), 14); return }
+            if (rows == null) { list.add(body("Loading your friends…", th.muted), 14); list.add(goalCard(), 22); return }
+            if (prefs.friends.isEmpty()) { list.add(body("No friends yet. Share your code, or add theirs above.", th.muted), 12); list.add(goalCard(), 22); return }
             val gone = prefs.friends - rows.map { it.first.code }.toSet()
             rows.sortedByDescending { it.first.xp }.forEachIndexed { i, (pl, best) ->
                 val me = pl.code == mine
@@ -1771,6 +1804,7 @@ class MainActivity : Activity(), GameView.Listener {
                     onClick = if (me) ({ profileSheet() }) else ({ friendSheet(pl, best) { friendRows = friendRows?.filter { it.first.code != pl.code }; render() } }))
             }
             if (gone.isNotEmpty()) list.add(body("Not found: ${gone.joinToString { it.chunked(4).joinToString("-") }}. Check the code with your friend.", th.muted), 10)
+            list.add(goalCard(), 22)
             if (friendFeed.isNotEmpty()) {
                 list.add(label("This week"), 22)
                 val now = System.currentTimeMillis() / 1000
@@ -1929,7 +1963,7 @@ class MainActivity : Activity(), GameView.Listener {
 
         render = {
             list.removeAllViews()
-            status.setOnClickListener(null); status.isClickable = false // only the Friends tab's line copies your code
+            status.setOnClickListener(null); status.isClickable = false; status.visibility = View.VISIBLE
             when (ranksMode) {
                 5 -> renderFriends()
                 6 -> renderLeague()
@@ -1995,28 +2029,13 @@ class MainActivity : Activity(), GameView.Listener {
 
     // ---------- Settings ----------
 
-    private val openSections = HashSet<String>()
 
     /** A settings group: a panel whose heading folds it open and shut. Returns the body to fill. */
-    private fun section(col: LinearLayout, name: String, glyph: Glyph, first: Boolean = false): LinearLayout {
-        val p = panel()
-        val h = row().apply { minimumHeight = dp(40) }
-        h.add(IconView(this, glyph, th.accent, 22), 0, WRAP_CONTENT)
-        h.add(title(name).apply { setPadding(dp(10), 0, 0, 0) }, 0, 0, WRAP_CONTENT, 1f)
-        val chevron = IconView(this, Glyph.ARROW, th.muted, 20)
-        h.add(chevron, 0, WRAP_CONTENT)
-        p.add(h)
-        val body = column()
-        p.add(body)
-        fun show(open: Boolean) {
-            body.visibility = if (open) View.VISIBLE else View.GONE
-            chevron.rotation = if (open) 90f else 0f
-            h.contentDescription = "$name, ${if (open) "open" else "closed"}"
-        }
-        show(name in openSections)
-        h.pressable { val open = name !in openSections; if (open) openSections.add(name) else openSections.remove(name); show(open) }
-        col.add(p, if (first) 20 else 12)
-        return body
+    private fun section(col: LinearLayout, name: String, @Suppress("UNUSED_PARAMETER") glyph: Glyph, first: Boolean = false): LinearLayout {
+        col.add(label(name), if (first) 16 else 26)
+        val p = column().apply { background = rect(th.panel, 12); setPadding(dp(16), dp(6), dp(16), dp(12)) }
+        col.add(p, 8)
+        return p
     }
 
     private fun settingsTab(): View {
@@ -2030,12 +2049,24 @@ class MainActivity : Activity(), GameView.Listener {
             override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
             override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
         })
-        profile.add(name, 12)
+        profile.add(name, 10)
+        // The bio lives on the board, so it needs rankings on; tapping opens the editor.
+        val bioRow = row().apply {
+            minimumHeight = dp(60); setPadding(0, dp(10), 0, dp(10))
+            contentDescription = if (prefs.bio.isEmpty()) "Bio: none. Add one" else "Bio: ${prefs.bio}. Edit"
+            pressable { if (prefs.postOnline) bioSheet() else toast("A bio needs global rankings: turn them on below") }
+        }
+        val bioText = column()
+        bioText.add(tv("Bio", 16.5f, Fonts.bodyMedium))
+        bioText.add(tv(prefs.bio.ifEmpty { "One line about you, for your friends" }, 13.5f, Fonts.body, th.muted).apply { maxLines = 2 }, 2)
+        bioRow.add(bioText, 0, 0, WRAP_CONTENT, 1f)
+        bioRow.add(tv(if (prefs.bio.isEmpty()) "Add" else "Edit", 15f, Fonts.label, th.accent, caps = true, track = 0.06f).apply { setPadding(dp(12), 0, 0, 0) }, 0, WRAP_CONTENT)
+        profile.add(bioRow, 4)
         profile.add(switchRow("Global rankings", "Post your name, level and scores to the shared Cubit board. Off keeps everything on this phone.", prefs.postOnline) {
             prefs.postOnline = it
             if (!it && prefs.publicProfile) { prefs.publicProfile = false; Net.setProfile(prefs, false); showTab(Tab.SETTINGS) } // no board, no public page
         }, 4)
-        profile.add(switchRow("Public profile", "A page anyone with your link can see: name, level, badges, streak and best runs. There's no account or sign-in: it hangs off your friend code, and switching it off takes it down.", prefs.publicProfile) { on ->
+        profile.add(switchRow("Public profile", "A page anyone with your link can see: name, level, badges, streak and best runs. Off takes it down.", prefs.publicProfile) { on ->
             prefs.publicProfile = on
             if (on) prefs.postOnline = true
             Net.setProfile(prefs, on) { res -> if (res == null) toast("Couldn't reach the board (${Net.lastError}). Try the switch again later.") }
@@ -2102,7 +2133,7 @@ class MainActivity : Activity(), GameView.Listener {
         val contrast = THEMES.indexOfFirst { it.name == "Contrast" }
         access.add(switchRow("High contrast", "The Contrast colourway: black and white, with line colours that stay distinct for colour-blind players.", prefs.themeIndex == contrast) {
             // The stripe marks the target without relying on pink, which matters most for colour-blind players.
-            prefs.themeIndex = if (it) contrast else 0; if (it) prefs.markTarget = true; openSections.add("Accessibility"); buildShell()
+            prefs.themeIndex = if (it) contrast else 0; if (it) prefs.markTarget = true; buildShell()
         })
         access.add(body("Arrow weight in Look goes up to 14 for small screens. Cubit also follows the system's Remove animations setting.", th.muted), 6)
 

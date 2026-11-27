@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- **A cleaner look**: Play is the cube and one big Play button, with today's cubes below; Modes has wrapping mode pills and tiles; Settings groups stay open instead of folding away; cards, buttons and tabs got rounder and roomier.
+- **Bio in Settings**: write or edit it under Profile, as well as from your card in Social.
+- Your friend code shows once, on your card in Social; tap it to copy.
+
 ## 1.8.0 (2026-11-27)
 
 - **Advent calendar**: from 1 December a door opens every day until the 24th, each a cube Cubit picks for that day: it builds 8 and keeps the one with the pink arrow buried deepest, the same for everyone. They grow from 7×7 to a 16×16 finale. Missed doors stay open until 6 January; open all 24 for the Advent calendar badge and the new Holly colourway.

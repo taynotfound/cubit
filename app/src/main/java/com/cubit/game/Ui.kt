@@ -258,3 +258,33 @@ class LampsView(ctx: Context, private val lit: Int, private val off: Int) : View
         }
     }
 }
+
+/** Lays children out left to right and wraps to a new line when one doesn't fit, like words in a paragraph. */
+class FlowLayout(ctx: Context, private val hGap: Int, private val vGap: Int) : android.view.ViewGroup(ctx) {
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        val maxW = MeasureSpec.getSize(widthMeasureSpec) - paddingLeft - paddingRight
+        var x = 0; var y = 0; var lineH = 0; var widest = 0
+        for (i in 0 until childCount) {
+            val c = getChildAt(i)
+            if (c.visibility == GONE) continue
+            c.measure(MeasureSpec.makeMeasureSpec(maxW, MeasureSpec.AT_MOST), MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
+            if (x > 0 && x + c.measuredWidth > maxW) { x = 0; y += lineH + vGap; lineH = 0 }
+            x += c.measuredWidth + hGap; lineH = maxOf(lineH, c.measuredHeight); widest = maxOf(widest, x - hGap)
+        }
+        // Wrap-content: only as wide as the widest line, so a parent can centre it.
+        val w = if (MeasureSpec.getMode(widthMeasureSpec) == MeasureSpec.EXACTLY) MeasureSpec.getSize(widthMeasureSpec) else widest + paddingLeft + paddingRight
+        setMeasuredDimension(w, y + lineH + paddingTop + paddingBottom)
+    }
+
+    override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
+        val maxW = r - l - paddingLeft - paddingRight
+        var x = 0; var y = 0; var lineH = 0
+        for (i in 0 until childCount) {
+            val c = getChildAt(i)
+            if (c.visibility == GONE) continue
+            if (x > 0 && x + c.measuredWidth > maxW) { x = 0; y += lineH + vGap; lineH = 0 }
+            c.layout(paddingLeft + x, paddingTop + y, paddingLeft + x + c.measuredWidth, paddingTop + y + c.measuredHeight)
+            x += c.measuredWidth + hGap; lineH = maxOf(lineH, c.measuredHeight)
+        }
+    }
+}

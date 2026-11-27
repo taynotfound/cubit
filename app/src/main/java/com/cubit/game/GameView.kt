@@ -53,6 +53,8 @@ class GameView(ctx: Context) : View(ctx) {
     var autoSpin = false
     /** Clean mode's look: a see-through cube on the colourway's ground, flat arrows that fade with depth. */
     var glass = false
+    /** No background of its own: for a preview sitting on a card. */
+    var transparent = false
     /** Full-clear goal: the pink arrow only leaves once every other arrow is gone. */
     var pinkLast = false
     /** Accessibility: a white stripe down the pink arrow, so it doesn't rely on colour alone. */
@@ -369,7 +371,7 @@ class GameView(ctx: Context) : View(ctx) {
     }
 
     override fun onDraw(canvas: Canvas) {
-        if (glass) canvas.drawColor(theme.bg) else canvas.drawPaint(bgPaint)
+        if (transparent) {} else if (glass) canvas.drawColor(theme.bg) else canvas.drawPaint(bgPaint)
         if (!::puzzle.isInitialized || width == 0) return
         val now = SystemClock.uptimeMillis()
         val dt = ((now - lastFrame).coerceIn(0, 50)) / 1000f
