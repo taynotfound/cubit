@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="cubit_bg">#0E1B3D</color>
+    <string name="widget_description">Your daily streak, and whether today\'s cube is done.</string>
     <style name="Theme.Cubit" parent="@android:style/Theme.Material.NoActionBar">
         <item name="android:windowBackground">@drawable/splash</item>
         <item name="android:statusBarColor">@color/cubit_bg</item>

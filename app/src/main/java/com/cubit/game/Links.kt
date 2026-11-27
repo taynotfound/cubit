@@ -70,6 +70,13 @@ fun resultText(head: String, full: Boolean, taps: Int, par: Int, lives: Int, liv
     return "$line1\n$line2\n$link"
 }
 
+/** Puts "Add me on Cubit: CODE" above the link (the last line), so the link still comes last for chat previews. */
+fun withFriendCode(text: String, code: String?): String {
+    if (code == null) return text
+    val lines = text.lines()
+    return (lines.dropLast(1) + "Add me on Cubit: $code" + lines.last()).joinToString("\n")
+}
+
 /**
  * One version's notes from CHANGELOG.md (bundled as an asset): its "- " lines, markdown links reduced to their text.
  * Empty if the version isn't there. **Bold** is kept for the sheet to style.

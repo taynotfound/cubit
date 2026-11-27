@@ -52,3 +52,23 @@ fun timeLeft(ends: Long, now: Long): String {
 
 /** Ranked players needed for Road to 1,000; the server sends its own goal, this is the fallback. */
 const val PLAYER_GOAL = 1000
+
+data class ClubRow(val code: String, val name: String, val members: Int, val xp: Int)
+data class ClubMember(val name: String, val level: Int, val xp: Int, val code: String, val me: Boolean, val owner: Boolean)
+class MyClub(val code: String, val name: String, val owner: Boolean, val xp: Int, val rank: Int, val members: List<ClubMember>)
+/** GET /v1/me/club: your club, if any, and the week's top clubs ([of] clubs in all). */
+class ClubState(val ends: Long, val max: Int, val of: Int, val top: List<ClubRow>, val club: MyClub?)
+
+/** Club join codes: 6 characters with no 0/O or 1/I; typed in any case. */
+fun cleanClubCode(s: String) = s.uppercase().filter { it in "23456789ABCDEFGHJKLMNPQRSTUVWXYZ" }.takeIf { it.length == 6 }
+
+/** A cube someone published from the cube maker (GET /v1/cubes). */
+data class CommunityCube(val id: String, val title: String, val author: String, val spec: LevelSpec, val arrows: Int, val par: Int,
+                         val likes: Int, val wins: Int, val liked: Boolean, val won: Boolean, val mine: Boolean)
+
+/** One page of community cubes, and how many there are in all. */
+class CubePage(val cubes: List<CommunityCube>, val total: Int, val page: Int, val size: Int)
+
+/** The cube maker's sliders: sizes and arrow lengths a published cube may have (the server checks the same). */
+val MAKER_SIZES = 5..18
+val MAKER_LENGTHS = 3..16

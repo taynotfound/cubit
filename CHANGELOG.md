@@ -2,15 +2,22 @@
 
 ## Unreleased
 
+- **Advent calendar**: from 1 December a door opens every day until the 24th, each a cube Cubit picks for that day: it builds 8 and keeps the one with the pink arrow buried deepest, the same for everyone. They grow from 7×7 to a 16×16 finale. Missed doors stay open until 6 January; open all 24 for the Advent calendar badge and the new Holly colourway.
+- **Community cubes**: build a cube in the new **Cube maker** (size, arrow length, special arrows, reroll until it looks right), give it a title and publish it. Everyone can browse the top and newest cubes in Modes, play them, and like them; each card counts who cleared it. Titles are filtered like names and can be reported.
+- **Clubs**: start a club or join one with its 6-letter code (up to 20 players). Everyone's XP this week adds up, and clubs get their own weekly board, under your league in Social → Weekly.
+- **Cubit Wrapped**: from 10 December, your year in numbers on the Play tab, with a picture to share.
+- **Home-screen widget**: your streak and whether today's cube is done; tap it to play.
+- **Daily reminder**: pick the time (8 am to 9 pm), and it now reminds you about today's cube even without a streak. In December it mentions the advent door too.
+- Shared results now carry your friend code, on the picture and in the text, so anyone who sees them can add you.
 - **A new layout**: a bar at the bottom with Play, Modes, Social and Settings, so nothing hides behind a More sheet any more. Play has today's daily and weekly cubes right under the level; Modes lists every way to play, with how you play (Zen to Twist) on top; Social has your profile card, friends and every board; Badges moved into Stats.
 - **Leagues**: each week, play ranked runs to climb a group of up to 20 players in your league. The top three move up (Bronze, Silver, Gold, Platinum, Diamond), the bottom three move down.
 - **Quick messages and challenges**: send a friend "GG!", "Rematch?" and other set lines, or your last win as a challenge they race as a ghost. They only reach friends who added you back.
 - **What your friends did this week**: their runs and level-ups, under your friends in Social.
 - **Bio**: one line about you on your profile and in your friends' lists. No links, handles or numbers, and anyone can report one.
 - **Road to 1,000**: when Cubit reaches 1,000 ranked players, everyone unlocks the Gold colourway. Invite a friend: once they finish a ranked run, you both get 2 hints and a streak freeze.
-- **Friend requests**: adding someone's friend code now tells them. They see "added you as a friend" on the home screen and at the top of Rankings → Friends, and can add you back in one tap or ignore it. Friends you added before this update get your request too.
+- **Friend requests**: adding someone's friend code now tells them. They see "added you as a friend" on the home screen and at the top of Social → Friends, and can add you back in one tap or ignore it. Friends you added before this update get your request too.
 - A friend code nobody has is no longer added; Cubit says so instead.
-- Tap your friend code in Rankings → Friends to copy it.
+- Tap your friend code in Social → Friends to copy it.
 - **Under par**: a bomb can take an arrow in the pink one's way along, so a cube with bombs can be won in fewer taps than par. The win sheet and shared results now say "under par" instead of claiming nobody can do better.
 
 ## 1.7.6 (2026-11-20)

@@ -13,8 +13,9 @@ import android.os.Build
 import java.util.Calendar
 
 /**
- * The opt-in streak reminder: around 19:00 local time, if a daily streak is alive and today's cube isn't solved, one
- * notification. Nothing fires once the cube is done, when the streak is gone, or when the setting is off.
+ * The opt-in daily reminder: at the hour the player picked (19:00 unless changed), one notification if today's cube
+ * isn't solved yet. It talks about the streak when there is one, and the advent door in December. Nothing fires once
+ * the cube is done or when the setting is off.
  */
 class ReminderReceiver : BroadcastReceiver() {
     override fun onReceive(ctx: Context, intent: Intent) {
@@ -23,15 +24,15 @@ class ReminderReceiver : BroadcastReceiver() {
         if (intent.action == Intent.ACTION_BOOT_COMPLETED) { schedule(ctx, p.streakReminder); return }
         val today = utcDay()
         val streak = p.liveStreak(today)
-        if (!p.streakReminder || streak <= 0 || p.dailyDone == today) return
+        if (!p.streakReminder || p.dailyDone == today) return
         val nm = ctx.getSystemService(NotificationManager::class.java) ?: return
-        if (Build.VERSION.SDK_INT >= 26) nm.createNotificationChannel(NotificationChannel(CHANNEL, "Streak reminder", NotificationManager.IMPORTANCE_DEFAULT))
+        if (Build.VERSION.SDK_INT >= 26) nm.createNotificationChannel(NotificationChannel(CHANNEL, "Daily reminder", NotificationManager.IMPORTANCE_DEFAULT))
         val open = PendingIntent.getActivity(ctx, 0, Intent(Intent.ACTION_VIEW, Uri.parse("cubit://daily/$today"), ctx, MainActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val n = (if (Build.VERSION.SDK_INT >= 26) Notification.Builder(ctx, CHANNEL) else @Suppress("DEPRECATION") Notification.Builder(ctx))
             .setSmallIcon(R.drawable.ic_launcher_monochrome)
-            .setContentTitle("Your $streak-day streak ends tonight")
-            .setContentText("Today's daily cube is waiting.")
+            .setContentTitle(reminderTitle(streak, p.reminderHour))
+            .setContentText(reminderText(today, Advent.season(today)?.let { (y, open) -> open.takeIf { it !in p.adventDoors(y) } }))
             .setContentIntent(open).setAutoCancel(true)
             .build()
         runCatching { nm.notify(1, n) } // denied notification permission: stay quiet
@@ -47,7 +48,7 @@ class ReminderReceiver : BroadcastReceiver() {
             am.cancel(pi)
             if (!on) return
             val at = Calendar.getInstance().apply {
-                set(Calendar.HOUR_OF_DAY, 19); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0)
+                set(Calendar.HOUR_OF_DAY, Prefs(ctx).reminderHour); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0)
                 if (timeInMillis <= System.currentTimeMillis()) add(Calendar.DAY_OF_YEAR, 1)
             }
             // Inexact on purpose: no exact-alarm permission, and a few minutes either way doesn't matter here.
@@ -55,3 +56,17 @@ class ReminderReceiver : BroadcastReceiver() {
         }
     }
 }
+
+/** The reminder's title: the streak when there is one ("ends tonight" from 5 pm on), otherwise the cube. */
+fun reminderTitle(streak: Int, hour: Int) = when {
+    streak > 0 && hour >= 17 -> "Your $streak-day streak ends tonight"
+    streak > 0 -> "Keep your $streak-day streak going"
+    else -> "Today's daily cube is ready"
+}
+
+/** The line under it: [adventDoor] is today's unsolved advent door, if there is one. */
+fun reminderText(@Suppress("UNUSED_PARAMETER") today: Int, adventDoor: Int?) =
+    if (adventDoor != null) "Advent door $adventDoor is open too." else "One cube, the same for everyone. A minute or two."
+
+/** The hours the reminder can be set to. */
+val REMINDER_HOURS = intArrayOf(8, 12, 17, 19, 21)

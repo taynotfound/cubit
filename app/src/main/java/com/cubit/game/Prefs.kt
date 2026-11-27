@@ -42,7 +42,8 @@ class RunFacts(val diff: Difficulty, val perfect: Boolean, val cleared: Int, val
                val maxBlast: Int = 0, val maxChain: Int = 0, val endless: Int = 0)
 
 /** Colourways past the first six are earned: each one opens with a badge. */
-val THEME_UNLOCKS = mapOf(6 to Achievement.TEN, 7 to Achievement.PERFECT, 8 to Achievement.ARROWS_100, 9 to Achievement.DAILY, 10 to Achievement.PURIST, 11 to Achievement.PERFECT_EXPERT)
+val THEME_UNLOCKS = mapOf(6 to Achievement.TEN, 7 to Achievement.PERFECT, 8 to Achievement.ARROWS_100, 9 to Achievement.DAILY, 10 to Achievement.PURIST, 11 to Achievement.PERFECT_EXPERT,
+    14 to Achievement.ADVENT)
 
 /** A named set of hand-picked cubes (seeds chosen offline for how deep the pink arrow sits). */
 class Pack(val name: String, val blurb: String, val levels: List<LevelSpec>)
@@ -86,6 +87,7 @@ enum class Achievement(val title: String, val blurb: String, val check: (Prefs, 
     CHAIN("Chain reaction", "Set off 3 bombs in one chain.", { _, r -> r.maxChain >= 3 }),
     ENDLESS_10("End of the line", "Clear 10 cubes in one endless run.", { _, r -> r.endless >= 10 }),
     FULL_MONTH("Every day this month", "Solve every daily cube of a month, on the day or from the archive.", { p, _ -> p.fullMonth() }),
+    ADVENT("Advent calendar", "Open all 24 doors of an advent calendar.", { p, _ -> p.adventDone }),
 }
 
 class Theme(
@@ -127,6 +129,8 @@ val THEMES = listOf(
         Color.rgb(0, 114, 178), Color.rgb(0, 158, 115), Color.rgb(213, 94, 0), Color.rgb(240, 228, 66), Color.rgb(86, 180, 233), Color.rgb(230, 159, 0))),
     // Road to 1,000: opens for everyone once Cubit has 1,000 ranked players (Prefs.goalReached).
     Theme("Gold", Color.rgb(26, 20, 8), Color.rgb(201, 154, 38), Color.rgb(255, 248, 225), Color.rgb(255, 214, 102), Color.rgb(250, 240, 210), Color.rgb(42, 33, 14)),
+    // The advent calendar's: holly green, a white cube and berry-red highlights. Earned with the ADVENT badge.
+    Theme("Holly", Color.rgb(12, 40, 28), Color.rgb(246, 244, 238), Color.rgb(18, 52, 36), Color.rgb(226, 58, 62), Color.rgb(240, 246, 240), Color.rgb(20, 56, 40)),
 )
 
 /** The colourway Road to 1,000 opens. */
@@ -181,6 +185,7 @@ class Prefs(ctx: Context) {
     var latestVersion: String? get() = sp.getString("updLatest", null); set(v) = sp.edit().putString("updLatest", v).apply()
     var dismissedVersion: String? get() = sp.getString("updDismissed", null); set(v) = sp.edit().putString("updDismissed", v).apply()
     /** Evening reminder while a daily streak is alive and today's cube isn't done. Opt-in. */
+    var reminderHour: Int get() = sp.getInt("remindHour", 19); set(v) = sp.edit().putInt("remindHour", v).apply()
     var streakReminder: Boolean get() = sp.getBoolean("remind", false); set(v) = sp.edit().putBoolean("remind", v).apply()
     /** Day whose "yesterday's cube" card was already shown or dismissed. */
     /** Most cubes cleared in one endless run. */
@@ -304,6 +309,19 @@ class Prefs(ctx: Context) {
     /** The friend who invited this player has been told to the board (or there was none to tell). */
     var inviteSent: Boolean get() = sp.getBoolean("inviteSent", false); set(v) = sp.edit().putBoolean("inviteSent", v).apply()
     /** The league week whose result was last shown, so it shows once. */
+    /** Advent doors solved, per calendar year (Advent.kt). */
+    fun adventDoors(year: Int): Set<Int> = sp.getStringSet("advent$year", emptySet())!!.mapNotNull { it.toIntOrNull() }.toSet()
+    fun addAdventDoor(year: Int, door: Int) {
+        val all = adventDoors(year) + door
+        sp.edit().putStringSet("advent$year", all.map { "$it" }.toHashSet()).apply()
+        if (all.size >= Advent.DOORS) adventDone = true
+    }
+    /** Which of a door's candidates won (Advent.pick), once worked out, so it's only built once. */
+    fun adventPick(year: Int, door: Int): Int = sp.getInt("adventPick${year}_$door", -1)
+    fun setAdventPick(year: Int, door: Int, k: Int) = sp.edit().putInt("adventPick${year}_$door", k).apply()
+    /** The last year whose Cubit Wrapped was opened, so the home card stops shouting. */
+    var wrappedSeen: Int get() = sp.getInt("wrappedSeen", 0); set(v) = sp.edit().putInt("wrappedSeen", v).apply()
+    var adventDone: Boolean get() = sp.getBoolean("adventDone", false); set(v) = sp.edit().putBoolean("adventDone", v).apply()
     var leagueSeen: Int get() = sp.getInt("leagueSeen", 0); set(v) = sp.edit().putInt("leagueSeen", v).apply()
     /** Friend requests already shown on the home screen, so each one shows there once. */
     var requestsSeen: Set<String> get() = sp.getStringSet("requestsSeen", emptySet())!!; set(v) = sp.edit().putStringSet("requestsSeen", HashSet(v.toList().takeLast(200))).apply()

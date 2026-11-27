@@ -296,6 +296,13 @@ func (a *App) startRun(w http.ResponseWriter, r *http.Request) {
 	// Bombs only where the app plays them: not on the shared daily and weekly cubes, nor Nightmare's lap cubes.
 	run.Spec.Special = b.Special && !run.Spec.Lap && (b.Mode == "campaign" || b.Mode == "free" || b.Mode == "endless")
 	run.Spec.NoLocks = run.Spec.Special && b.NoLocks
+	if run.Free {
+		a.store.mu.Lock()
+		if c := a.store.cubeBySpec(run.Spec); c != nil && !run.Spec.Lap {
+			run.Label = "Community · " + c.Title
+		}
+		a.store.mu.Unlock()
+	}
 	switch b.Goal {
 	case "", "pink":
 	case "all":
@@ -605,6 +612,21 @@ func (a *App) routes() http.Handler {
 	m.HandleFunc("POST /v1/me/rewards", a.claimRewards)
 	m.HandleFunc("GET /v1/admin/reports", a.admin(a.adminReports))
 	m.HandleFunc("POST /v1/admin/reports/{code}", a.admin(a.adminReport))
+	m.HandleFunc("POST /v1/cubes", a.publishCube)
+	m.HandleFunc("GET /v1/cubes", a.listCubes)
+	m.HandleFunc("POST /v1/cubes/{id}/like", a.likeCube)
+	m.HandleFunc("DELETE /v1/cubes/{id}/like", a.likeCube)
+	m.HandleFunc("POST /v1/cubes/{id}/report", a.reportCube)
+	m.HandleFunc("DELETE /v1/cubes/{id}", a.removeCube)
+	m.HandleFunc("GET /v1/admin/cubes", a.admin(a.adminCubes))
+	m.HandleFunc("POST /v1/admin/cubes/{id}", a.admin(a.adminCube))
+	m.HandleFunc("POST /v1/clubs", a.createClub)
+	m.HandleFunc("POST /v1/clubs/{code}/join", a.joinClub)
+	m.HandleFunc("POST /v1/me/club/leave", a.leaveClubHandler)
+	m.HandleFunc("DELETE /v1/me/club/members/{code}", a.kickClubMember)
+	m.HandleFunc("GET /v1/me/club", a.myClub)
+	m.HandleFunc("GET /v1/admin/clubs", a.admin(a.adminClubs))
+	m.HandleFunc("POST /v1/admin/clubs/{code}", a.admin(a.adminClub))
 	m.HandleFunc("GET /v1/stats", a.stats)
 	m.HandleFunc("GET /v1/world", a.worldState)
 	m.HandleFunc("POST /v1/world/tap", a.worldTap)

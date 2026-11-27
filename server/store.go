@@ -45,6 +45,9 @@ type Device struct {
 	InviteDone bool          `json:"inviteDone,omitempty"`
 	Invited    int           `json:"invited,omitempty"` // players this one brought in who finished a run
 	Rewards    int           `json:"rewards,omitempty"` // invite rewards not yet handed to the app
+	// The player's club (clubs.go), by code, and when they last joined, left or made one.
+	Club   string `json:"club,omitempty"`
+	ClubAt int64  `json:"clubAt,omitempty"`
 }
 
 // publicCode is the friend code to show next to the player on public boards: only when they made their profile
@@ -99,9 +102,11 @@ type DB struct {
 	EndlessDaily []EndlessScore         `json:"endlessDaily,omitempty"`
 	World        *World                 `json:"world,omitempty"` // the shared World Cube
 	// WorldCounted: World Cubes won before players' counts existed (1.7.2) have been credited to their winners.
-	WorldCounted bool                   `json:"worldCounted,omitempty"`
-	Reports      []Report               `json:"reports,omitempty"`     // reported bios (social.go)
-	LeagueSlots  map[string]*leagueSlot `json:"leagueSlots,omitempty"` // "week:tier" → the group being filled
+	WorldCounted bool                      `json:"worldCounted,omitempty"`
+	Reports      []Report                  `json:"reports,omitempty"`     // reported bios (social.go)
+	LeagueSlots  map[string]*leagueSlot    `json:"leagueSlots,omitempty"` // "week:tier" → the group being filled
+	Clubs        map[string]*Club          `json:"clubs,omitempty"`       // by join code (clubs.go)
+	Cubes        map[string]*CommunityCube `json:"cubes,omitempty"`       // community cubes by id (community.go)
 }
 
 const maxScores = 5000

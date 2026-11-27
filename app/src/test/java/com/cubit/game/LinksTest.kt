@@ -9,6 +9,11 @@ import java.net.URLDecoder
 class LinksTest {
     private fun decoded(p: String) = URLDecoder.decode(p, "UTF-8")
 
+    @Test fun friendCodeGoesAboveTheLink() {
+        assertEquals("a\nb\nAdd me on Cubit: 1234-ABCD\nhttps://x", withFriendCode("a\nb\nhttps://x", "1234-ABCD"))
+        assertEquals("a\nhttps://x", withFriendCode("a\nhttps://x", null))
+    }
+
     @Test fun challengeRoundTrips() {
         val moves = listOf(longArrayOf(4, 900), longArrayOf(-2, 1500), longArrayOf(UNDO_TAP.toLong(), 2100), longArrayOf(0, 5400))
         val c = Challenge(LevelSpec(12, 10, -987654321012L, lap = true), true, Difficulty.NIGHTMARE, "Tay_M é", moves)

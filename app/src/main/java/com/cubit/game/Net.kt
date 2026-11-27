@@ -256,6 +256,49 @@ object Net {
         main.post { done(r) }
     }
 
+    /** Your club (null when you're in none) and the week's top clubs. */
+    fun club(p: Prefs, done: (ClubState?) -> Unit) = io.execute {
+        val r = call {
+            val o = JSONObject(authed(p, "GET", "/v1/me/club", null))
+            val top = o.getJSONArray("top")
+            val c = o.optJSONObject("club")
+            ClubState(o.optLong("ends"), o.optInt("max", 20), o.optInt("of"),
+                (0 until top.length()).map { top.getJSONObject(it) }.map { ClubRow(it.optString("code"), it.optString("name"), it.optInt("members"), it.optInt("xp")) },
+                c?.let { j ->
+                    val ms = j.getJSONArray("members")
+                    MyClub(j.optString("code"), j.optString("name"), j.optBoolean("owner"), j.optInt("xp"), j.optInt("rank"),
+                        (0 until ms.length()).map { ms.getJSONObject(it) }.map { ClubMember(it.optString("name"), it.optInt("level"), it.optInt("xp"), it.optString("code"), it.optBoolean("me"), it.optBoolean("owner")) })
+                })
+        }
+        main.post { done(r) }
+    }
+
+    fun createClub(p: Prefs, name: String, done: (String?) -> Unit) = act(p, "POST", "/v1/clubs", JSONObject().put("name", name), done)
+    fun joinClub(p: Prefs, code: String, done: (String?) -> Unit) = act(p, "POST", "/v1/clubs/${code.uppercase()}/join", null, done)
+    fun leaveClub(p: Prefs, done: (String?) -> Unit) = act(p, "POST", "/v1/me/club/leave", null, done)
+    fun kickFromClub(p: Prefs, code: String, done: (String?) -> Unit) = act(p, "DELETE", "/v1/me/club/members/$code", null, done)
+
+    private fun cubeOf(o: JSONObject) = CommunityCube(o.optString("id"), o.optString("title"), o.optString("author"),
+        LevelSpec(o.getInt("n"), o.getInt("maxLen"), o.getLong("seed"), special = o.optBoolean("special")),
+        o.optInt("arrows"), o.optInt("par"), o.optInt("likes"), o.optInt("wins"), o.optBoolean("liked"), o.optBoolean("won"), o.optBoolean("mine"))
+
+    /** Community cubes: [sort] "top" or "new", or your own with [mine]. Works signed out too (no liked/won marks). */
+    fun cubes(p: Prefs, sort: String, page: Int, mine: Boolean, done: (CubePage?) -> Unit) = io.execute {
+        val r = call {
+            val path = "/v1/cubes?sort=$sort&page=$page" + if (mine) "&mine=1" else ""
+            val o = JSONObject(if (p.lbToken != null) authed(p, "GET", path, null) else request("GET", path, null, null))
+            val a = o.getJSONArray("cubes")
+            CubePage((0 until a.length()).map { cubeOf(a.getJSONObject(it)) }, o.optInt("total"), o.optInt("page"), o.optInt("size", 30))
+        }
+        main.post { done(r) }
+    }
+
+    fun publishCube(p: Prefs, title: String, s: LevelSpec, done: (String?) -> Unit) =
+        act(p, "POST", "/v1/cubes", JSONObject().put("title", title).put("n", s.n).put("maxLen", s.maxLen).put("seed", s.seed).put("special", s.special), done)
+    fun likeCube(p: Prefs, id: String, on: Boolean, done: (String?) -> Unit) = act(p, if (on) "POST" else "DELETE", "/v1/cubes/$id/like", null, done)
+    fun reportCube(p: Prefs, id: String, done: (String?) -> Unit) = act(p, "POST", "/v1/cubes/$id/report", null, done)
+    fun removeCube(p: Prefs, id: String, done: (String?) -> Unit) = act(p, "DELETE", "/v1/cubes/$id", null, done)
+
     /** Ranked players on the board and the community goal, for Road to 1,000. */
     fun stats(done: (Pair<Int, Int>?) -> Unit) = io.execute {
         val r = call { JSONObject(request("GET", "/v1/stats", null, null)).let { it.getInt("players") to it.optInt("goal", PLAYER_GOAL) } }

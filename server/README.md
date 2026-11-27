@@ -57,6 +57,18 @@ Moderation: `GET /v1/admin/reports` lists reported bios; `POST /v1/admin/reports
 `"remove"` or `"lock"` (removed, and no new bio). Set `NTFY_URL` (and `NTFY_TOKEN` if the topic needs one) to get a
 push for each report; otherwise they're logged.
 
+Clubs (signed in, `clubs.go`): `POST /v1/clubs` (`{"name":…}`, filtered like player names) starts one;
+`POST /v1/clubs/{code}/join`, `POST /v1/me/club/leave`, and `DELETE /v1/me/club/members/{code}` (owner only, by friend
+code). `GET /v1/me/club` gives your club, its members' XP this week, and the top 20 clubs. Joining, leaving and starting
+have a 10-minute cooldown. Admin: `GET /v1/admin/clubs` lists every club; `POST /v1/admin/clubs/{code}`
+`{"action":"remove"}` disbands one.
+
+Community cubes (`community.go`): `POST /v1/cubes` (`{"title","n","maxLen","seed","special"}`, signed in, 5 a day, 50
+kept) publishes a cube from the app's cube maker; `GET /v1/cubes?sort=top|new&page=` lists them (`&mine=1` your own);
+`POST`/`DELETE /v1/cubes/{id}/like`, `POST /v1/cubes/{id}/report` (three reporters hide it), `DELETE /v1/cubes/{id}`
+(author). A verified free run on a community cube counts as a win on it, once per player. Admin: `GET /v1/admin/cubes`
+lists reported cubes; `POST /v1/admin/cubes/{id}` `{"action":"keep"}` (and reports no longer hide it) or `"remove"`.
+
 Twist mode (`"difficulty":"Twist"`) records each face twist as move `-10 - face`; the replay turns that face's arrowheads.
 
 ## Names

@@ -615,4 +615,5 @@ func (s *Store) afterRun(id string, d *Device, sc Score, levelBefore int, now ti
 	}
 	s.leagueEarn(id, d, sc.XP, now)
 	s.inviteReward(d)
+	s.cubeWon(id, sc.Spec)
 }

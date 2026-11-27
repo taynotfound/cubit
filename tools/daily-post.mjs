@@ -17,6 +17,13 @@ const lines = [
   ``,
   `Reply with your result! #Cubit #puzzle #dailypuzzle`,
 ];
+// 1–24 December: the app's advent calendar opens a door each day (Advent.kt), so the post says which.
+const when = new Date(day * 86400000);
+if (when.getUTCMonth() === 11 && when.getUTCDate() <= 24) {
+  const d = when.getUTCDate();
+  lines.splice(2, 0, ``, d === 24 ? `🎄 The last advent door is open in the app: door 24, the big one.` : `🎄 Advent door ${d} of 24 is open in the app too.`);
+  lines[lines.length - 1] += " #adventcalendar";
+}
 if (process.argv.includes("--day")) process.stdout.write(String(day));
 else if (process.argv.includes("--alt")) process.stdout.write(`Cubit daily cube #${num}: a blue cube seen from above one corner, every face covered in ` +
   `winding white arrows, with one pink arrow on the front face. Text: "Daily cube #${num}. Par ${par}, ${p.paths.length} arrows, 12 by 12, ` +

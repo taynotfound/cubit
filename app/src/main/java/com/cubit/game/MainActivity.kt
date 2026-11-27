@@ -73,6 +73,8 @@ class MainActivity : Activity(), GameView.Listener {
     private var weekNo: Int? = null
     /** Puzzle pack round: the pack and the level index in it. */
     private var packRun: Pair<Pack, Int>? = null
+    /** The advent door being played: calendar year and door (1–24). */
+    private var adventRun: Pair<Int, Int>? = null
     /** Fewest taps that can win this cube (everything blocking the pink one, plus the pink one; or every arrow). */
     private var par = 0
     /** The cube has bombs, which can take several arrows in one tap and so beat [par]. */
@@ -311,6 +313,12 @@ class MainActivity : Activity(), GameView.Listener {
             "friend" -> Links.cleanCode(arg)?.let { addFriend(it) { ranksMode = 5; showTab(Tab.SOCIAL) } }
             "name" -> arg.trim().take(32).takeIf { it.isNotEmpty() }?.let { startFree(nameSpec(it), "Cube of $it") }
             "world" -> openWorld()
+            "club" -> cleanClubCode(arg)?.let { code ->
+                if (!prefs.postOnline) { toast("Clubs need global rankings: turn them on in Settings"); return }
+                confirm("Join club $code?", "Your XP this week counts for the club. You can leave any time.", "Not now", "Join") {
+                    closeSheet(); Net.joinClub(prefs, code) { why -> if (why != null) toast(why) else { toast("You're in!"); ranksMode = 6; showTab(Tab.SOCIAL) } }
+                }
+            }
         }
     }
 
@@ -481,7 +489,7 @@ class MainActivity : Activity(), GameView.Listener {
     }
 
     // The tick stops while we're in the background, or it would count that time and could end the level.
-    override fun onPause() { super.onPause(); pauseClock(); handler.removeCallbacks(tick); Music.pause(); if (running && !tutorial && game?.let { it.remaining < it.total } == true) saveRun() } // nothing to keep before the first arrow goes
+    override fun onPause() { super.onPause(); pauseClock(); handler.removeCallbacks(tick); Music.pause(); TodayWidget.refresh(this); if (running && !tutorial && game?.let { it.remaining < it.total } == true) saveRun() } // nothing to keep before the first arrow goes
     override fun onResume() { super.onResume(); if (running && !tipOpen) { resumedAt = SystemClock.uptimeMillis(); handler.post(tick) }; Music.resume() }
 
     @Deprecated("Deprecated in Java")
@@ -847,6 +855,13 @@ class MainActivity : Activity(), GameView.Listener {
             streak > 0 -> "Solve it to keep your $streak-day streak"
             else -> "One 12×12 cube, the same for everyone"
         }, highlight = prefs.dailyDone != day) { startDaily() }
+        WrappedYear.season(day)?.let { y ->
+            card(col, Glyph.BADGE, "Your $y in Cubit", if (prefs.wrappedSeen == y) "Your year in numbers · share it" else "Your year in Cubit is ready!", highlight = prefs.wrappedSeen != y) { wrappedSheet(y) }
+        }
+        Advent.season(day)?.let { (year, open) ->
+            val done = prefs.adventDoors(year)
+            card(col, Glyph.BADGE, "Advent calendar", Advent.status(open, done), highlight = open !in done) { adventSheet() }
+        }
         card(col, Glyph.RANKS, "Weekly challenge", if (prefs.weeklyDone == week) "Done this week · resets Monday"
             else "One big 16×16 cube · earns a streak freeze", highlight = prefs.weeklyDone != week) { startWeekly() }
         return col
@@ -876,12 +891,14 @@ class MainActivity : Activity(), GameView.Listener {
         card(col, Glyph.CUBE, "World Cube", "One giant cube everyone clears, live", highlight = true) { openWorld() }
         val todayBest = if (prefs.dailyEndlessDay == day) prefs.dailyEndlessBest else 0
         card(col, Glyph.BOLT, "Today's endless", "The same run of cubes for everyone" + if (todayBest > 0) " · best $todayBest" else "") { startEndless(daily = true) }
+        card(col, Glyph.RANKS, "Community cubes", "Cubes other players made · play and like them") { communitySheet() }
         group(col, "Your way")
         card(col, Glyph.BOLT, "Endless", "Cube after cube, lives carry over" + if (prefs.endlessBest > 0) " · best ${prefs.endlessBest}" else "") { startEndless() }
         val packs = prefs.allPacks(); val packsDone = packs.count { prefs.packSolved(it) >= it.levels.size }
         card(col, Glyph.BADGE, "Puzzle packs", "${packs.size} packs of picked cubes" + if (packsDone > 0) " · $packsDone done" else "") { packsSheet() }
         val missed = (maxOf(FIRST_DAILY, day - 30) until day).count { it !in prefs.dailyDays && it !in prefs.archiveDays }
         card(col, Glyph.REPLAY, "Past daily cubes", if (missed > 0) "$missed missed in the last 30 days" else "Every daily cube since the first") { archiveSheet(0) }
+        card(col, Glyph.CUBE, "Cube maker", "Build a cube, then publish it or send it") { makerSheet() }
         card(col, Glyph.SHARE, "Name cube", "Any name makes a cube · dare a friend") { nameSheet() }
         card(col, Glyph.ROAM, "Free roam", "Any size you like, or replay a level") { freeRoamSheet() }
         card(col, Glyph.HINT, "How to play", "The tutorial, again") { startTutorial() }
@@ -1070,6 +1087,185 @@ class MainActivity : Activity(), GameView.Listener {
             if (l == null || l !in 1..prefs.level) toast("Pick a level from 1 to ${prefs.level}") else { closeSheet(); startFree(specForLevel(l), "Level $l") }
         }, 0, WRAP_CONTENT).let { (it.layoutParams as LinearLayout.LayoutParams).marginStart = dp(10) }
         c.add(r, 8)
+    }
+
+    /** This phone's [year] in Cubit. Runs and dailies are counted for that year; the totals kept without dates
+     *  (wins, arrows, level, badges) are all-time, which for 2026, the launch year, is the same thing. */
+    private fun buildWrapped(year: Int): Wrapped {
+        val days = WrappedYear.days(year)
+        val runs = prefs.scores().filter { java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC")).apply { timeInMillis = it.time }.get(java.util.Calendar.YEAR) == year }
+        val modes = Difficulty.entries.map { it to prefs.stats(it) }
+        return Wrapped(year, prefs.solved, prefs.totalArrows, (prefs.dailyDays + prefs.archiveDays).count { it in days }, prefs.bestStreak,
+            playerLevel(prefs.xp).first, prefs.achievements.size, prefs.parWins,
+            modes.filter { it.second[0] > 0 }.maxByOrNull { it.second[0] }?.first?.label,
+            runs.filter { it.ms > 0 && it.arrows >= 10 }.minByOrNull { it.ms }?.let { it.label to it.ms },
+            runs.maxByOrNull { it.score }?.let { it.label to it.score },
+            prefs.adventDoors(year).size, prefs.endlessBest, modes.sumOf { it.second[3] }, playerCount ?: 0)
+    }
+
+    private fun wrappedSheet(year: Int) {
+        prefs.wrappedSeen = year
+        val w = buildWrapped(year)
+        val c = openSheet()
+        c.add(label("Cubit Wrapped", th.accent))
+        c.add(display("Your $year", 36f), 4)
+        if (w.players > 0) c.add(body("You were one of %,d players on the board. Thank you for playing!".format(java.util.Locale.ENGLISH, w.players), th.muted), 6)
+        WrappedYear.lines(w).forEachIndexed { i, (k, v) ->
+            val r = row().apply { minimumHeight = dp(52) }
+            r.add(label(k), 0, 0, WRAP_CONTENT, 1f)
+            r.add(tv(v, 26f, Fonts.display, if (i < 2) th.accent else th.text), 0, WRAP_CONTENT)
+            c.add(r, if (i == 0) 14 else 0)
+        }
+        c.add(primary("Share my year", Glyph.SHARE) { shareWrapped(w) }, 16)
+    }
+
+    /** The recap as a 4:5 picture with the friend code, for the share sheet. */
+    private fun shareWrapped(w: Wrapped) {
+        val bmp = android.graphics.Bitmap.createBitmap(1080, 1350, android.graphics.Bitmap.Config.ARGB_8888)
+        val c = android.graphics.Canvas(bmp)
+        c.drawColor(th.bg)
+        val p = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+        fun text(s: String, x: Float, y: Float, size: Float, color: Int, face: Typeface, align: android.graphics.Paint.Align = android.graphics.Paint.Align.LEFT) {
+            p.textSize = size; p.color = color; p.typeface = face; p.textAlign = align; p.letterSpacing = 0.02f; c.drawText(s.uppercase(), x, y, p)
+        }
+        p.color = th.accent; c.drawRect(90f, 90f, 130f, 130f, p)
+        text("Cubit", 150f, 130f, 64f, th.text, Fonts.display)
+        text("My ${w.year}", 90f, 290f, 150f, th.accent, Fonts.display)
+        text("Cubit Wrapped", 90f, 350f, 40f, th.muted, Fonts.label)
+        val lines = WrappedYear.lines(w).take(8)
+        lines.forEachIndexed { i, (k, v) ->
+            val x = if (i % 2 == 0) 90f else 570f; val y = 520f + (i / 2) * 190f
+            text(v, x, y, 76f, if (i < 2) th.accent else th.text, Fonts.display)
+            text(k, x, y + 48f, 32f, th.muted, Fonts.label)
+        }
+        text(prefs.name, 90f, 1285f, 40f, th.muted, Fonts.label)
+        prefs.friendCode?.let { text("Add me · ${fmtCode(it)}", 990f, 1285f, 40f, th.muted, Fonts.label, android.graphics.Paint.Align.RIGHT) }
+        val dir = java.io.File(cacheDir, "share").apply { mkdirs() }
+        java.io.File(dir, "cubit-wrapped.png").outputStream().use { bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+        val uri = android.net.Uri.parse("content://${ShareProvider.AUTHORITY}/cubit-wrapped.png")
+        val link = prefs.friendCode?.let { "${Links.WEB}?f=$it" } ?: "https://taynotfound.github.io/cubit/"
+        val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+            type = "image/png"; putExtra(android.content.Intent.EXTRA_STREAM, uri)
+            putExtra(android.content.Intent.EXTRA_TEXT, WrappedYear.shareText(w, link))
+            clipData = android.content.ClipData.newRawUri("Cubit Wrapped", uri)
+            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        startActivity(android.content.Intent.createChooser(send, "Share your year"))
+    }
+
+    /** The cube being made, kept while the sheet closes for a test play. */
+    private var makerSpec: LevelSpec? = null
+    private var makerTitle = ""
+
+    /**
+     * The cube maker: pick a size, an arrow length and whether special arrows are in, then reroll until the cube
+     * looks right. Play it, share it as a link, or publish it to Community cubes for everyone.
+     */
+    private fun makerSheet() {
+        val c = subSheet("Cube maker")
+        c.add(body("Pick the rules, reroll until you like it, then publish it for everyone or send it to a friend.", th.muted), 6)
+        var spec = makerSpec ?: LevelSpec(9, 7, Random.nextLong(), special = false)
+        val preview = GameView(this).apply { applyStyle(this); markTarget = true; inputEnabled = false; contentDescription = "Preview of your cube" }
+        c.add(preview, 12, MATCH_PARENT, dp(240))
+        val facts = tv("", 14f, Fonts.body, th.muted).apply { gravity = Gravity.CENTER }
+        c.add(facts, 8)
+        var serial = 0
+        fun rebuild() {
+            makerSpec = spec
+            val mine = ++serial
+            facts.text = "Building…"
+            val s = spec
+            bg.execute {
+                val pz = PuzzleCache.get(s)
+                handler.post {
+                    if (mine != serial) return@post
+                    preview.load(pz); preview.inputEnabled = false; preview.autoSpin = true
+                    facts.text = "${s.n}×${s.n}  ·  ${pz.paths.size} arrows  ·  par ${mustClear(pz) + 1}" + if (s.special) "  ·  special arrows" else ""
+                }
+            }
+        }
+        val sizeFlap = flap(5, 22f).apply { setInstant("%02d×%02d".format(spec.n, spec.n)) }
+        val lenFlap = flap(2, 22f).apply { setInstant("%02d".format(spec.maxLen)) }
+        val r1 = row(); r1.add(label("Cube size"), 0, 0, WRAP_CONTENT, 1f); r1.add(sizeFlap, 0, WRAP_CONTENT); c.add(r1, 12)
+        c.add(slider(MAKER_SIZES.first, MAKER_SIZES.last, spec.n) { spec = spec.copy(n = it); sizeFlap.text = "%02d×%02d".format(it, it); rebuild() }, 4)
+        val r2 = row(); r2.add(label("Max arrow length"), 0, 0, WRAP_CONTENT, 1f); r2.add(lenFlap, 0, WRAP_CONTENT); c.add(r2, 10)
+        c.add(slider(MAKER_LENGTHS.first, MAKER_LENGTHS.last, spec.maxLen) { spec = spec.copy(maxLen = it); lenFlap.text = "%02d".format(it); rebuild() }, 4)
+        c.add(switchRow("Special arrows", "Bombs, two-way arrows and wormholes.", spec.special) { spec = spec.copy(special = it); rebuild() }, 6)
+        c.add(secondary("Reroll", glyph = Glyph.DICE) { spec = spec.copy(seed = Random.nextLong()); rebuild() }, 10)
+        val titleBox = field(makerTitle, "Give it a title").apply { filters = arrayOf(android.text.InputFilter.LengthFilter(16)) }
+        c.add(titleBox, 16)
+        fun named(): String? = titleBox.text.toString().trim().also { makerTitle = it }.takeIf { it.length >= 2 }
+        c.add(primary("Play it", Glyph.ARROW) { closeSheet(); startFree(spec, named() ?: "Your cube") }, 14)
+        c.add(secondary("Publish to Community cubes", glyph = Glyph.RANKS) {
+            val t = named() ?: run { toast("Give it a title first (2 letters or more)"); return@secondary }
+            if (!prefs.postOnline) { toast("Publishing needs global rankings: turn them on in Settings"); return@secondary }
+            Net.publishCube(prefs, t, spec) { why ->
+                if (why != null) toast(why) else { toast("$t is live in Modes → Community cubes"); makerSpec = null; makerTitle = ""; closeSheet(); communitySheet(2) }
+            }
+        }, 8)
+        c.add(secondary("Send as a link", glyph = Glyph.SHARE) {
+            val t = named() ?: "A cube for you"
+            shareText("I made a Cubit cube: $t. Can you clear it?\n${Links.WEB}?pack=${java.net.URLEncoder.encode(Links.packPayload(t, listOf(spec)), "UTF-8")}", "Share your cube")
+        }, 8)
+        rebuild()
+    }
+
+    /** Community cubes: [view] 0 top, 1 new, 2 your own. Tap one to play it; like it, or report a bad title. */
+    private fun communitySheet(view: Int = 0, page: Int = 0) {
+        val c = subSheet("Community cubes")
+        c.add(body("Cubes players made in the cube maker. Clear one and it counts on its card. Ranked like free roam.", th.muted), 6)
+        c.add(segmented(listOf("Top", "New", "Mine"), view) { communitySheet(it) }, 12)
+        val status = tv("Loading…", 14f, Fonts.body, th.muted)
+        c.add(status, 12)
+        val list = column(); c.add(list, 4)
+        c.add(secondary("Make a cube", glyph = Glyph.CUBE) { closeSheet(); makerSheet() }, 16)
+        if (!prefs.postOnline && view == 2) { status.text = "Your cubes live on the board: turn on global rankings to publish."; return }
+        Net.cubes(prefs, if (view == 1) "new" else "top", page, view == 2) { pg ->
+            if (pg == null) { status.text = "Can't reach the board (${Net.lastError}). Try again later."; return@cubes }
+            status.text = when {
+                pg.total == 0 && view == 2 -> "You haven't published a cube yet."
+                pg.total == 0 -> "No cubes yet. Make the first one!"
+                else -> "${pg.total} cube${if (pg.total == 1) "" else "s"}" + if (pg.total > pg.size) " · page ${page + 1} of ${(pg.total + pg.size - 1) / pg.size}" else ""
+            }
+            pg.cubes.forEach { cube ->
+                val r = row().apply {
+                    background = rect(th.tile, 8, stroke = if (cube.won) th.accent else th.hairline); setPadding(dp(14), dp(10), dp(4), dp(10)); minimumHeight = dp(68)
+                    contentDescription = "${cube.title} by ${cube.author}, ${cube.spec.n} by ${cube.spec.n}, ${cube.likes} likes" + if (cube.won) ", cleared" else ""
+                }
+                val t = column()
+                t.add(title(cube.title).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END })
+                t.add(tv("by ${cube.author} · ${cube.spec.n}×${cube.spec.n} · ${cube.arrows} arrows · par ${cube.par}" +
+                    (if (cube.wins > 0) " · ${cube.wins} cleared" else "") + if (cube.won) " · ✓ you" else "", 13f, Fonts.body, th.muted).apply { maxLines = 2 }, 3)
+                r.add(t, 0, 0, WRAP_CONTENT, 1f)
+                var liked = cube.liked; var likes = cube.likes
+                val heart = tv("", 15f, Fonts.label, th.text, caps = true).apply { gravity = Gravity.CENTER; setPadding(dp(8), 0, dp(8), 0) }
+                fun paint() { heart.text = (if (liked) "♥ " else "♡ ") + likes; heart.setTextColor(if (liked) PINK else th.muted) }
+                paint()
+                if (!cube.mine) {
+                    heart.contentDescription = if (liked) "Unlike" else "Like"
+                    heart.pressable {
+                        if (!prefs.postOnline) { toast("Likes need global rankings"); return@pressable }
+                        liked = !liked; likes += if (liked) 1 else -1; paint()
+                        Net.likeCube(prefs, cube.id, liked) { why -> if (why != null) { liked = !liked; likes += if (liked) 1 else -1; paint(); toast(why) } }
+                    }
+                }
+                r.add(heart, 0, WRAP_CONTENT, dp(48))
+                r.add(plainIcon(if (cube.mine) Glyph.CLOSE else Glyph.MORE, if (cube.mine) "Remove ${cube.title}" else "Report ${cube.title}", th.muted) {
+                    if (cube.mine) confirm("Remove ${cube.title}?", "It leaves Community cubes for everyone.", "Keep it", "Remove") {
+                        closeSheet(); Net.removeCube(prefs, cube.id) { why -> if (why != null) toast(why); communitySheet(view, page) }
+                    } else confirm("Report ${cube.title}?", "If its title is rude or hurtful, it's hidden after a few reports until a moderator looks.", "Cancel", "Report") {
+                        closeSheet(); Net.reportCube(prefs, cube.id) { why -> toast(why ?: "Thanks, reported") }; communitySheet(view, page)
+                    }
+                }, 0, dp(44), dp(44))
+                r.pressable { closeSheet(); startFree(cube.spec, "Community · ${cube.title}") }
+                list.add(r, 8)
+            }
+            val nav = row()
+            if (page > 0) nav.add(secondary("Previous", glyph = Glyph.ARROW) { communitySheet(view, page - 1) }, 0, 0, WRAP_CONTENT, 1f)
+            if ((page + 1) * pg.size < pg.total) nav.add(secondary("More", glyph = Glyph.ARROW) { communitySheet(view, page + 1) }, 0, 0, WRAP_CONTENT, 1f)
+                .let { if (page > 0) (it.layoutParams as LinearLayout.LayoutParams).marginStart = dp(8) }
+            if (nav.childCount > 0) list.add(nav, 12)
+        }
     }
 
     private fun nameSheet() {
@@ -1373,6 +1569,20 @@ class MainActivity : Activity(), GameView.Listener {
     }
 
     /** Badges as a sheet (from Stats): what you've earned, and what's left. */
+    /** Name a new club; the board checks the name like a player name. */
+    private fun clubCreateSheet(done: () -> Unit) {
+        val c = openSheet()
+        c.add(title("Start a club"))
+        c.add(body("Pick a name everyone can see: 2 to 16 letters or digits. Nothing rude, or it gets removed.", th.muted), 8)
+        val box = field("", "Club name").apply { filters = arrayOf(android.text.InputFilter.LengthFilter(16)) }
+        c.add(box, 12)
+        c.add(primary("Start it") {
+            val name = box.text.toString().trim()
+            if (name.length < 2) { toast("A club name needs at least 2 letters"); return@primary }
+            Net.createClub(prefs, name) { why -> if (why != null) toast(why) else { closeSheet(); toast("$name is open. Share the code to bring people in."); done() } }
+        }, 14)
+    }
+
     private fun badgesSheet() {
         val c = openSheet()
         c.add(display("Badges", 32f))
@@ -1578,9 +1788,57 @@ class MainActivity : Activity(), GameView.Listener {
 
         var league: LeagueState? = null
         var leagueFailed = false
+        var clubs: ClubState? = null
         fun loadLeague() {
             if (!prefs.postOnline) return
             Net.league(prefs) { l -> league = l; leagueFailed = l == null; if (tab == Tab.SOCIAL && ranksMode == 6) render() }
+            Net.club(prefs) { c -> if (c != null) clubs = c; if (tab == Tab.SOCIAL && ranksMode == 6) render() }
+        }
+
+        /** Clubs, under the league: yours with its members' XP this week, or a way to start or join one; then the top clubs. */
+        fun renderClub() {
+            val cs = clubs ?: return
+            list.add(label("Club"), 24)
+            val mine = cs.club
+            if (mine == null) {
+                list.add(body("A club is a team of up to ${cs.max} players. Everyone's XP this week adds up, and clubs are ranked every week.", th.muted), 6)
+                val box = row()
+                val codeBox = field("", "Club code").apply { filters = arrayOf(android.text.InputFilter.AllCaps(), android.text.InputFilter.LengthFilter(6)) }
+                box.add(codeBox, 0, 0, WRAP_CONTENT, 1f)
+                box.add(secondary("Join") {
+                    val code = cleanClubCode(codeBox.text.toString()) ?: run { toast("Club codes have 6 letters and digits"); return@secondary }
+                    Net.joinClub(prefs, code) { why -> if (why != null) toast(why) else { toast("You're in!"); loadLeague() } }
+                }, 0, WRAP_CONTENT).let { (it.layoutParams as LinearLayout.LayoutParams).marginStart = dp(8) }
+                list.add(box, 10)
+                list.add(secondary("Start a club", glyph = Glyph.RANKS) { clubCreateSheet { loadLeague() } }, 8)
+            } else {
+                val head = row()
+                val t = column()
+                t.add(display(mine.name, 28f, th.accent))
+                t.add(label("#${mine.rank} of ${cs.of} clubs · ${mine.xp} XP this week · ${mine.members.size}/${cs.max}"), 4)
+                head.add(t, 0, 0, WRAP_CONTENT, 1f)
+                head.add(plainIcon(Glyph.SHARE, "Invite to your club") {
+                    shareText("Join my Cubit club ${mine.name}! Code ${mine.code}\n${Links.WEB}?club=${mine.code}", "Invite to your club")
+                }, 0, dp(48), dp(48))
+                list.add(head, 6)
+                mine.members.forEachIndexed { i, m ->
+                    boardRow(list, i + 1, m.name, (if (m.owner) "Owner · " else "") + "Player LV ${m.level}", "${m.xp}", "XP", me = m.me, top = 8,
+                        onClick = if (m.me) null else { {
+                            if (mine.owner) confirm("Remove ${m.name}?", "They leave ${mine.name}. They can join again with the code.", "Keep", "Remove") {
+                                closeSheet(); Net.kickFromClub(prefs, m.code) { why -> if (why != null) toast(why); loadLeague() }
+                            } else if (m.code in prefs.friends) toast("${m.name} is already your friend") else addFriend(m.code)
+                        } })
+                }
+                list.add(secondary("Leave club", Color.rgb(255, 107, 94)) {
+                    confirm("Leave ${mine.name}?", if (mine.members.size == 1) "You're the last one in it, so the club closes." else "Your XP stops counting for it.", "Stay", "Leave") {
+                        closeSheet(); Net.leaveClub(prefs) { why -> if (why != null) toast(why); loadLeague() }
+                    }
+                }, 12)
+            }
+            if (cs.top.isNotEmpty()) {
+                list.add(label("Top clubs this week"), 20)
+                cs.top.forEachIndexed { i, c -> boardRow(list, i + 1, c.name, "${c.members} member${if (c.members == 1) "" else "s"}", "${c.xp}", "XP", me = c.code == mine?.code, top = 8) }
+            }
         }
 
         /** This week's league: your group's table by XP earned this week, the promotion and relegation zones, and once,
@@ -1603,7 +1861,7 @@ class MainActivity : Activity(), GameView.Listener {
             }
             list.add(display(name, 34f, th.accent), if (list.childCount == 0) 0 else 14)
             list.add(body("Earn XP in ranked runs this week. The top ${l.move} of your group move up a league and the bottom ${l.move} move down. Groups hold up to 20 players.", th.muted), 6)
-            if (l.players.isEmpty()) { list.add(body("You're not in a group yet. Finish any ranked run this week to join one.", th.muted), 14); return }
+            if (l.players.isEmpty()) { list.add(body("You're not in a group yet. Finish any ranked run this week to join one.", th.muted), 14); renderClub(); return }
             val n = l.players.size
             l.players.forEachIndexed { i, p ->
                 if (n >= 5 && i == l.move) list.add(label("↑ Promotion zone above", th.accent), 10)
@@ -1611,6 +1869,7 @@ class MainActivity : Activity(), GameView.Listener {
                 boardRow(list, i + 1, p.name, "Player LV ${p.level}", "${p.xp}", "XP", me = p.me, profile = p.code.isNotEmpty(), top = 8,
                     onClick = p.code.takeIf { it.isNotEmpty() }?.let { c -> { profileSheet(c) } })
             }
+            renderClub()
         }
 
         /** One board: [m] is 0 players, 1 best runs, 2 today's daily cube, 3 this week's challenge. Under a [heading]
@@ -1726,7 +1985,7 @@ class MainActivity : Activity(), GameView.Listener {
         // Five tabs that fit side by side; the numbers are the modes they show (see ranksMode).
         val tabModes = intArrayOf(5, 6, 2, 0, 1)
         if (ranksMode !in tabModes) ranksMode = 5 // Badges moved to Stats in 1.8; older tabs land on Friends
-        col.add(segmented(listOf("Friends", "League", "Today", "Players", "Best"), tabModes.indexOf(ranksMode)) { ranksMode = tabModes[it]; render() }, 16)
+        col.add(segmented(listOf("Friends", "Weekly", "Today", "Players", "Best"), tabModes.indexOf(ranksMode)) { ranksMode = tabModes[it]; render() }, 16)
         col.add(status, 12)
         col.add(action, 10)
         col.add(list, 12)
@@ -1854,12 +2113,17 @@ class MainActivity : Activity(), GameView.Listener {
         val volRow = row(); volRow.add(label("Music volume"), 0, 0, WRAP_CONTENT, 1f); volRow.add(volFlap, 0, WRAP_CONTENT)
         feel.add(volRow, 12)
         feel.add(slider(0, 100, prefs.musicVolume) { prefs.musicVolume = it; Music.level = it / 100f; volFlap.text = "%3d".format(it) }.apply { contentDescription = "Music volume" }, 4)
-        feel.add(switchRow("Streak reminder", "One notification around 7 pm if your daily streak would end tonight. Nothing else.", prefs.streakReminder) { on ->
+        val hours = segmented(REMINDER_HOURS.map { if (it < 12) "$it am" else if (it == 12) "noon" else "${it - 12} pm" },
+            REMINDER_HOURS.indexOf(prefs.reminderHour).coerceAtLeast(0)) { i -> prefs.reminderHour = REMINDER_HOURS[i]; ReminderReceiver.schedule(this, prefs.streakReminder) }
+        hours.visibility = if (prefs.streakReminder) View.VISIBLE else View.GONE
+        feel.add(switchRow("Daily reminder", "One notification at the time you pick if today's cube isn't solved yet, with your streak if you have one. Nothing else.", prefs.streakReminder) { on ->
             prefs.streakReminder = on
+            hours.visibility = if (on) View.VISIBLE else View.GONE
             if (on && android.os.Build.VERSION.SDK_INT >= 33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED)
                 requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 7)
             ReminderReceiver.schedule(this, on)
         })
+        feel.add(hours, 8)
         feel.add(switchRow("Vibration", "Taps, slides, bumps, powerups and the win, felt as well as heard.", prefs.haptics) { prefs.haptics = it; Haptics.enabled = it })
 
         val play = section(col, "Powerups", Glyph.SHIELD)
@@ -2269,6 +2533,8 @@ class MainActivity : Activity(), GameView.Listener {
         text("points", 90f, 1305f, 32f, th.muted, Fonts.label)
         text("%02d:%02d · %d arrows".format(secs / 60 % 100, secs % 60, cleared), 990f, 1225f, 44f, th.text, Fonts.label, android.graphics.Paint.Align.RIGHT)
         text(if (perfect) "Perfect run" else prefs.name, 990f, 1285f, 40f, if (perfect) PINK else th.muted, Fonts.label, android.graphics.Paint.Align.RIGHT)
+        // The friend code turns a shared picture into an invite: anyone who sees it can add you.
+        prefs.friendCode?.let { text("Add me · ${fmtCode(it)}", 990f, 130f, 34f, th.muted, Fonts.label, android.graphics.Paint.Align.RIGHT) }
         val dir = java.io.File(cacheDir, "share").apply { mkdirs() }
         java.io.File(dir, "cubit-run.png").outputStream().use { bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
         val uri = android.net.Uri.parse("content://${ShareProvider.AUTHORITY}/cubit-run.png")
@@ -2279,8 +2545,8 @@ class MainActivity : Activity(), GameView.Listener {
                 ?: "${Links.WEB}?c=${Links.challengePayload(Challenge(spec, roundFull, diff, prefs.name, moves))}"
             val head = dailyDay?.let { "Cubit daily #${it - FIRST_DAILY + 1}" } ?: weekNo?.let { "Cubit weekly #${it - utcWeek(FIRST_DAILY) + 1}" }
                 ?: "Cubit · $line"
-            putExtra(android.content.Intent.EXTRA_TEXT, resultText(head, roundFull, taps, par, diff.lives, livesLeft, mistakes, secs, score,
-                if (dailyDay != null) prefs.dailyStreak else 0, link))
+            putExtra(android.content.Intent.EXTRA_TEXT, withFriendCode(resultText(head, roundFull, taps, par, diff.lives, livesLeft, mistakes, secs, score,
+                if (dailyDay != null) prefs.dailyStreak else 0, link), prefs.friendCode?.let { fmtCode(it) }))
             clipData = android.content.ClipData.newRawUri("Cubit run", uri)
             addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
@@ -2295,7 +2561,47 @@ class MainActivity : Activity(), GameView.Listener {
     }
 
     /** Leaves endless and the archive behind: every way into a round but those two starts here. */
-    private fun plainRound() { endless = -1; archiveDay = null; endlessDay = null; endlessId = null }
+    private fun plainRound() { endless = -1; archiveDay = null; endlessDay = null; endlessId = null; adventRun = null }
+
+    /** Plays an advent door; the first time, its cube is picked from the candidates off the main thread. */
+    private fun startAdvent(year: Int, door: Int) {
+        val k = prefs.adventPick(year, door)
+        if (k < 0) {
+            toast("Unwrapping door $door…")
+            bg.execute {
+                val best = (0 until Advent.CANDIDATES).maxBy { Advent.depthScore(generate(Advent.candidate(year, door, it))) }
+                handler.post { prefs.setAdventPick(year, door, best); startAdvent(year, door) }
+            }
+            return
+        }
+        plainRound(); freeRoam = true; dailyDay = null; weekNo = null; packRun = null; tutorial = false; challenge = null
+        adventRun = year to door
+        startRound(Advent.candidate(year, door, k), "Advent door $door")
+    }
+
+    /** 24 doors in a 4-wide grid: done, open (today's is lit) and still shut. */
+    private fun adventSheet() {
+        val (year, open) = Advent.season(utcDay()) ?: return
+        val done = prefs.adventDoors(year)
+        val c = subSheet("Advent")
+        c.add(body("One cube a day from 1 to 24 December, picked by Cubit from 8 it built for each door: the one with the pink arrow buried deepest. Missed doors stay open until 6 January. Open all 24 for a badge and the Holly colourway.", th.muted), 6)
+        c.add(label("${done.size} of ${Advent.DOORS} done"), 14)
+        var line: LinearLayout? = null
+        for (d in 1..Advent.DOORS) {
+            if ((d - 1) % 4 == 0) { line = row(); c.add(line, 8) }
+            val isDone = d in done; val isOpen = d <= open
+            val cell = column().apply {
+                gravity = Gravity.CENTER; minimumHeight = dp(64)
+                background = rect(if (isDone) th.accent else th.tile, 8, stroke = if (d == open && !isDone) th.accent else if (isOpen) th.hairline else 0)
+                alpha = if (isOpen) 1f else 0.4f
+                contentDescription = "Door $d, " + if (isDone) "done" else if (isOpen) "open" else "opens on $d December"
+            }
+            cell.add(tv("$d", 24f, Fonts.display, if (isDone) th.onAccent else th.text).apply { gravity = Gravity.CENTER }, 0, WRAP_CONTENT)
+            cell.add(tv(if (isDone) "DONE" else if (isOpen) "OPEN" else "${d} DEC", 10f, Fonts.label, if (isDone) th.onAccent else th.muted, caps = true, track = 0.08f).apply { gravity = Gravity.CENTER }, 2, WRAP_CONTENT)
+            if (isOpen) cell.pressable { closeSheet(); startAdvent(year, d) }
+            line!!.add(cell, 0, 0, WRAP_CONTENT, 1f).let { if ((d - 1) % 4 > 0) (it.layoutParams as LinearLayout.LayoutParams).marginStart = dp(8) }
+        }
+    }
 
     private fun endlessLabel(k: Int) = (if (endlessDay != null) "Daily endless " else "Endless ") + (k + 1)
 
@@ -2362,7 +2668,7 @@ class MainActivity : Activity(), GameView.Listener {
             .put("elapsed", elapsedMillis()).put("mistakes", mistakes).put("lives", livesLeft).put("limit", timeLimit)
             .put("shield", shield).put("used", org.json.JSONArray(usedPowerups.map { it.name })).put("run", runId ?: "")
             .put("left", g.remaining).put("level", prefs.level)
-            .apply { packRun?.let { (pk, i) -> put("pack", pk.name).put("packIdx", i) }; challenge?.let { put("challenge", Links.challengePayload(it)) } }
+            .apply { packRun?.let { (pk, i) -> put("pack", pk.name).put("packIdx", i) }; adventRun?.let { (y, d) -> put("advent", y * 100 + d) }; challenge?.let { put("challenge", Links.challengePayload(it)) } }
             .put("moves", org.json.JSONArray().apply { moves.forEach { put(org.json.JSONArray().put(it[0]).put(it[1])) } })
         prefs.savedRun = o.toString()
     }
@@ -2372,6 +2678,7 @@ class MainActivity : Activity(), GameView.Listener {
         challenge = o.optString("challenge").takeIf { it.isNotEmpty() }?.let { Links.parseChallenge(java.net.URLDecoder.decode(it, "UTF-8")) }
         packRun = prefs.allPacks().firstOrNull { it.name == o.optString("pack") }?.let { pk -> o.optInt("packIdx", -1).takeIf { it in pk.levels.indices }?.let { pk to it } }
         endless = o.optInt("endless", -1); endlessSeed = o.optLong("eseed"); endlessDay = o.optInt("eday", -1).takeIf { it >= 0 }; endlessId = o.optString("eid").ifEmpty { null }; archiveDay = o.optInt("archive", -1).takeIf { it >= 0 }
+        adventRun = o.optInt("advent", 0).takeIf { it > 0 }?.let { it / 100 to it % 100 }
         // Levels saved before 1.7.4 have no "locks": their special arrows included locked ones, and the board's copy of a
         // ranked run still has them, so they resume with them.
         val special = o.optBoolean("special")
@@ -2430,7 +2737,7 @@ class MainActivity : Activity(), GameView.Listener {
         strip.add(iconButton(Glyph.CLOSE, "Leave level") { askLeave() }, 0, dp(48), dp(48))
         val levelFlap = flap(if (freeRoam || dailyDay != null) 5 else 4, 24f)
         val lvlBox = column().apply { setPadding(dp(14), 0, 0, 0) }
-        lvlBox.add(label(if (endless >= 0) "Endless" else if (tutorial) "How to play" else if (challenge != null) "Challenge" else if (dailyDay != null) "Daily" else if (freeRoam) "Free roam" else "Level")); lvlBox.add(levelFlap, 4, WRAP_CONTENT)
+        lvlBox.add(label(if (endless >= 0) "Endless" else if (tutorial) "How to play" else if (challenge != null) "Challenge" else if (adventRun != null) "Advent" else if (dailyDay != null) "Daily" else if (freeRoam) "Free roam" else "Level")); lvlBox.add(levelFlap, 4, WRAP_CONTENT)
         strip.add(lvlBox, 0, WRAP_CONTENT)
         strip.space(0, 1f)
         val timerFlap = flap(5, 24f, right = true).apply { haptics = false; sound = false; maxFlips = 1 }
@@ -2843,6 +3150,7 @@ class MainActivity : Activity(), GameView.Listener {
         weekNo?.let { prefs.weeklyDone = it }
         prefs.recordRun(diff, true, mistakes, elapsedSec().toInt())
         packRun?.let { (pk, i) -> if (prefs.packSolved(pk) <= i) prefs.setPackSolved(pk, i + 1) }
+        val adventNew = adventRun?.let { (y, d) -> (d !in prefs.adventDoors(y)).also { prefs.addAdventDoor(y, d) } } ?: false
         val taps = moves.count { it[0] >= 0 || it[0] <= TWIST_TAP } // twists count against par too
         val atPar = taps <= par
         if (atPar) prefs.parWins = prefs.parWins + 1
@@ -2874,6 +3182,7 @@ class MainActivity : Activity(), GameView.Listener {
             if (endless > 0) add((if (endlessDay != null) "Daily endless" else "Endless") + " · $endless cube${if (endless == 1) "" else "s"} cleared · your best is ${if (endlessDay != null) prefs.dailyEndlessBest else prefs.endlessBest}" +
                 if (diff.lives > 0) " · $livesLeft ${if (livesLeft == 1) "life" else "lives"} carry over" else "")
             if (archiveDay != null) add("Marked solved in the daily archive")
+            adventRun?.let { (y, _) -> if (adventNew) add("Advent · ${prefs.adventDoors(y).size} of ${Advent.DOORS} doors done") }
             // Par counts the arrows in the pink one's way, so a bomb that takes one of them along can beat it.
             if (taps < par) add("Under par by ${par - taps} · a bomb cleared the way")
             else if (atPar) add(if (parBombs) "On par · a well-placed bomb can beat it" else "On par · nobody can do it in fewer taps")
@@ -2896,6 +3205,7 @@ class MainActivity : Activity(), GameView.Listener {
         val pk = packRun
         val nextText = when {
             endless > 0 -> "Next cube"
+            adventRun != null -> "Advent calendar"
             pk != null -> if (pk.second + 1 < pk.first.levels.size) "Next in ${pk.first.name}" else "Play level ${prefs.level}"
             freeRoam -> "Another cube"
             dailyDay != null || weekNo != null -> "Play level ${prefs.level}"
@@ -2912,6 +3222,7 @@ class MainActivity : Activity(), GameView.Listener {
                 .takeIf { dailyDay == null && weekNo == null && packRun?.first?.name != MY_PACK }) {
             when {
                 endless > 0 -> endlessShop()
+                adventRun != null -> { leaveGame(); adventSheet() }
                 pk != null && pk.second + 1 < pk.first.levels.size -> startPack(pk.first, pk.second + 1)
                 pk == null && freeRoam -> startFree(LevelSpec(spec.n, spec.maxLen, Random.nextLong()))
                 else -> startCampaign()
