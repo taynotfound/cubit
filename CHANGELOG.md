@@ -1,10 +1,14 @@
 # Changelog
 
-## Unreleased
+## 1.8.1 (2026-11-27)
 
-- **A cleaner look**: Play is the cube and one big Play button, with today's cubes below; Modes has wrapping mode pills and tiles; Settings groups stay open instead of folding away; cards, buttons and tabs got rounder and roomier.
+- **The new layout, finished**: 1.8.0 brought the bottom bar, but a lot of the redesign was still missing. This is the rest of it.
+- **Play** is the cube and one big Play button again, with your level and XP in the top corner and today's cubes (daily, weekly, and in December the advent calendar) right below.
+- **Modes**: the mode pills wrap instead of running off the screen, and every way to play has its own tile.
+- **Settings**: groups stay open instead of folding away, with shorter descriptions.
 - **Bio in Settings**: write or edit it under Profile, as well as from your card in Social.
-- Your friend code shows once, on your card in Social; tap it to copy.
+- **Social**: your friend code shows once, on your card (tap it to copy), your friends come first, and the Road to 1,000 card takes less room.
+- Cards, buttons and tabs are rounder and roomier everywhere.
 
 ## 1.8.0 (2026-11-27)
 

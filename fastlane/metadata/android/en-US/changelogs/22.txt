@@ -1,0 +1,5 @@
+- The new layout, finished: 1.8.0 was missing a lot of the redesign
+- Play is the cube and one big Play button again, with today's cubes below
+- Mode pills that fit the screen, and a tile for every way to play
+- Settings groups stay open; write your bio under Profile
+- Tidier Social tab: friend code on your card, friends first
