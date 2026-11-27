@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.9.1 (2026-11-27)
+
+- **Ranked runs count again**: since 1.8 a lot of honest runs were held for review or never got a rank. Starting a ranked run had to wait behind the app's other requests (friends, league, boards), so the board's clock started late and the run looked tampered with. Ranked runs now have their own connection.
+- **Everyone gets a rank**: the board keeps every player's best runs, so a slower player's run is no longer pushed off by people who play a lot. (The board's side of both fixes is already live.)
+
 ## 1.9.0 (2026-11-27)
 
 - **Playtested community cubes**: when you publish a cube from the Cube maker, you play it first. It goes live once you've cleared it yourself, and your time shows on its card as the maker's time to beat. Until then it waits under Community cubes → Mine.

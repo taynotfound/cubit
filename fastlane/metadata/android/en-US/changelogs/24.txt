@@ -1,0 +1,2 @@
+- Ranked runs count again: runs were held for review or never got a rank since 1.8
+- Everyone gets a rank, however their score compares
