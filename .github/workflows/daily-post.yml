@@ -1,5 +1,5 @@
 # Posts the daily cube to Mastodon (or any Mastodon-compatible server) every day just after it changes (00:00 UTC),
-# with a picture of the cube and a link anyone can play in the browser. Does nothing until both are set
+# with a picture of the cube and a link anyone can play in the browser. Fails until both are set
 # (Settings → Secrets and variables → Actions):
 #   MASTODON_INSTANCE  the account's server, e.g. https://mastodon.gamedev.place (secret or variable)
 #   MASTODON_TOKEN     an access token for that account with the write:statuses and write:media scopes
@@ -43,7 +43,11 @@ jobs:
 
       - name: Post it
         run: |
-          if [ -z "$MASTODON_INSTANCE" ] || [ -z "$MASTODON_TOKEN" ]; then echo "Mastodon isn't set up; skipping."; exit 0; fi
+          # Fail loudly: a run that skips quietly looks green in the Actions tab while nothing gets posted.
+          if [ -z "$MASTODON_INSTANCE" ] || [ -z "$MASTODON_TOKEN" ]; then
+            echo "::error::MASTODON_INSTANCE or MASTODON_TOKEN is not set (Settings → Secrets and variables → Actions). Nothing was posted."
+            exit 1
+          fi
           api="${MASTODON_INSTANCE%/}/api"
           auth="Authorization: Bearer $MASTODON_TOKEN"
           media=()
