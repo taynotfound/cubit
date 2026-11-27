@@ -28,6 +28,9 @@ type Device struct {
 	// World Cubes this player helped clear (cleared at least one arrow on a cube someone then freed), and ones they freed.
 	WorldCubes int `json:"worldCubes,omitempty"`
 	WorldWins  int `json:"worldWins,omitempty"`
+	// Friends this player added (codes), and players who added them and wait to be added back. See friends.go.
+	Friends  []string `json:"friends,omitempty"`
+	Requests []string `json:"requests,omitempty"`
 }
 
 // publicCode is the friend code to show next to the player on public boards: only when they made their profile

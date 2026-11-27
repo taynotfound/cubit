@@ -290,6 +290,10 @@ class Prefs(ctx: Context) {
     /** Friend codes added in Rankings → Friends, and this install's own code once the board has issued it. */
     var friends: Set<String> get() = sp.getStringSet("friends", emptySet())!!; set(v) = sp.edit().putStringSet("friends", HashSet(v)).apply()
     var friendCode: String? get() = sp.getString("friendCode", null); set(v) = sp.edit().putString("friendCode", v).apply()
+    /** Friends removed while the board couldn't be reached: removed there on the next sync, so it can't hand them back. */
+    var friendsToDrop: Set<String> get() = sp.getStringSet("friendsToDrop", emptySet())!!; set(v) = sp.edit().putStringSet("friendsToDrop", HashSet(v)).apply()
+    /** Friend requests already shown on the home screen, so each one shows there once. */
+    var requestsSeen: Set<String> get() = sp.getStringSet("requestsSeen", emptySet())!!; set(v) = sp.edit().putStringSet("requestsSeen", HashSet(v.toList().takeLast(200))).apply()
 
     /** Cubes saved from the win sheet into "My pack", which can be shared as a link. */
     var myPack: List<LevelSpec>

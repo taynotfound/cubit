@@ -42,6 +42,10 @@ caller's public page on or off.
 The World Cube is one shared 24×24 cube: `POST /v1/world/tap` (`{"id":…,"arrow":…}`) checks the tap against the
 shared board and clears it (and anything a bomb takes) for everyone. Freeing the pink arrow wins the cube and starts the next.
 
+Friends (signed in): `POST /v1/friends/{code}` adds a friend and leaves them a request to add you back, or accepts the
+one they left you (404 for a code nobody has); `DELETE /v1/friends/{code}` removes a friend, ignores their request, or
+takes back yours; `GET /v1/me/friends` gives your friends as the server has them and the requests waiting for you.
+
 Twist mode (`"difficulty":"Twist"`) records each face twist as move `-10 - face`; the replay turns that face's arrowheads.
 
 ## Names

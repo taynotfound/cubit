@@ -308,7 +308,7 @@ class MainActivity : Activity(), GameView.Listener {
                 }
                 toast("${pk.name} is in More → Puzzle packs"); moreSheet()
             }
-            "friend" -> Links.cleanCode(arg)?.let { addFriend(it) }
+            "friend" -> Links.cleanCode(arg)?.let { addFriend(it) { ranksMode = 5; showTab(Tab.RANKS) } }
             "name" -> arg.trim().take(32).takeIf { it.isNotEmpty() }?.let { startFree(nameSpec(it), "Cube of $it") }
             "world" -> openWorld()
         }
@@ -320,11 +320,60 @@ class MainActivity : Activity(), GameView.Listener {
         startRound(c.spec, "${c.name}'s challenge")
     }
 
-    private fun addFriend(code: String) {
+    /** Friend requests (people who added you and wait to be added back), from the last [syncFriends]; null before. */
+    private var friendInbox: List<FriendRequest>? = null
+
+    private fun fmtCode(c: String) = c.chunked(4).joinToString("-")
+
+    /** Adds a friend: on this phone, and on the board, which sends them a request to add you back (or accepts the one
+     *  they sent you). A code nobody has isn't added. [then] runs once it's settled. */
+    private fun addFriend(code: String, then: () -> Unit = {}) {
         if (code == prefs.friendCode) { toast("That's your own code"); return }
-        prefs.friends = prefs.friends + code
-        if (!prefs.postOnline) toast("Friend added. Turn on global rankings to see their runs.") else toast("Friend added: Rankings → Friends")
-        ranksMode = 5; showTab(Tab.RANKS)
+        if (!prefs.postOnline) { prefs.friends = prefs.friends + code; toast("Friend added. Turn on global rankings to see their runs."); then(); return }
+        Net.addFriend(prefs, code) { r ->
+            when {
+                r == null -> { prefs.friends = prefs.friends + code; toast("Friend added. They'll get your request once Cubit reaches the board.") }
+                r.error != null -> { toast(if (r.error.startsWith("no player")) "No player has the code ${fmtCode(code)}. Check it with your friend." else r.error.replaceFirstChar { it.uppercase() }); return@addFriend }
+                else -> {
+                    prefs.friends = prefs.friends + code; prefs.friendsToDrop = prefs.friendsToDrop - code
+                    friendInbox = friendInbox?.filter { it.code != code }
+                    toast(if (r.mutual) "You and ${r.name} are friends now" else "Added ${r.name} · they'll get a request to add you back")
+                }
+            }
+            then()
+        }
+    }
+
+    /** Removes a friend here and on the board (later, if the board can't be reached now). */
+    private fun removeFriend(code: String) {
+        prefs.friends = prefs.friends - code
+        if (prefs.postOnline) Net.dropFriend(prefs, code) { ok -> if (!ok) prefs.friendsToDrop = prefs.friendsToDrop + code }
+    }
+
+    /** Ignores a friend request: it goes away here and on the board. */
+    private fun ignoreRequest(code: String) {
+        friendInbox = friendInbox?.filter { it.code != code }
+        prefs.requestsSeen = prefs.requestsSeen + code
+        Net.dropFriend(prefs, code)
+    }
+
+    /**
+     * Brings this phone's friends and the board's together, then fetches the friend requests waiting for you. Friends
+     * added before 1.8 or while offline go to the board now (which tells them you added them); friends the board has
+     * and this phone doesn't (a backup restored on a new phone) come back; ones removed offline are removed there.
+     */
+    private fun syncFriends(done: () -> Unit = {}) {
+        if (!prefs.postOnline) return
+        Net.myFriends(prefs) { r ->
+            if (r == null) return@myFriends
+            val (board, reqs) = r
+            prefs.friendsToDrop.forEach { c -> Net.dropFriend(prefs, c) { ok -> if (ok) prefs.friendsToDrop = prefs.friendsToDrop - c } }
+            val local = prefs.friends
+            prefs.friends = local + (board - prefs.friendsToDrop - listOfNotNull(prefs.friendCode).toSet())
+            (local - board).take(20).forEach { Net.addFriend(prefs, it) {} }
+            friendInbox = reqs.filter { it.code !in prefs.friends }
+            done()
+        }
     }
 
     /** Hands a link to the system share sheet. */
@@ -785,6 +834,20 @@ class MainActivity : Activity(), GameView.Listener {
                 val text = if (me >= 0) "You finished #${me + 1} of ${board.size} on yesterday's cube." else "${board.size} players solved yesterday's cube."
                 notice(holder, "Yesterday", "$text Today's is waiting.", "Play", { prefs.summarySeen = today; startDaily() }) { prefs.summarySeen = today }
             }
+            return
+        }
+        // Someone added you as a friend: once per request, with Add back right here.
+        if (prefs.postOnline) {
+            val holder = column(); col.add(holder)
+            fun show() {
+                val reqs = friendInbox.orEmpty().filter { it.code !in prefs.friends }
+                val q = reqs.firstOrNull { it.code !in prefs.requestsSeen } ?: return
+                if (holder.parent == null || holder.childCount > 0) return
+                val more = reqs.size - 1
+                notice(holder, "Friends", "${q.name} added you as a friend." + if (more > 0) " $more more waiting in Rankings → Friends." else "", "Add back",
+                    { prefs.requestsSeen = prefs.requestsSeen + q.code; holder.removeAllViews(); addFriend(q.code) }) { prefs.requestsSeen = prefs.requestsSeen + q.code }
+            }
+            if (friendInbox != null) show() else syncFriends { show() }
         }
     }
 
@@ -871,7 +934,9 @@ class MainActivity : Activity(), GameView.Listener {
                 1 -> {
                     card(body, Glyph.CUBE, "World Cube", "One giant cube everyone clears, live", highlight = true, onClick = go { openWorld() })
                     card(body, Glyph.SHARE, "Name cube", "Any name makes a cube · dare a friend", onClick = go { nameSheet() })
-                    card(body, Glyph.RANKS, "Friends", "Swap codes, compare runs, race ghosts", onClick = go { ranksMode = 5; showTab(Tab.RANKS) })
+                    val asks = friendInbox.orEmpty().count { it.code !in prefs.friends }
+                    card(body, Glyph.RANKS, "Friends", if (asks > 0) "$asks friend request${if (asks == 1) "" else "s"} waiting" else "Swap codes, compare runs, race ghosts",
+                        highlight = asks > 0, onClick = go { ranksMode = 5; showTab(Tab.RANKS) })
                 }
                 else -> {
                     card(body, Glyph.BOLT, "Endless", "Cube after cube, lives carry over" + if (prefs.endlessBest > 0) " · best ${prefs.endlessBest}" else "", onClick = go { startEndless() })
@@ -1184,7 +1249,7 @@ class MainActivity : Activity(), GameView.Listener {
                 c.add(body(pp.badges.joinToString("  ·  ") { b -> Achievement.entries.firstOrNull { it.name == b }?.title ?: b.lowercase().replace('_', ' ') }, th.text), 8)
             }
             val mine = code == prefs.friendCode
-            if (!mine && code !in prefs.friends) c.add(primary("Add as a friend", Glyph.RANKS) { prefs.friends = prefs.friends + code; toast("${pp.name} is in Rankings → Friends"); closeSheet() }, 22)
+            if (!mine && code !in prefs.friends) c.add(primary("Add as a friend", Glyph.RANKS) { addFriend(code) { closeSheet() } }, 22)
             c.add(secondary("Share this profile", glyph = Glyph.SHARE) { shareText("${pp.name} on Cubit: ${Links.PROFILE}?c=$code", "Share this profile") }, if (mine || code in prefs.friends) 22 else 10)
         }
     }
@@ -1231,13 +1296,34 @@ class MainActivity : Activity(), GameView.Listener {
             Net.friends(codes) { f -> friendRows = f; if (tab == Tab.RANKS && ranksMode == 5) render() }
         }
 
+        /** Someone who added you: their name and level, Add back, and a cross to ignore them. */
+        fun requestRow(q: FriendRequest, top: Int) {
+            val r = row().apply {
+                background = rect(withAlpha(th.accent, 34), 8, stroke = th.accent)
+                setPadding(dp(12), dp(10), dp(4), dp(10)); minimumHeight = dp(68)
+                contentDescription = "${q.name}, player level ${q.level}, added you as a friend"
+            }
+            r.add(avatar(q.name, 40), 0, dp(40), dp(40))
+            val mid = column().apply { setPadding(dp(12), 0, dp(8), 0) }
+            mid.add(tv(q.name, 17f, Fonts.bodyMedium).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END })
+            mid.add(tv("Player LV ${q.level} · added you", 13f, Fonts.body, th.muted), 3)
+            r.add(mid, 0, 0, WRAP_CONTENT, 1f)
+            r.add(secondary("Add back") { addFriend(q.code) { friendRows = null; render(); loadFriends() } }, 0, WRAP_CONTENT)
+            r.add(plainIcon(Glyph.CLOSE, "Ignore ${q.name}", th.muted) { ignoreRequest(q.code); render() }, 0, dp(44), dp(44))
+            list.add(r, top)
+        }
+
         /** Friends: your code to share, a box to add theirs, and everyone's level and best run side by side. */
         fun renderFriends() {
             if (!prefs.postOnline) { status.text = "Friends need global rankings. Turn them on to swap codes."; return }
             val mine = prefs.friendCode
-            status.text = if (mine == null) codeError?.let { "Couldn't get your friend code ($it). Try again later." } ?: "Getting your friend code…" else "Your friend code: ${mine.chunked(4).joinToString("-")}"
+            status.text = if (mine == null) codeError?.let { "Couldn't get your friend code ($it). Try again later." } ?: "Getting your friend code…" else "Your friend code: ${fmtCode(mine)} · tap to copy"
+            if (mine != null) status.setOnClickListener {
+                (getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager).setPrimaryClip(android.content.ClipData.newPlainText("Cubit friend code", fmtCode(mine)))
+                toast("Friend code copied")
+            }
             if (mine != null) list.add(secondary("Share your code", glyph = Glyph.SHARE) {
-                shareText("Add me on Cubit: my friend code is ${mine.chunked(4).joinToString("-")}. ${Links.WEB}?f=$mine", "Share your friend code")
+                shareText("Add me on Cubit: my friend code is ${fmtCode(mine)}. ${Links.WEB}?f=$mine", "Share your friend code")
             })
             val addRow = row()
             val box = field("", "Friend's code, like AB12-CD34")
@@ -1246,9 +1332,16 @@ class MainActivity : Activity(), GameView.Listener {
                 val c = Links.cleanCode(box.text.toString())
                 if (c == null) toast("A friend code is 8 letters and digits, like AB12-CD34")
                 else if (c == mine) toast("That's your own code")
-                else { prefs.friends = prefs.friends + c; friendRows = null; render(); loadFriends() }
+                else if (c in prefs.friends) toast("Already in your friends")
+                else addFriend(c) { friendRows = null; render(); loadFriends() }
             }, 0, WRAP_CONTENT).let { (it.layoutParams as LinearLayout.LayoutParams).marginStart = dp(10) }
             list.add(addRow, 10)
+            val reqs = friendInbox.orEmpty().filter { it.code !in prefs.friends }
+            if (reqs.isNotEmpty()) {
+                list.add(label("Friend requests · ${reqs.size}"), 20)
+                reqs.forEachIndexed { i, q -> requestRow(q, if (i == 0) 8 else 6) }
+                list.add(label("Your friends"), 20)
+            }
             val rows = friendRows
             if (rows == null) { list.add(body("Loading your friends…", th.muted), 14); return }
             if (prefs.friends.isEmpty()) { list.add(body("No friends yet. Share your code, or add theirs above.", th.muted), 14); return }
@@ -1257,7 +1350,7 @@ class MainActivity : Activity(), GameView.Listener {
                 val me = pl.code == mine
                 val remove = if (me) null else plainIcon(Glyph.CLOSE, "Remove ${pl.name}", th.muted) {
                     confirm("Remove ${pl.name}?", "You can add them again with their code.", "Keep", "Remove") {
-                        closeSheet(); prefs.friends = prefs.friends - pl.code; friendRows = friendRows?.filter { it.first.code != pl.code }; render()
+                        closeSheet(); removeFriend(pl.code); friendRows = friendRows?.filter { it.first.code != pl.code }; render()
                     }
                 }
                 // A friend with a public profile opens it; otherwise their best run.
@@ -1325,6 +1418,7 @@ class MainActivity : Activity(), GameView.Listener {
 
         render = {
             list.removeAllViews()
+            status.setOnClickListener(null); status.isClickable = false // only the Friends tab's line copies your code
             when (ranksMode) {
                 4 -> renderBadges(list, status)
                 5 -> renderFriends()
@@ -1355,6 +1449,7 @@ class MainActivity : Activity(), GameView.Listener {
             Net.endless(utcDay()) { e -> endlessToday = e ?: emptyList(); if (tab == Tab.RANKS && ranksMode == 2) render() }
             if (prefs.friendCode == null) Net.me(prefs) { c -> codeError = if (c == null) Net.lastError else null; if (c != null) loadFriends(); if (tab == Tab.RANKS && ranksMode == 5) render() }
             loadFriends()
+            syncFriends { loadFriends(); if (tab == Tab.RANKS && ranksMode == 5) render() }
             Net.fetch { b ->
                 if (tab != Tab.RANKS) return@fetch
                 board = b

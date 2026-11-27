@@ -23,6 +23,11 @@ class WorldState(val id: Int, val spec: LevelSpec, val v: Int, val removed: List
                  val top: List<Pair<String, Int>>, val lastId: Int, val lastWinner: String?)
 /** One row of an endless board: a player and the most cubes they cleared in one run. */
 data class EndlessEntry(val name: String, val level: Int, val cubes: Int, val code: String = "")
+/** Someone who added you as a friend and waits to be added back. */
+data class FriendRequest(val code: String, val name: String, val level: Int)
+/** What adding a friend on the board did: [name] is theirs, [mutual] when they had added you already. [error] is set
+ *  (and nothing was added) when the board said no, such as for a code nobody has. */
+class FriendAdd(val name: String, val mutual: Boolean, val error: String? = null)
 /** A ranked endless run's next cube: the server's run id, the lives carried in and the seconds bought. */
 class EndlessCube(val id: String, val lives: Int, val bonusSec: Int)
 
@@ -168,6 +173,38 @@ object Net {
                 val best = f.optJSONObject("best")?.let { parseBoard(JSONObject().put("scores", JSONArray().put(it))).scores.first() }
                 GlobalPlayer(f.optString("name"), f.optInt("xp"), f.optInt("level"), f.optInt("cleanRuns"), f.optString("code"), f.optBoolean("public")) to best
             }
+        }
+        main.post { done(r) }
+    }
+
+    /** Adds a friend on the board, which leaves them a request to add you back (or accepts theirs). Null when the
+     *  board couldn't be reached; a [FriendAdd.error] when it refused. */
+    fun addFriend(p: Prefs, code: String, done: (FriendAdd?) -> Unit) = io.execute {
+        var refused: String? = null
+        val r = call {
+            try {
+                val o = JSONObject(authed(p, "POST", "/v1/friends/$code", null))
+                FriendAdd(o.getJSONObject("friend").optString("name"), o.optBoolean("mutual"))
+            } catch (e: HttpError) {
+                if (e.code == 400 || e.code == 404) { refused = e.message; null } else throw e
+            }
+        }
+        main.post { done(r ?: refused?.let { FriendAdd("", false, it) }) }
+    }
+
+    /** Removes a friend on the board, or ignores their request. Done gets whether the board heard it. */
+    fun dropFriend(p: Prefs, code: String, done: (Boolean) -> Unit = {}) = io.execute {
+        val ok = call { authed(p, "DELETE", "/v1/friends/$code", null) } != null
+        main.post { done(ok) }
+    }
+
+    /** The board's copy of your friends, and the requests waiting for you (newest first). */
+    fun myFriends(p: Prefs, done: (Pair<Set<String>, List<FriendRequest>>?) -> Unit) = io.execute {
+        val r = call {
+            val o = JSONObject(authed(p, "GET", "/v1/me/friends", null))
+            val f = o.getJSONArray("friends"); val q = o.getJSONArray("requests")
+            (0 until f.length()).map { f.getString(it) }.toSet() to
+                (0 until q.length()).map { q.getJSONObject(it) }.map { FriendRequest(it.getString("code"), it.optString("name"), it.optInt("level")) }
         }
         main.post { done(r) }
     }

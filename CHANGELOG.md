@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- **Friend requests**: adding someone's friend code now tells them. They see "added you as a friend" on the home screen and at the top of Rankings → Friends, and can add you back in one tap or ignore it. Friends you added before this update get your request too.
+- A friend code nobody has is no longer added; Cubit says so instead.
+- Tap your friend code in Rankings → Friends to copy it.
+- **Under par**: a bomb can take an arrow in the pink one's way along, so a cube with bombs can be won in fewer taps than par. The win sheet and shared results now say "under par" instead of claiming nobody can do better.
+
 ## 1.7.6 (2026-11-20)
 
 - **Try today's again** on the Endless over sheet starts the new run again instead of only showing "Starting your endless run…" (#7).
