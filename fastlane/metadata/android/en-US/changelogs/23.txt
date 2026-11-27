@@ -1,0 +1,4 @@
+- Community cubes: play your cube once before it goes live; your time shows on its card
+- Rate the cubes you clear: easy, just right or hard
+- Picks: the best community cubes at the top
+- Add the developer: Tay's friend code is in Social and Settings

@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.9.0 (2026-11-27)
+
+- **Playtested community cubes**: when you publish a cube from the Cube maker, you play it first. It goes live once you've cleared it yourself, and your time shows on its card as the maker's time to beat. Until then it waits under Community cubes → Mine.
+- **How hard was it?** Once you've cleared a community cube, rate it Easy, Just right or Hard. Every card shows how it feels to the players who cleared it.
+- **Picks**: the best community cubes get a ★ Pick and sit at the top of the list. New cubes may be looked over by a moderator before they go live.
+- Community cubes keep their special arrows even with Plain cubes on, so everyone plays the same cube. Finishing one takes you back to the list.
+- **Add the developer**: I'm Tay and I made Cubit. Add me in Social, or in Settings → About (friend code 18B7-2243), and race my runs. I'd love to see you there!
+- The developer has a pink DEV tag on boards, friend lists, leagues, clubs and community cubes, so you know it's really them.
+
 ## 1.8.1 (2026-11-27)
 
 - **The new layout, finished**: 1.8.0 brought the bottom bar, but a lot of the redesign was still missing. This is the rest of it.
