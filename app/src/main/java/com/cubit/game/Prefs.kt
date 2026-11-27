@@ -78,7 +78,7 @@ enum class Achievement(val title: String, val blurb: String, val check: (Prefs, 
     STREAK_7("On fire", "Solve the daily cube 7 days in a row.", { p, _ -> p.dailyStreak >= 7 }),
     BIG("Grand central", "Win on a 14×14 cube or bigger.", { _, r -> r.n >= 14 }),
     LEVEL_25("Long haul", "Reach player level 25.", { p, _ -> playerLevel(p.xp).first >= 25 }),
-    PAR("On par", "Win in the fewest taps possible.", { _, r -> r.atPar }),
+    PAR("On par", "Win in par or fewer taps.", { _, r -> r.atPar }),
     WEEKLY("Weekender", "Finish a weekly challenge.", { _, r -> r.weekly }),
     PACK("Collector", "Finish every level in a puzzle pack.", { p, _ -> PACKS.any { p.packSolved(it) >= it.levels.size } }),
     // Badges are stored by name, so new ones go at the end and old names never change.

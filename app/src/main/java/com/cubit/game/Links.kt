@@ -62,7 +62,7 @@ object Links {
 fun resultText(head: String, full: Boolean, taps: Int, par: Int, lives: Int, livesLeft: Int, mistakes: Int, secs: Int,
                score: Int, streak: Int, link: String): String {
     val what = if (full) "cleared" else "freed"
-    val line1 = "$head 🟪 $what in $taps tap${if (taps == 1) "" else "s"} (par $par)" + if (taps <= par) " ⭐" else ""
+    val line1 = "$head 🟪 $what in $taps tap${if (taps == 1) "" else "s"} (par $par)" + if (taps < par) " ⭐ under par" else if (taps == par) " ⭐" else ""
     val health = if (lives > 0) "❤️".repeat(livesLeft.coerceIn(0, lives)) + "🖤".repeat((lives - livesLeft).coerceIn(0, lives))
         else "💥 $mistakes bump${if (mistakes == 1) "" else "s"}"
     val line2 = listOfNotNull(health, "⏱ %d:%02d".format(secs / 60, secs % 60), "$score pts",

@@ -88,5 +88,8 @@ class LinksTest {
         // No lives (Zen, Clean): bumps instead of hearts; no streak line for a streak of one.
         assertEquals("Cubit · Level 3 🟪 cleared in 40 taps (par 38)\n💥 1 bump · ⏱ 0:59 · 50 pts\nL",
             resultText("Cubit · Level 3", true, 40, 38, 0, 0, 1, 59, 50, 1, "L"))
+        // A bomb can take an arrow in the pink one's way along, so a run can beat par.
+        assertEquals("Cubit · Level 12 🟪 freed in 11 taps (par 12) ⭐ under par\n❤️❤️❤️ · ⏱ 0:37 · 655 pts\nL",
+            resultText("Cubit · Level 12", false, 11, 12, 3, 3, 0, 37, 655, 1, "L"))
     }
 }

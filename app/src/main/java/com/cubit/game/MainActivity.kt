@@ -75,6 +75,8 @@ class MainActivity : Activity(), GameView.Listener {
     private var packRun: Pair<Pack, Int>? = null
     /** Fewest taps that can win this cube (everything blocking the pink one, plus the pink one; or every arrow). */
     private var par = 0
+    /** The cube has bombs, which can take several arrows in one tap and so beat [par]. */
+    private var parBombs = false
     // Ghost race: someone's recorded run, replayed by the game clock.
     private var ghost: List<LongArray> = emptyList()
     private var ghostAt = 0
@@ -2193,6 +2195,7 @@ class MainActivity : Activity(), GameView.Listener {
                 eid?.let { EndlessCube(it, if (diff.lives > 0) livesLeft else 0, bonus) }) { id -> if (serial == roundSerial) runId = id }
         timeLimit = diff.timeLimitSec(puzzle.paths.size) + (if (diff.secPerArrow > 0) bonus else 0)
         par = if (roundFull) puzzle.paths.size else mustClear(puzzle) + 1
+        parBombs = puzzle.bombs.any { it }
         // Ghost race on the daily and weekly cubes: race the leader's recorded run, by the same game clock.
         ghost = emptyList(); ghostAt = 0; ghostDoneMs = -1; ghostLabel = null
         val ch = challenge
@@ -2519,7 +2522,9 @@ class MainActivity : Activity(), GameView.Listener {
             if (endless > 0) add((if (endlessDay != null) "Daily endless" else "Endless") + " · $endless cube${if (endless == 1) "" else "s"} cleared · your best is ${if (endlessDay != null) prefs.dailyEndlessBest else prefs.endlessBest}" +
                 if (diff.lives > 0) " · $livesLeft ${if (livesLeft == 1) "life" else "lives"} carry over" else "")
             if (archiveDay != null) add("Marked solved in the daily archive")
-            if (atPar) add("On par · nobody can do it in fewer taps")
+            // Par counts the arrows in the pink one's way, so a bomb that takes one of them along can beat it.
+            if (taps < par) add("Under par by ${par - taps} · a bomb cleared the way")
+            else if (atPar) add(if (parBombs) "On par · a well-placed bomb can beat it" else "On par · nobody can do it in fewer taps")
             if (bestCombo >= 5) add("Best combo ×$bestCombo")
             if (dailyBest) add("Your best daily score yet")
             if (freezesUsed > 0) add("A streak freeze covered $freezesUsed missed day${if (freezesUsed == 1) "" else "s"} · ${prefs.dailyStreak}-day streak")
