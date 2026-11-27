@@ -33,11 +33,13 @@ type Device struct {
 	Requests []string `json:"requests,omitempty"`
 	// 1.8 social (social.go): a short bio (hidden after reports, locked by an admin), notes from friends, what this
 	// player did lately for their friends' feed, their league week, and invites.
-	Bio        string        `json:"bio,omitempty"`
-	BioHidden  bool          `json:"bioHidden,omitempty"`
-	BioLocked  bool          `json:"bioLocked,omitempty"`
-	Inbox      []Note        `json:"inbox,omitempty"`
-	Recent     []Activity    `json:"recent,omitempty"`
+	Bio       string     `json:"bio,omitempty"`
+	BioHidden bool       `json:"bioHidden,omitempty"`
+	BioLocked bool       `json:"bioLocked,omitempty"`
+	Inbox     []Note     `json:"inbox,omitempty"`
+	Recent    []Activity `json:"recent,omitempty"`
+	Dev       bool       `json:"dev,omitempty"` // Cubit's developer, set from the admin panel: a DEV tag and badge everywhere
+
 	League     *League       `json:"league,omitempty"`
 	PrevLeague *League       `json:"prevLeague,omitempty"`
 	LastLeague *LeagueResult `json:"lastLeague,omitempty"`
@@ -107,6 +109,7 @@ type DB struct {
 	LeagueSlots  map[string]*leagueSlot    `json:"leagueSlots,omitempty"` // "week:tier" → the group being filled
 	Clubs        map[string]*Club          `json:"clubs,omitempty"`       // by join code (clubs.go)
 	Cubes        map[string]*CommunityCube `json:"cubes,omitempty"`       // community cubes by id (community.go)
+	Settings     *Settings                 `json:"settings,omitempty"`    // the admin panel's switches (community.go)
 }
 
 const maxScores = 5000
@@ -281,6 +284,7 @@ type publicPlayer struct {
 	XP        int    `json:"xp"`
 	CleanRuns int    `json:"cleanRuns"`
 	Code      string `json:"code,omitempty"` // only for players with a public profile, so the app can open it
+	Dev       bool   `json:"dev,omitempty"`  // Cubit's developer: the app shows a DEV tag
 }
 
 type publicScore struct {
@@ -297,6 +301,7 @@ type publicScore struct {
 	Size       int      `json:"size"`
 	Powerups   []string `json:"powerups"`
 	Code       string   `json:"code,omitempty"` // the player's, only when their profile is public
+	Dev        bool     `json:"dev,omitempty"`
 }
 
 // board is the public view: no device ids, banned players hidden, one best run per player.
@@ -306,7 +311,7 @@ func (s *Store) board() map[string]any {
 	players := []publicPlayer{}
 	for _, d := range s.db.Devices {
 		if !d.Banned && d.XP > 0 {
-			players = append(players, publicPlayer{d.Name, playerLevel(d.XP), d.XP, d.CleanRuns, d.publicCode()})
+			players = append(players, publicPlayer{d.Name, playerLevel(d.XP), d.XP, d.CleanRuns, d.publicCode(), d.Dev})
 		}
 	}
 	total := len(players) // everyone with a verified run, not just the 50 listed
@@ -326,7 +331,7 @@ func (s *Store) board() map[string]any {
 		if pu == nil {
 			pu = []string{}
 		}
-		scores = append(scores, publicScore{sc.RunID, d.Name, playerLevel(d.XP), sc.Score, sc.Label, sc.Difficulty, sc.Time, sc.Arrows, sc.Ms, sc.Mistakes, sc.Size, pu, d.publicCode()})
+		scores = append(scores, publicScore{sc.RunID, d.Name, playerLevel(d.XP), sc.Score, sc.Label, sc.Difficulty, sc.Time, sc.Arrows, sc.Ms, sc.Mistakes, sc.Size, pu, d.publicCode(), d.Dev})
 		if len(scores) == 50 {
 			break
 		}
@@ -371,7 +376,7 @@ func (s *Store) boardWhere(match func(Score) bool) []publicScore {
 		if pu == nil {
 			pu = []string{}
 		}
-		out = append(out, publicScore{sc.RunID, d.Name, playerLevel(d.XP), sc.Score, sc.Label, sc.Difficulty, sc.Time, sc.Arrows, sc.Ms, sc.Mistakes, sc.Size, pu, d.publicCode()})
+		out = append(out, publicScore{sc.RunID, d.Name, playerLevel(d.XP), sc.Score, sc.Label, sc.Difficulty, sc.Time, sc.Arrows, sc.Ms, sc.Mistakes, sc.Size, pu, d.publicCode(), d.Dev})
 		if len(out) == 50 {
 			break
 		}
@@ -426,6 +431,7 @@ type friendView struct {
 	Best      *publicScore `json:"best"`
 	Public    bool         `json:"public,omitempty"` // has a public profile to open
 	Bio       string       `json:"bio,omitempty"`
+	Dev       bool         `json:"dev,omitempty"`
 }
 
 // friends is the public view of the players behind these codes (unknown and banned ones left out), each with their
@@ -440,14 +446,14 @@ func (s *Store) friends(codes []string) []friendView {
 		if d == nil || d.Banned {
 			continue
 		}
-		f := friendView{Code: c, Name: d.Name, Level: playerLevel(d.XP), XP: d.XP, CleanRuns: d.CleanRuns, Public: d.publicCode() != "", Bio: d.publicBio()}
+		f := friendView{Code: c, Name: d.Name, Level: playerLevel(d.XP), XP: d.XP, CleanRuns: d.CleanRuns, Public: d.publicCode() != "", Bio: d.publicBio(), Dev: d.Dev}
 		for _, sc := range s.db.Scores {
 			if sc.Device == id {
 				pu := sc.Powerups
 				if pu == nil {
 					pu = []string{}
 				}
-				f.Best = &publicScore{sc.RunID, d.Name, f.Level, sc.Score, sc.Label, sc.Difficulty, sc.Time, sc.Arrows, sc.Ms, sc.Mistakes, sc.Size, pu, d.publicCode()}
+				f.Best = &publicScore{sc.RunID, d.Name, f.Level, sc.Score, sc.Label, sc.Difficulty, sc.Time, sc.Arrows, sc.Ms, sc.Mistakes, sc.Size, pu, d.publicCode(), d.Dev}
 				break
 			}
 		}

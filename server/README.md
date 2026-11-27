@@ -64,10 +64,22 @@ have a 10-minute cooldown. Admin: `GET /v1/admin/clubs` lists every club; `POST 
 `{"action":"remove"}` disbands one.
 
 Community cubes (`community.go`): `POST /v1/cubes` (`{"title","n","maxLen","seed","special"}`, signed in, 5 a day, 50
-kept) publishes a cube from the app's cube maker; `GET /v1/cubes?sort=top|new&page=` lists them (`&mine=1` your own);
-`POST`/`DELETE /v1/cubes/{id}/like`, `POST /v1/cubes/{id}/report` (three reporters hide it), `DELETE /v1/cubes/{id}`
-(author). A verified free run on a community cube counts as a win on it, once per player. Admin: `GET /v1/admin/cubes`
-lists reported cubes; `POST /v1/admin/cubes/{id}` `{"action":"keep"}` (and reports no longer hide it) or `"remove"`.
+kept) publishes a cube from the app's cube maker. It starts in `"state":"testing"`: only its author sees it until they
+clear it in a verified run (the playtest; their best time is `authorMs`). Then it's live, or, with review switched on,
+`"review"` until an admin approves it. Untested cubes are dropped after 7 days. `GET /v1/cubes?sort=top|new&page=`
+lists live cubes, admin picks first on top (`&mine=1` your own, any state); `POST`/`DELETE /v1/cubes/{id}/like`,
+`POST /v1/cubes/{id}/rate` (`{"rating":1|2|3}` easy/just right/hard, only once you've cleared it),
+`POST /v1/cubes/{id}/report` (three reporters hide it), `DELETE /v1/cubes/{id}` (author). A verified free run on a
+live community cube counts as a win on it, once per player. Admin: `GET /v1/admin/cubes?view=review|reported|all|testing`;
+`POST /v1/admin/cubes/{id}` `{"action": "approve"|"keep"|"feature"|"unfeature"|"remove"}`;
+`GET`/`POST /v1/admin/settings` `{"reviewCubes": true}`.
+
+## Admin panel
+
+`GET /admin` is a small web page (embedded in the binary, `admin.html`) over the admin API: stats, the community cube
+review queue and reports, reported bios, held runs, clubs and players (rename, ban, and the Developer flag:
+`POST /v1/admin/devices/{id}` `{"dev": true}` puts a DEV tag on that player everywhere and a Developer badge on their
+profile; players can't send it themselves). Open `https://cubit-lb-api.taymaerz.de/admin` and paste the admin token.
 
 Twist mode (`"difficulty":"Twist"`) records each face twist as move `-10 - face`; the replay turns that face's arrowheads.
 

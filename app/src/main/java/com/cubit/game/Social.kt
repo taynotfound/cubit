@@ -18,7 +18,7 @@ data class FeedItem(val code: String, val name: String, val kind: String, val la
 /** Everything GET /v1/me/friends returns. */
 class FriendSync(val friends: Set<String>, val requests: List<FriendRequest>, val inbox: List<FriendNote>, val feed: List<FeedItem>)
 
-data class LeagueRow(val name: String, val level: Int, val xp: Int, val code: String, val me: Boolean)
+data class LeagueRow(val name: String, val level: Int, val xp: Int, val code: String, val me: Boolean, val dev: Boolean = false)
 
 /** This week's league: [tier] in [tiers], the caller's group ranked by XP this week, and how last week ended. */
 class LeagueState(val week: Int, val tier: Int, val tiers: List<String>, val ends: Long, val move: Int, val players: List<LeagueRow>,
@@ -54,7 +54,7 @@ fun timeLeft(ends: Long, now: Long): String {
 const val PLAYER_GOAL = 1000
 
 data class ClubRow(val code: String, val name: String, val members: Int, val xp: Int)
-data class ClubMember(val name: String, val level: Int, val xp: Int, val code: String, val me: Boolean, val owner: Boolean)
+data class ClubMember(val name: String, val level: Int, val xp: Int, val code: String, val me: Boolean, val owner: Boolean, val dev: Boolean = false)
 class MyClub(val code: String, val name: String, val owner: Boolean, val xp: Int, val rank: Int, val members: List<ClubMember>)
 /** GET /v1/me/club: your club, if any, and the week's top clubs ([of] clubs in all). */
 class ClubState(val ends: Long, val max: Int, val of: Int, val top: List<ClubRow>, val club: MyClub?)
@@ -64,7 +64,18 @@ fun cleanClubCode(s: String) = s.uppercase().filter { it in "23456789ABCDEFGHJKL
 
 /** A cube someone published from the cube maker (GET /v1/cubes). */
 data class CommunityCube(val id: String, val title: String, val author: String, val spec: LevelSpec, val arrows: Int, val par: Int,
-                         val likes: Int, val wins: Int, val liked: Boolean, val won: Boolean, val mine: Boolean)
+                         val likes: Int, val wins: Int, val liked: Boolean, val won: Boolean, val mine: Boolean,
+                         /** "" live, "testing" (waiting for its maker's playtest), "review" (a moderator's), "hidden" (reported). */
+                         val state: String = "", val featured: Boolean = false, val authorMs: Long = 0,
+                         /** Average difficulty vote, 1 easy … 3 hard, from [votes] players who cleared it; yours is [myRating]. */
+                         val rating: Double = 0.0, val votes: Int = 0, val myRating: Int = 0, val dev: Boolean = false)
+
+/** How a cube's difficulty votes read: "" with none. */
+fun feel(rating: Double) = when { rating <= 0.0 -> ""; rating < 1.67 -> "easy"; rating < 2.34 -> "just right"; else -> "hard" }
+
+/** The developer's friend code (Tay, who made Cubit): shown in Social and Settings so players can add them. */
+const val DEV_CODE = "18B72243"
+const val DEV_NAME = "Tay"
 
 /** One page of community cubes, and how many there are in all. */
 class CubePage(val cubes: List<CommunityCube>, val total: Int, val page: Int, val size: Int)

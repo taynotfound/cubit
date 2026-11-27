@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Cubit admin</title>
+<style>
+:root {
+  --bg: #0f1115; --panel: #171a21; --tile: #1e222b; --line: #2a2f3a; --text: #eef0f4; --muted: #8c93a3;
+  --accent: #ff4f8b; --ok: #3ccf8e; --warn: #f5b942; --bad: #ff6262; --r: 12px;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root { --bg: #f4f5f8; --panel: #fff; --tile: #f0f1f5; --line: #e1e4ea; --text: #161922; --muted: #646b7b; color-scheme: light; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+button, input { font: inherit; color: inherit; }
+.wrap { max-width: 1040px; margin: 0 auto; padding: 20px 16px 60px; }
+header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+h1 { font-size: 22px; margin: 0; letter-spacing: -.01em; }
+h1 b { color: var(--accent); }
+h2 { font-size: 17px; margin: 0 0 10px; }
+.sp { flex: 1; }
+nav { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 18px; }
+nav button, .seg button { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 7px 14px; cursor: pointer; }
+nav button.on, .seg button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.badge { display: inline-block; min-width: 20px; padding: 0 6px; margin-left: 6px; border-radius: 999px; background: var(--warn); color: #222; font-size: 12px; font-weight: 700; text-align: center; }
+.seg { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 16px; margin-bottom: 14px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.tile { background: var(--tile); border-radius: 10px; padding: 12px 14px; }
+.tile .n { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.tile .l { color: var(--muted); font-size: 13px; }
+.tile.hot .n { color: var(--warn); }
+.list { display: grid; gap: 10px; }
+.item { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap; }
+.item .main { flex: 1 1 320px; min-width: 0; }
+.item .t { font-weight: 650; font-size: 16px; overflow-wrap: anywhere; }
+.item .m { color: var(--muted); font-size: 13px; margin-top: 3px; overflow-wrap: anywhere; }
+.item .q { margin-top: 8px; padding: 8px 10px; background: var(--tile); border-radius: 8px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.acts { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.btn { border: 1px solid var(--line); background: var(--tile); border-radius: 8px; padding: 7px 12px; cursor: pointer; text-decoration: none; display: inline-block; }
+.btn:hover { border-color: var(--muted); }
+.btn.ok { background: var(--ok); border-color: var(--ok); color: #0b2a1c; font-weight: 600; }
+.btn.bad { color: var(--bad); }
+.btn.pri { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.btn:disabled { opacity: .5; cursor: default; }
+.chip { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 999px; background: var(--tile); color: var(--muted); margin-right: 4px; }
+.chip.warn { background: color-mix(in srgb, var(--warn) 22%, transparent); color: var(--warn); }
+.chip.bad { background: color-mix(in srgb, var(--bad) 20%, transparent); color: var(--bad); }
+.chip.ok { background: color-mix(in srgb, var(--ok) 20%, transparent); color: var(--ok); }
+.chip.pick { background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--accent); }
+.empty { color: var(--muted); padding: 26px; text-align: center; background: var(--panel); border: 1px dashed var(--line); border-radius: var(--r); }
+.switch { display: flex; gap: 14px; align-items: flex-start; }
+.switch input { width: 22px; height: 22px; accent-color: var(--accent); margin-top: 2px; flex: none; }
+.muted { color: var(--muted); }
+input[type=text], input[type=password], input[type=search] { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--tile); }
+.login { max-width: 420px; margin: 12vh auto 0; }
+.login p { color: var(--muted); }
+.row { display: flex; gap: 8px; }
+ol.flow { margin: 0; padding-left: 20px; color: var(--muted); }
+ol.flow b { color: var(--text); }
+#toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 10px; opacity: 0; transition: opacity .2s; pointer-events: none; max-width: calc(100% - 32px); }
+#toast.on { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="login" class="login panel" hidden>
+    <h1>Cubit <b>admin</b></h1>
+    <p>Paste the admin token: the <code>admin.token</code> file next to the server, or <code>ADMIN_TOKEN</code>. It stays in this browser only.</p>
+    <form id="loginForm" class="row">
+      <input id="tok" type="password" autocomplete="off" placeholder="Admin token" aria-label="Admin token">
+      <button class="btn pri" type="submit">Sign in</button>
+    </form>
+    <p id="loginErr" style="color:var(--bad)"></p>
+  </div>
+
+  <div id="app" hidden>
+    <header>
+      <h1>Cubit <b>admin</b></h1>
+      <span class="sp"></span>
+      <button class="btn" id="refresh">Refresh</button>
+      <button class="btn" id="logout">Sign out</button>
+    </header>
+    <nav id="tabs"></nav>
+    <main id="view"></main>
+  </div>
+</div>
+<div id="toast" role="status"></div>
+<script>
+"use strict";
+const KEY = "cubitAdminToken";
+const $ = s => document.querySelector(s);
+let token = "";
+try { token = localStorage.getItem(KEY) || ""; } catch (e) {}
+let stats = {}, tab = "overview", cubeView = "review";
+
+function el(tag, attrs, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (k === "class") e.className = v;
+    else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
+    else if (v !== false && v != null) e.setAttribute(k, v === true ? "" : v);
+  }
+  for (const k of kids.flat()) if (k != null && k !== false) e.append(k instanceof Node ? k : document.createTextNode(String(k)));
+  return e;
+}
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.classList.add("on"); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove("on"), 2600); }
+async function api(method, path, body) {
+  const r = await fetch(path, { method, headers: { Authorization: "Bearer " + token, ...(body ? { "Content-Type": "application/json" } : {}) }, body: body ? JSON.stringify(body) : undefined });
+  const j = await r.json().catch(() => ({}));
+  if (r.status === 401) { signOut("That token didn't work."); throw new Error("admin only"); }
+  if (!r.ok) throw new Error(j.error || ("HTTP " + r.status));
+  return j;
+}
+const ago = s => { const d = Date.now() / 1000 - s; return d < 3600 ? Math.max(1, Math.round(d / 60)) + " min ago" : d < 86400 ? Math.round(d / 3600) + " h ago" : Math.round(d / 86400) + " d ago"; };
+const time = ms => { const s = Math.round(ms / 1000); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
+const feel = v => v ? (v < 1.67 ? "easy" : v < 2.34 ? "just right" : "hard") : "";
+
+function signOut(msg) {
+  token = ""; try { localStorage.removeItem(KEY); } catch (e) {}
+  $("#app").hidden = true; $("#login").hidden = false; $("#loginErr").textContent = msg || ""; $("#tok").focus();
+}
+$("#loginForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  token = $("#tok").value.trim();
+  try { await api("GET", "/v1/admin/stats"); try { localStorage.setItem(KEY, token); } catch (e) {} $("#tok").value = ""; start(); }
+  catch (err) { if (token) $("#loginErr").textContent = err.message; }
+});
+$("#logout").addEventListener("click", () => signOut());
+$("#refresh").addEventListener("click", () => render());
+
+const TABS = [["overview", "Overview"], ["cubes", "Community cubes"], ["bios", "Bios"], ["runs", "Held runs"], ["clubs", "Clubs"], ["players", "Players"]];
+function nav() {
+  const pending = { cubes: (stats.cubesReview || 0) + (stats.cubesHidden || 0), bios: stats.reportedBios || 0, runs: stats.heldRuns || 0 };
+  $("#tabs").replaceChildren(...TABS.map(([k, l]) => el("button", { class: tab === k ? "on" : "", onclick: () => { tab = k; render(); } },
+    l, pending[k] ? el("span", { class: "badge" }, pending[k]) : null)));
+}
+async function start() { $("#login").hidden = true; $("#app").hidden = false; render(); }
+async function render() {
+  try { stats = await api("GET", "/v1/admin/stats"); } catch (e) { return; }
+  nav();
+  const v = $("#view");
+  v.replaceChildren(el("div", { class: "muted" }, "Loading…"));
+  try { v.replaceChildren(...await VIEWS[tab]()); }
+  catch (e) { v.replaceChildren(el("div", { class: "empty" }, "Couldn't load: " + e.message)); }
+}
+async function act(method, path, body, done) {
+  try { await api(method, path, body); toast(done); render(); } catch (e) { toast(e.message); }
+}
+const empty = msg => el("div", { class: "empty" }, msg);
+
+const VIEWS = {
+  async overview() {
+    const st = await api("GET", "/v1/admin/settings");
+    const t = (n, l, hot) => el("div", { class: "tile" + (hot && n ? " hot" : "") }, el("div", { class: "n" }, (n || 0).toLocaleString()), el("div", { class: "l" }, l));
+    const box = el("input", { type: "checkbox", id: "rev", checked: st.reviewCubes, onchange: e => act("POST", "/v1/admin/settings", { reviewCubes: e.target.checked },
+      e.target.checked ? "New cubes now wait for you" : "Review off: waiting cubes are live") });
+    return [
+      el("div", { class: "panel" }, el("h2", {}, "Players"), el("div", { class: "tiles" },
+        t(stats.registered, "registered"), t(stats.ranked, "ranked"), t(stats.newLast7Days, "new this week"), t(stats.banned, "banned"), t(stats.clubs, "clubs"))),
+      el("div", { class: "panel" }, el("h2", {}, "Needs you"), el("div", { class: "tiles" },
+        t(stats.cubesReview, "cubes to review", 1), t(stats.cubesHidden, "cubes hidden by reports", 1), t(stats.reportedBios, "reported bios", 1), t(stats.heldRuns, "held runs", 1))),
+      el("div", { class: "panel" }, el("h2", {}, "Community cubes"), el("div", { class: "tiles" },
+        t(stats.cubesLive, "live"), t(stats.cubesTesting, "waiting for their playtest"), t(stats.cubesReview, "waiting for review"))),
+      el("div", { class: "panel" },
+        el("h2", {}, "How a cube gets published"),
+        el("ol", { class: "flow" },
+          el("li", {}, el("b", {}, "Made: "), "a player builds it in the cube maker, titles it and taps Publish. The title goes through the name filter."),
+          el("li", {}, el("b", {}, "Playtest: "), "only they can see it until they clear it themselves in a verified run. That proves it's beatable and sets the maker's time. Not playtested in 7 days, it's dropped."),
+          el("li", {}, el("b", {}, "Review (optional): "), "with the switch below on, it waits in Community cubes → Waiting for you to approve."),
+          el("li", {}, el("b", {}, "Live: "), "everyone can play, like, rate the difficulty after clearing it, and report it. Three reports hide it until you look.")),
+        el("div", { class: "switch", style: "margin-top:16px" }, box,
+          el("label", { for: "rev" }, el("b", {}, "Review cubes before they go live"), el("div", { class: "muted" }, "Turning it off lets every waiting cube go live.")))),
+    ];
+  },
+
+  async cubes() {
+    const seg = el("div", { class: "seg" }, ...[["review", "Waiting for review"], ["reported", "Reported"], ["all", "Live"], ["testing", "In playtest"]].map(([k, l]) =>
+      el("button", { class: cubeView === k ? "on" : "", onclick: () => { cubeView = k; render(); } }, l)));
+    const list = await api("GET", "/v1/admin/cubes?view=" + cubeView);
+    if (!list.length) return [seg, empty({ review: "Nothing waiting. New cubes land here when review is on (Overview).", reported: "No reported cubes.", all: "No live cubes yet.", testing: "No cubes waiting for their maker's playtest." }[cubeView])];
+    return [seg, el("div", { class: "list" }, list.map(c => {
+      const link = "https://taynotfound.github.io/cubit/open.html?pack=" + encodeURIComponent("1_" + c.n + "." + c.maxLen + "." + c.seed36 + "." + (c.special ? 1 : 0) + "_" + encodeURIComponent(c.title));
+      const id = encodeURIComponent(c.id), P = "/v1/admin/cubes/" + id;
+      const chips = [
+        c.state === "review" ? el("span", { class: "chip warn" }, "waiting") : c.state === "testing" ? el("span", { class: "chip" }, "in playtest") : c.hidden ? el("span", { class: "chip bad" }, "hidden") : el("span", { class: "chip ok" }, "live"),
+        c.featured && el("span", { class: "chip pick" }, "★ pick"),
+        c.reports && el("span", { class: "chip bad" }, c.reports + " report" + (c.reports === 1 ? "" : "s")),
+        c.kept && el("span", { class: "chip" }, "kept"),
+      ];
+      return el("div", { class: "item" },
+        el("div", { class: "main" },
+          el("div", { class: "t" }, c.title, " ", chips),
+          el("div", { class: "m" }, "by ", c.author, " (", c.authorCode, ") · made ", ago(c.created)),
+          el("div", { class: "m" }, `${c.n}×${c.n} · arrows up to ${c.maxLen} · ${c.arrows} arrows · par ${c.par}` + (c.special ? " · special arrows" : "") +
+            (c.authorMs ? ` · maker's time ${time(c.authorMs)}` : "") + ` · ♥ ${c.likes} · ${c.wins} cleared` + (c.votes ? ` · feels ${feel(c.rating)} (${c.rating.toFixed(1)}, ${c.votes} votes)` : ""))),
+        el("div", { class: "acts" },
+          el("a", { class: "btn", href: link, target: "_blank", rel: "noopener" }, "Open in app"),
+          c.state === "review" && el("button", { class: "btn ok", onclick: () => act("POST", P, { action: "approve" }, c.title + " is live") }, "Approve"),
+          c.reports > 0 && !c.kept && el("button", { class: "btn ok", onclick: () => act("POST", P, { action: "keep" }, "Kept " + c.title) }, "Keep"),
+          !c.state && el("button", { class: "btn", onclick: () => act("POST", P, { action: c.featured ? "unfeature" : "feature" }, c.featured ? "Unpicked" : c.title + " is a pick") }, c.featured ? "Unpick" : "★ Pick"),
+          el("button", { class: "btn bad", onclick: () => confirm(`Remove "${c.title}" for good?`) && act("POST", P, { action: "remove" }, "Removed " + c.title) }, "Remove"),
+          el("button", { class: "btn bad", onclick: () => confirm(`Ban ${c.author}? Their runs and cubes leave the boards.`) &&
+            act("POST", "/v1/admin/devices/" + encodeURIComponent(c.authorDevice), { banned: true }, "Banned " + c.author) }, "Ban maker")));
+    }))];
+  },
+
+  async bios() {
+    const list = await api("GET", "/v1/admin/reports");
+    if (!list.length) return [empty("No reported bios.")];
+    return [el("div", { class: "list" }, list.map(b => {
+      const P = "/v1/admin/reports/" + encodeURIComponent(b.code);
+      return el("div", { class: "item" },
+        el("div", { class: "main" }, el("div", { class: "t" }, b.name, " ", el("span", { class: "chip bad" }, b.reports + " report" + (b.reports === 1 ? "" : "s")), b.hidden && el("span", { class: "chip" }, "hidden")),
+          el("div", { class: "m" }, b.code), el("div", { class: "q" }, b.bio || "(empty)")),
+        el("div", { class: "acts" },
+          el("button", { class: "btn ok", onclick: () => act("POST", P, { action: "keep" }, "Kept") }, "Keep"),
+          el("button", { class: "btn", onclick: () => act("POST", P, { action: "remove" }, "Bio removed") }, "Remove bio"),
+          el("button", { class: "btn bad", onclick: () => act("POST", P, { action: "lock" }, "Bio removed and locked") }, "Remove & lock")));
+    }))];
+  },
+
+  async runs() {
+    const list = await api("GET", "/v1/admin/held");
+    if (!list.length) return [empty("No held runs. Runs that look off (too fast, odd taps) wait here.")];
+    return [el("div", { class: "list" }, list.map(h => {
+      const P = "/v1/admin/held/" + encodeURIComponent(h.run);
+      return el("div", { class: "item" },
+        el("div", { class: "main" }, el("div", { class: "t" }, h.name || "Player", " · ", h.label),
+          el("div", { class: "m" }, `score ${h.score} · ${time(h.ms)}`), el("div", { class: "q" }, (h.reasons || []).join("\n"))),
+        el("div", { class: "acts" },
+          el("button", { class: "btn ok", onclick: () => act("POST", P, { action: "approve" }, "Approved") }, "Approve"),
+          el("button", { class: "btn bad", onclick: () => act("POST", P, { action: "reject" }, "Rejected") }, "Reject")));
+    }))];
+  },
+
+  async clubs() {
+    const list = await api("GET", "/v1/admin/clubs");
+    if (!list.length) return [empty("No clubs yet.")];
+    return [el("div", { class: "list" }, list.map(c => el("div", { class: "item" },
+      el("div", { class: "main" }, el("div", { class: "t" }, c.name), el("div", { class: "m" }, `${c.code} · ${c.members} member${c.members === 1 ? "" : "s"} · owner ${c.owner} · ${ago(c.created)}`)),
+      el("div", { class: "acts" }, el("button", { class: "btn bad", onclick: () => confirm(`Disband ${c.name}?`) && act("POST", "/v1/admin/clubs/" + encodeURIComponent(c.code), { action: "remove" }, "Disbanded " + c.name) }, "Disband")))))];
+  },
+
+  async players() {
+    const all = await api("GET", "/v1/admin/devices");
+    all.sort((a, b) => b.xp - a.xp);
+    const out = el("div", { class: "list" });
+    const q = el("input", { type: "search", placeholder: `Search ${all.length.toLocaleString()} players by name or friend code`, "aria-label": "Search players" });
+    const show = () => {
+      const s = q.value.trim().toLowerCase();
+      const hit = all.filter(p => !s || p.name.toLowerCase().includes(s) || (p.code || "").toLowerCase().includes(s)).slice(0, 60);
+      out.replaceChildren(...(hit.length ? hit.map(p => el("div", { class: "item" },
+        el("div", { class: "main" }, el("div", { class: "t" }, p.name, " ", p.dev && el("span", { class: "chip pick" }, "DEV"), p.banned && el("span", { class: "chip bad" }, "banned")),
+          el("div", { class: "m" }, `${p.code || "no code"} · LV ${p.level} · ${p.xp.toLocaleString()} XP · ${p.runs} runs` + (p.created ? " · joined " + ago(p.created) : ""))),
+        el("div", { class: "acts" },
+          el("button", { class: "btn", onclick: () => act("POST", "/v1/admin/devices/" + encodeURIComponent(p.device), { dev: !p.dev }, p.dev ? "Developer badge off" : p.name + " has the Developer badge") }, p.dev ? "Remove DEV" : "Make DEV"),
+          el("button", { class: "btn", onclick: () => { const n = prompt("New name for " + p.name, p.name); if (n) act("POST", "/v1/admin/devices/" + encodeURIComponent(p.device), { name: n }, "Renamed"); } }, "Rename"),
+          el("button", { class: "btn" + (p.banned ? " ok" : " bad"), onclick: () => (p.banned || confirm(`Ban ${p.name}?`)) &&
+            act("POST", "/v1/admin/devices/" + encodeURIComponent(p.device), { banned: !p.banned }, p.banned ? "Unbanned" : "Banned") }, p.banned ? "Unban" : "Ban")))) : [empty("Nobody by that name.")]));
+    };
+    q.addEventListener("input", show); show();
+    return [el("div", { style: "margin-bottom:12px" }, q), out];
+  },
+};
+
+if (token) start(); else signOut();
+</script>
+</body>
+</html>

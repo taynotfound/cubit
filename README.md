@@ -104,6 +104,10 @@ cd server && go test ./... && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" 
 
 Bug reports, ideas and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) covers setting up, how the code is laid out, the house rules and how pull requests are tested: CI builds a debug APK you can install from each pull request.
 
+## Say hi
+
+I'm Tay and I made Cubit. Add me in the app (Social → Friends): my friend code is **18B7-2243**, or [tap here on your phone](https://taynotfound.github.io/cubit/open.html?f=18B72243). Race my runs, send me a challenge.
+
 ## Support
 
 Cubit is free with no ads. If you enjoy it, you can chip in on [Ko-fi](https://ko-fi.com/taygotkofi) or [GitHub Sponsors](https://github.com/sponsors/taynotfound). It keeps the leaderboard server running.

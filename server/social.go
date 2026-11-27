@@ -157,7 +157,9 @@ func (a *App) report(w http.ResponseWriter, r *http.Request) {
 }
 
 // notifyAdmin pushes a line to the admin's ntfy topic when NTFY_URL is set (e.g. https://ntfy.example.org/cubit-admin).
-func (a *App) notifyAdmin(msg string) {
+func (a *App) notifyAdmin(msg string) { notify(msg) }
+
+func notify(msg string) {
 	u := os.Getenv("NTFY_URL")
 	if u == "" {
 		log.Println("admin:", msg)
@@ -515,7 +517,7 @@ func (a *App) myLeague(w http.ResponseWriter, r *http.Request) {
 	players := []map[string]any{}
 	if d.League != nil && d.League.Week == week {
 		for _, m := range a.store.groupOf(week, d.League.Tier, d.League.Group) {
-			players = append(players, map[string]any{"name": m.D.Name, "level": playerLevel(m.D.XP), "xp": m.XP, "code": m.D.publicCode(), "me": m.ID == dev})
+			players = append(players, map[string]any{"name": m.D.Name, "level": playerLevel(m.D.XP), "xp": m.XP, "code": m.D.publicCode(), "me": m.ID == dev, "dev": m.D.Dev})
 		}
 	}
 	out["players"] = players
@@ -615,5 +617,5 @@ func (s *Store) afterRun(id string, d *Device, sc Score, levelBefore int, now ti
 	}
 	s.leagueEarn(id, d, sc.XP, now)
 	s.inviteReward(d)
-	s.cubeWon(id, sc.Spec)
+	s.cubeWon(id, sc, now)
 }

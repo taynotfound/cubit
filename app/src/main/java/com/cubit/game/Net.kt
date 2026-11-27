@@ -9,12 +9,14 @@ import java.net.URL
 import java.util.concurrent.Executors
 
 /** [public]: the player has a public profile, which [code] opens. On the board the code comes only with one. */
-data class GlobalPlayer(val name: String, val xp: Int, val level: Int, val cleanRuns: Int, val code: String = "", val public: Boolean = false, val bio: String = "")
+data class GlobalPlayer(val name: String, val xp: Int, val level: Int, val cleanRuns: Int, val code: String = "", val public: Boolean = false, val bio: String = "",
+                        /** Cubit's developer (the server sets it): a DEV tag on their name. */
+                        val dev: Boolean = false)
 /** A player's public profile page (GET /v1/profile/{code}). Badges and the daily numbers come from their phone. */
 class PublicProfile(val code: String, val name: String, val level: Int, val xp: Int, val runs: Int, val cleanRuns: Int, val endlessBest: Int,
                     val since: Long, val badges: List<String>, val streak: Int, val solved: Int, val dailySolved: Int, val best: List<ScoreEntry>,
                     /** World Cubes they helped clear, and ones they freed themselves. */
-                    val worldCubes: Int = 0, val worldWins: Int = 0, val bio: String = "")
+                    val worldCubes: Int = 0, val worldWins: Int = 0, val bio: String = "", val dev: Boolean = false)
 /** [total] is every ranked player, where [players] lists only the top of the board. */
 data class GlobalBoard(val players: List<GlobalPlayer>, val scores: List<ScoreEntry>, val total: Int = players.size)
 data class RunResult(val status: String, val score: Int, val xp: Int, val rank: Int)
@@ -154,7 +156,7 @@ object Net {
             PublicProfile(o.getString("code"), o.optString("name"), o.optInt("level"), o.optInt("xp"), o.optInt("runs"), o.optInt("cleanRuns"),
                 o.optInt("endlessBest"), o.optLong("since"), (0 until b.length()).map { b.getString(it) }, o.optInt("streak"), o.optInt("solved"),
                 o.optInt("dailySolved"), parseBoard(JSONObject().put("scores", o.optJSONArray("best") ?: JSONArray())).scores,
-                o.optInt("worldCubes"), o.optInt("worldWins"), o.optString("bio"))
+                o.optInt("worldCubes"), o.optInt("worldWins"), o.optString("bio"), o.optBoolean("dev"))
         }
         main.post { done(r) }
     }
@@ -171,7 +173,7 @@ object Net {
             val a = JSONObject(request("GET", "/v1/friends?codes=" + codes.joinToString(","), null, null)).getJSONArray("friends")
             (0 until a.length()).map { a.getJSONObject(it) }.map { f ->
                 val best = f.optJSONObject("best")?.let { parseBoard(JSONObject().put("scores", JSONArray().put(it))).scores.first() }
-                GlobalPlayer(f.optString("name"), f.optInt("xp"), f.optInt("level"), f.optInt("cleanRuns"), f.optString("code"), f.optBoolean("public"), f.optString("bio")) to best
+                GlobalPlayer(f.optString("name"), f.optInt("xp"), f.optInt("level"), f.optInt("cleanRuns"), f.optString("code"), f.optBoolean("public"), f.optString("bio"), f.optBoolean("dev")) to best
             }
         }
         main.post { done(r) }
@@ -250,7 +252,7 @@ object Net {
             val o = JSONObject(authed(p, "GET", "/v1/me/league", null))
             val t = o.getJSONArray("tiers"); val ps = o.getJSONArray("players"); val last = o.optJSONObject("last")
             LeagueState(o.getInt("week"), o.optInt("tier"), (0 until t.length()).map { t.getString(it) }, o.optLong("ends"), o.optInt("move", 3),
-                (0 until ps.length()).map { ps.getJSONObject(it) }.map { LeagueRow(it.optString("name"), it.optInt("level"), it.optInt("xp"), it.optString("code"), it.optBoolean("me")) },
+                (0 until ps.length()).map { ps.getJSONObject(it) }.map { LeagueRow(it.optString("name"), it.optInt("level"), it.optInt("xp"), it.optString("code"), it.optBoolean("me"), it.optBoolean("dev")) },
                 last?.optInt("week") ?: 0, last?.optInt("rank") ?: 0, last?.optInt("of") ?: 0, last?.optString("move").orEmpty(), last?.optInt("tier") ?: 0)
         }
         main.post { done(r) }
@@ -267,7 +269,7 @@ object Net {
                 c?.let { j ->
                     val ms = j.getJSONArray("members")
                     MyClub(j.optString("code"), j.optString("name"), j.optBoolean("owner"), j.optInt("xp"), j.optInt("rank"),
-                        (0 until ms.length()).map { ms.getJSONObject(it) }.map { ClubMember(it.optString("name"), it.optInt("level"), it.optInt("xp"), it.optString("code"), it.optBoolean("me"), it.optBoolean("owner")) })
+                        (0 until ms.length()).map { ms.getJSONObject(it) }.map { ClubMember(it.optString("name"), it.optInt("level"), it.optInt("xp"), it.optString("code"), it.optBoolean("me"), it.optBoolean("owner"), it.optBoolean("dev")) })
                 })
         }
         main.post { done(r) }
@@ -280,7 +282,8 @@ object Net {
 
     private fun cubeOf(o: JSONObject) = CommunityCube(o.optString("id"), o.optString("title"), o.optString("author"),
         LevelSpec(o.getInt("n"), o.getInt("maxLen"), o.getLong("seed"), special = o.optBoolean("special")),
-        o.optInt("arrows"), o.optInt("par"), o.optInt("likes"), o.optInt("wins"), o.optBoolean("liked"), o.optBoolean("won"), o.optBoolean("mine"))
+        o.optInt("arrows"), o.optInt("par"), o.optInt("likes"), o.optInt("wins"), o.optBoolean("liked"), o.optBoolean("won"), o.optBoolean("mine"),
+        o.optString("state"), o.optBoolean("featured"), o.optLong("authorMs"), o.optDouble("rating", 0.0), o.optInt("votes"), o.optInt("myRating"), o.optBoolean("dev"))
 
     /** Community cubes: [sort] "top" or "new", or your own with [mine]. Works signed out too (no liked/won marks). */
     fun cubes(p: Prefs, sort: String, page: Int, mine: Boolean, done: (CubePage?) -> Unit) = io.execute {
@@ -296,6 +299,7 @@ object Net {
     fun publishCube(p: Prefs, title: String, s: LevelSpec, done: (String?) -> Unit) =
         act(p, "POST", "/v1/cubes", JSONObject().put("title", title).put("n", s.n).put("maxLen", s.maxLen).put("seed", s.seed).put("special", s.special), done)
     fun likeCube(p: Prefs, id: String, on: Boolean, done: (String?) -> Unit) = act(p, if (on) "POST" else "DELETE", "/v1/cubes/$id/like", null, done)
+    fun rateCube(p: Prefs, id: String, rating: Int, done: (String?) -> Unit) = act(p, "POST", "/v1/cubes/$id/rate", JSONObject().put("rating", rating), done)
     fun reportCube(p: Prefs, id: String, done: (String?) -> Unit) = act(p, "POST", "/v1/cubes/$id/report", null, done)
     fun removeCube(p: Prefs, id: String, done: (String?) -> Unit) = act(p, "DELETE", "/v1/cubes/$id", null, done)
 
@@ -371,11 +375,11 @@ object Net {
 
     private fun parseBoard(o: JSONObject): GlobalBoard {
         fun arr(k: String) = o.optJSONArray(k) ?: JSONArray()
-        val players = arr("players").let { a -> (0 until a.length()).map { a.getJSONObject(it) }.map { GlobalPlayer(it.optString("name"), it.optInt("xp"), it.optInt("level"), it.optInt("cleanRuns"), it.optString("code"), it.optString("code").isNotEmpty()) } }
+        val players = arr("players").let { a -> (0 until a.length()).map { a.getJSONObject(it) }.map { GlobalPlayer(it.optString("name"), it.optInt("xp"), it.optInt("level"), it.optInt("cleanRuns"), it.optString("code"), it.optString("code").isNotEmpty(), dev = it.optBoolean("dev")) } }
         val scores = arr("scores").let { a -> (0 until a.length()).map { a.getJSONObject(it) }.map {
             val pu = it.optJSONArray("powerups") ?: JSONArray()
             ScoreEntry(it.optString("name"), it.optInt("score"), it.optString("label"), it.optString("difficulty"), it.optLong("time"),
-                it.optInt("arrows"), it.optLong("ms"), it.optInt("mistakes"), it.optInt("size"), (0 until pu.length()).map { i -> pu.getString(i) }, it.optInt("level"), run = it.optString("run"), code = it.optString("code"))
+                it.optInt("arrows"), it.optLong("ms"), it.optInt("mistakes"), it.optInt("size"), (0 until pu.length()).map { i -> pu.getString(i) }, it.optInt("level"), run = it.optString("run"), code = it.optString("code"), dev = it.optBoolean("dev"))
         } }
         return GlobalBoard(players, scores, maxOf(o.optInt("total"), players.size))
     }

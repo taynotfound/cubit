@@ -17,6 +17,8 @@ type Profile struct {
 	Updated     int64    `json:"updated"`
 }
 
+const devBadge = "DEV"
+
 var badgeName = regexp.MustCompile(`^[A-Z0-9_]{1,24}$`)
 
 // setProfile turns the caller's public page on or off and refreshes what it shows.
@@ -74,17 +76,22 @@ func (a *App) profile(w http.ResponseWriter, r *http.Request) {
 			if pu == nil {
 				pu = []string{}
 			}
-			best = append(best, publicScore{sc.RunID, d.Name, playerLevel(d.XP), sc.Score, sc.Label, sc.Difficulty, sc.Time, sc.Arrows, sc.Ms, sc.Mistakes, sc.Size, pu, d.publicCode()})
+			best = append(best, publicScore{sc.RunID, d.Name, playerLevel(d.XP), sc.Score, sc.Label, sc.Difficulty, sc.Time, sc.Arrows, sc.Ms, sc.Mistakes, sc.Size, pu, d.publicCode(), d.Dev})
 		}
 	}
 	p := d.Profile
-	badges := p.Badges
-	if badges == nil {
-		badges = []string{}
+	badges := []string{}
+	if d.Dev {
+		badges = append(badges, devBadge) // only the server gives this one
+	}
+	for _, b := range p.Badges {
+		if b != devBadge {
+			badges = append(badges, b)
+		}
 	}
 	w.Header().Set("Cache-Control", "public, max-age=30")
 	send(w, http.StatusOK, map[string]any{"code": c, "name": d.Name, "level": playerLevel(d.XP), "xp": d.XP, "runs": d.Runs, "cleanRuns": d.CleanRuns,
-		"endlessBest": d.EndlessBest, "worldCubes": d.WorldCubes, "worldWins": d.WorldWins, "since": d.Created, "badges": badges, "streak": p.Streak, "solved": p.Solved, "dailySolved": p.DailySolved, "best": best, "bio": d.publicBio()})
+		"endlessBest": d.EndlessBest, "worldCubes": d.WorldCubes, "worldWins": d.WorldWins, "since": d.Created, "badges": badges, "streak": p.Streak, "solved": p.Solved, "dailySolved": p.DailySolved, "best": best, "bio": d.publicBio(), "dev": d.Dev})
 }
 
 // stats is the public player count for the website: everyone with a verified run, and everyone who turned rankings on.

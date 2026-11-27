@@ -300,6 +300,9 @@ func (a *App) startRun(w http.ResponseWriter, r *http.Request) {
 		a.store.mu.Lock()
 		if c := a.store.cubeBySpec(run.Spec); c != nil && !run.Spec.Lap {
 			run.Label = "Community · " + c.Title
+			if c.State == stateTesting && c.Author == dev {
+				run.Label = "Playtest · " + c.Title
+			}
 		}
 		a.store.mu.Unlock()
 	}
@@ -483,7 +486,8 @@ func (a *App) adminDevices(w http.ResponseWriter, r *http.Request) {
 	defer a.store.mu.Unlock()
 	out := []map[string]any{}
 	for id, d := range a.store.db.Devices {
-		out = append(out, map[string]any{"device": id, "name": d.Name, "xp": d.XP, "runs": d.Runs, "banned": d.Banned})
+		out = append(out, map[string]any{"device": id, "name": d.Name, "code": d.Code, "xp": d.XP, "level": playerLevel(d.XP), "runs": d.Runs,
+			"banned": d.Banned, "dev": d.Dev, "created": d.Created})
 	}
 	send(w, http.StatusOK, out)
 }
@@ -492,7 +496,23 @@ func (a *App) adminDevices(w http.ResponseWriter, r *http.Request) {
 func (a *App) adminStats(w http.ResponseWriter, r *http.Request) {
 	a.store.mu.Lock()
 	defer a.store.mu.Unlock()
-	banned, fresh := 0, 0
+	banned, fresh, live, review, testing, hidden := 0, 0, 0, 0, 0, 0
+	for _, c := range a.store.db.Cubes {
+		switch {
+		case c.State == stateReview:
+			review++
+		case c.State == stateTesting:
+			testing++
+		case c.Hidden:
+			hidden++
+		default:
+			live++
+		}
+	}
+	reported := map[string]bool{}
+	for _, rp := range a.store.db.Reports {
+		reported[rp.Code] = true
+	}
 	for _, d := range a.store.db.Devices {
 		if d.Banned {
 			banned++
@@ -502,13 +522,15 @@ func (a *App) adminStats(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	send(w, http.StatusOK, map[string]int{"registered": len(a.store.db.Devices), "ranked": a.store.ranked(), "banned": banned,
-		"newLast7Days": fresh, "heldRuns": len(a.store.db.Held)})
+		"newLast7Days": fresh, "heldRuns": len(a.store.db.Held), "cubesLive": live, "cubesReview": review, "cubesTesting": testing,
+		"cubesHidden": hidden, "reportedBios": len(reported), "clubs": len(a.store.db.Clubs)})
 }
 
 func (a *App) adminDevice(w http.ResponseWriter, r *http.Request) {
 	var b struct {
 		Banned *bool
 		Name   *string
+		Dev    *bool
 	}
 	if !decode(w, r, 512, &b) {
 		return
@@ -523,6 +545,9 @@ func (a *App) adminDevice(w http.ResponseWriter, r *http.Request) {
 	if b.Banned != nil {
 		d.Banned = *b.Banned
 	}
+	if b.Dev != nil {
+		d.Dev = *b.Dev
+	}
 	if b.Name != nil {
 		n, ok := cleanName(*b.Name)
 		if !ok {
@@ -532,7 +557,7 @@ func (a *App) adminDevice(w http.ResponseWriter, r *http.Request) {
 		d.Name = n
 	}
 	a.store.markDirty()
-	send(w, http.StatusOK, map[string]any{"name": d.Name, "banned": d.Banned})
+	send(w, http.StatusOK, map[string]any{"name": d.Name, "banned": d.Banned, "dev": d.Dev})
 }
 
 // ---------- wiring ----------
@@ -617,9 +642,13 @@ func (a *App) routes() http.Handler {
 	m.HandleFunc("POST /v1/cubes/{id}/like", a.likeCube)
 	m.HandleFunc("DELETE /v1/cubes/{id}/like", a.likeCube)
 	m.HandleFunc("POST /v1/cubes/{id}/report", a.reportCube)
+	m.HandleFunc("POST /v1/cubes/{id}/rate", a.rateCube)
 	m.HandleFunc("DELETE /v1/cubes/{id}", a.removeCube)
 	m.HandleFunc("GET /v1/admin/cubes", a.admin(a.adminCubes))
 	m.HandleFunc("POST /v1/admin/cubes/{id}", a.admin(a.adminCube))
+	m.HandleFunc("GET /v1/admin/settings", a.admin(a.adminSettings))
+	m.HandleFunc("POST /v1/admin/settings", a.admin(a.adminSettings))
+	m.HandleFunc("GET /admin", a.adminPage)
 	m.HandleFunc("POST /v1/clubs", a.createClub)
 	m.HandleFunc("POST /v1/clubs/{code}/join", a.joinClub)
 	m.HandleFunc("POST /v1/me/club/leave", a.leaveClubHandler)
@@ -684,6 +713,12 @@ func (a *App) janitor() {
 		}
 		a.mu.Unlock()
 		a.store.pruneEndless(a.now().Unix())
+		a.store.mu.Lock()
+		gone := a.store.pruneCubes(a.now().Unix())
+		a.store.mu.Unlock()
+		if gone {
+			a.store.markDirty()
+		}
 	}
 }
 

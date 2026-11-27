@@ -266,7 +266,7 @@ func (a *App) myClub(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			members = append(members, map[string]any{"name": m.Name, "level": playerLevel(m.XP), "xp": weekXP(m, week),
-				"code": m.Code, "me": id == dev, "owner": id == c.Owner})
+				"code": m.Code, "me": id == dev, "owner": id == c.Owner, "dev": m.Dev})
 		}
 		sort.SliceStable(members, func(i, j int) bool { return members[i]["xp"].(int) > members[j]["xp"].(int) })
 		rank := 0

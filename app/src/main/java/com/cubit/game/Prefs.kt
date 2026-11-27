@@ -149,6 +149,8 @@ data class ScoreEntry(
     val spec: LevelSpec? = null, val moves: List<LongArray> = emptyList(),
     /** The player's friend code, sent only when they have a public profile to open. */
     val code: String = "",
+    /** Run by Cubit's developer (board rows only). */
+    val dev: Boolean = false,
 )
 
 class Prefs(ctx: Context) {
