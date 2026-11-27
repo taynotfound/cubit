@@ -209,9 +209,14 @@ func score(r Replay, spec LevelSpec, d Difficulty, free bool, timeLimit int, ser
 
 // suspicion returns reasons a valid replay looks automated or clock-tampered. Flagged runs are held for review
 // instead of rejected, because fast humans exist.
+const clockSlackMs = 30_000
+
 func suspicion(r Replay, moves []Move, timeLimit int, serverMs int64) []string {
 	var why []string
-	if r.LastMs > serverMs+5000 {
+	// The phone starts its clock with the level and the server when the run's start request arrives. That request can
+	// wait in the app's queue behind others (1.8's friends, league and board calls), so allow a generous lead: a
+	// clock that's really been tampered with runs far further ahead than this.
+	if r.LastMs > serverMs+clockSlackMs {
 		why = append(why, fmt.Sprintf("client clock %dms exceeds server clock %dms", r.LastMs, serverMs))
 	}
 	if timeLimit > 0 && r.LastMs > int64(timeLimit)*1000+1500 {

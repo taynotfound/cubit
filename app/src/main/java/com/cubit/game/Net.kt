@@ -41,6 +41,9 @@ class EndlessCube(val id: String, val lives: Int, val bonusSec: Int)
 object Net {
     private const val BASE = "https://cubit-lb-api.taymaerz.de"
     private val io = Executors.newSingleThreadExecutor()
+    /** Starting and finishing ranked runs get their own lane: queued behind friends, league or board calls, a run's
+     *  start reached the server seconds late, its clock fell behind the phone's, and the run was held for review. */
+    private val runs = Executors.newSingleThreadExecutor()
     private val main = Handler(Looper.getMainLooper())
     /** Why the last request failed, shown in Rankings so connection problems are diagnosable on the phone. */
     @Volatile var lastError: String? = null
@@ -71,7 +74,7 @@ object Net {
     fun startRun(p: Prefs, spec: LevelSpec, campaignLevel: Int?, dailyDay: Int?, difficulty: String, fullClear: Boolean, week: Int? = null,
                  endless: EndlessCube? = null, done: (String?) -> Unit) {
         val name = p.name
-        io.execute {
+        runs.execute {
             val id = call {
                 val body = JSONObject().put("difficulty", difficulty).put("name", name).put("goal", if (fullClear) "all" else "pink")
                 if (endless != null) body.put("mode", "endless").put("endless", endless.id).put("lives", endless.lives).put("bonusSec", endless.bonusSec)
@@ -92,7 +95,7 @@ object Net {
         val arr = JSONArray()
         moves.forEach { arr.put(JSONArray().put(it[0]).put(it[1])) }
         val body = JSONObject().put("moves", arr).toString()
-        io.execute {
+        runs.execute {
             val r = call {
                 val o = JSONObject(authed(p, "POST", "/v1/runs/$run/finish", body))
                 RunResult(o.optString("status"), o.optInt("score"), o.optInt("xp"), o.optInt("rank"))
@@ -341,10 +344,14 @@ object Net {
         return false
     }
 
-    // Runs on the io thread.
+    private val registering = Any()
+
+    // Runs on the io or runs thread; registering is one at a time so two first calls can't make two players.
     private fun authed(p: Prefs, method: String, path: String, body: String?): String {
-        val token = p.lbToken ?: JSONObject(request("POST", "/v1/register", JSONObject().put("name", p.name).toString(), null))
-            .getString("token").also { p.lbToken = it }
+        val token = p.lbToken ?: synchronized(registering) {
+            p.lbToken ?: JSONObject(request("POST", "/v1/register", JSONObject().put("name", p.name).toString(), null))
+                .getString("token").also { p.lbToken = it }
+        }
         try {
             return request(method, path, body, token)
         } catch (e: HttpError) {

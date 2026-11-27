@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -187,4 +188,23 @@ func (h *harness) callList(method, path, token string) (int, []map[string]any) {
 	var out []map[string]any
 	json.NewDecoder(res.Body).Decode(&out)
 	return res.StatusCode, out
+}
+
+// A busy player's many runs mustn't push another player's only run off the board.
+func TestTrimKeepsEveryonesBest(t *testing.T) {
+	st, _ := openStore(t.TempDir() + "/db.json")
+	st.db.Devices["busy"] = &Device{Name: "Busy"}
+	st.db.Devices["slow"] = &Device{Name: "Slow"}
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	st.addScore(Score{RunID: "slow1", Device: "slow", Score: 10})
+	for i := 0; i < maxScores+50; i++ {
+		st.addScore(Score{RunID: "b" + strconv.Itoa(i), Device: "busy", Score: 1000 + i})
+	}
+	if len(st.db.Scores) > maxScores {
+		t.Fatalf("list grew to %d", len(st.db.Scores))
+	}
+	if r := st.rankOf("slow"); r != 2 {
+		t.Fatalf("slow player's rank %d, want 2", r)
+	}
 }

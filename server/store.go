@@ -254,9 +254,51 @@ func (s *Store) addScore(sc Score) int {
 	copy(s.db.Scores[i+1:], s.db.Scores[i:])
 	s.db.Scores[i] = sc
 	if len(s.db.Scores) > maxScores {
-		s.db.Scores = s.db.Scores[:maxScores]
+		s.trimScores()
 	}
 	return s.rankOf(sc.Device)
+}
+
+// trimScores brings the run list back to maxScores by dropping the lowest runs nobody needs: a player's runs beyond
+// their best 5, that are neither their best of the day nor of the week. Plain "keep the top 5000" let busy players
+// push everyone else's only run off the board, so a slower player had no rank at all. Every player's best, their
+// profile's top 5 and the daily and weekly boards stay; if that alone is more than maxScores, the list is longer.
+// Call with mu held.
+func (s *Store) trimScores() {
+	type dk struct {
+		dev  string
+		k, v int
+	}
+	count := map[string]int{}
+	best := map[dk]bool{}
+	keep := make([]bool, len(s.db.Scores))
+	for i, sc := range s.db.Scores { // best first, so the first seen is the best
+		count[sc.Device]++
+		if count[sc.Device] <= 5 {
+			keep[i] = true
+		}
+		if sc.Day > 0 && !best[dk{sc.Device, 1, sc.Day}] {
+			best[dk{sc.Device, 1, sc.Day}], keep[i] = true, true
+		}
+		if sc.Week > 0 && !best[dk{sc.Device, 2, sc.Week}] {
+			best[dk{sc.Device, 2, sc.Week}], keep[i] = true, true
+		}
+	}
+	drop := make([]bool, len(keep))
+	extra := len(s.db.Scores) - maxScores
+	for i := len(keep) - 1; i >= 0 && extra > 0; i-- { // lowest first
+		if !keep[i] {
+			drop[i] = true
+			extra--
+		}
+	}
+	out := s.db.Scores[:0]
+	for i, sc := range s.db.Scores {
+		if !drop[i] {
+			out = append(out, sc)
+		}
+	}
+	s.db.Scores = out
 }
 
 // rankOf is the player's position on the public board, which lists one best run per player, so a run that

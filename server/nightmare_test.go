@@ -116,3 +116,15 @@ func laneClear(occ []int, a int, cells []int) bool {
 	}
 	return true
 }
+
+// The run's start request can wait behind other calls in the app's queue, so the phone's clock may run ahead of
+// the server's by several seconds; that alone mustn't hold a run. A clock far ahead still does.
+func TestClockSlack(t *testing.T) {
+	moves := make([]Move, 10)
+	if why := suspicion(Replay{LastMs: 23_457}, moves, 0, 12_791); len(why) != 0 {
+		t.Fatalf("queued start held: %v", why)
+	}
+	if why := suspicion(Replay{LastMs: 60_000}, moves, 0, 12_000); len(why) == 0 {
+		t.Fatal("clock 48s ahead not held")
+	}
+}
